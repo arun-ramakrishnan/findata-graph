@@ -165,3 +165,42 @@ def test_table_info_rejects_bad_identifier(sqlite_store):
     with pytest.raises(ValueError):
         table_info(con, "entities; DROP TABLE entities")
     con.close()
+
+
+def test_duckdb_cursor_is_iterable(sqlite_store, duckdb_store):
+    """Regression: duckdb 2.0 ``connection.execute()`` returns the connection,
+    which is not iterable — ``_DuckDBCursor.__iter__`` must iterate the
+    materialized rows, keeping the sqlite cursor iteration surface."""
+    duck = connect_funnel(duckdb_store)
+    sqlite = connect_funnel(sqlite_store)
+    duck_rows = [row[0] for row in duck.execute("SELECT name FROM entities ORDER BY name")]
+    sqlite_rows = [row[0] for row in sqlite.execute("SELECT name FROM entities ORDER BY name")]
+    assert duck_rows == sqlite_rows
+    duck.close()
+    sqlite.close()
+
+
+def test_is_duckdb_conn_detects_raw_duckdb_module(duckdb_store):
+    """Regression (S2): duckdb 2.0 raw connections report
+    ``type(conn).__module__ == '_duckdb'`` (older builds: ``'duckdb'``).
+    Consumers such as note_query's ``_is_duckdb`` delegate here; a bare
+    ``== 'duckdb'`` check silently misdetected raw sidecar connections and
+    routed them down the SQLite FTS5 branch (ParserException on MATCH)."""
+    raw = duckdb.connect(str(duckdb_store), read_only=True)
+    try:
+        assert type(raw).__module__ in ("duckdb", "_duckdb")
+        assert is_duckdb_conn(raw) is True
+    finally:
+        raw.close()
+    proxied = connect_funnel(duckdb_store, read_only=True)
+    try:
+        assert is_duckdb_conn(proxied) is True
+    finally:
+        proxied.close()
+    import sqlite3
+
+    sqlite = sqlite3.connect(":memory:")
+    try:
+        assert is_duckdb_conn(sqlite) is False
+    finally:
+        sqlite.close()

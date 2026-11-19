@@ -263,6 +263,16 @@ def _split_sections(text: str) -> list[tuple[str, int, str]]:
 # and both legs of hybrid search always share a vector space.
 _PSEUDO_DIMS = 64
 
+# DuckDB rebuild deferred candidate #1 (duckdb_rebuild_incremental_carry,
+# completed.md #528): delta-apply on a near-full corpus is slower than a
+# clean full rebuild (measured 26.9 s vs 17.0 s at 100 % changed). When
+# the touched-file fraction (changed + deleted) reaches this threshold,
+# fold the carried files into the delta and run the full write path.
+# Overridable via env for tuning; default keeps small deltas incremental.
+DELTA_FULL_FALLBACK_THRESHOLD = float(
+    os.environ.get("DOC_DELTA_FULL_FALLBACK_THRESHOLD", "0.8")
+)
+
 _pseudo_warned = False
 
 
@@ -759,8 +769,36 @@ def _rebuild_sqlite(  # noqa: C901
             _print_staleness(stats)
             return stats
 
+        # Threshold fallback (mirrors the DuckDB carry path): when the
+        # delta set (changed + deleted) approaches the full corpus, a clean
+        # full rebuild is cheaper than the incremental write path. Fold
+        # carried files' hashes into hash_by_file so the full meta write
+        # covers the whole corpus.
+        _fallback_full = False
+        if incremental and rows_by_file:
+            _total_files = len(rows_by_file)
+            _carried_count = len(carried)
+            _stored = existing or {
+                r[0]: (r[1], r[2])
+                for r in conn.execute(
+                    "SELECT file_path, mtime, content_hash FROM doc_search_meta"
+                )
+            }
+            _deleted_count = len([fp for fp in _stored if fp not in rows_by_file])
+            _touched = _total_files - _carried_count + _deleted_count
+            if _total_files > 0 and (_touched / _total_files) >= DELTA_FULL_FALLBACK_THRESHOLD:
+                _fallback_full = True
+        if _fallback_full:
+            for _rel in list(carried):
+                for _iter_rel, _iter_path in _iter_doc_files(root):
+                    if _iter_rel == _rel:
+                        _h = _text_hash(_iter_path)
+                        if _h is not None:
+                            hash_by_file[_rel] = _h
+                        break
+
         _write_started = datetime.now()
-        if not incremental:
+        if not incremental or _fallback_full:
             from collections import Counter
 
             # Zero-churn sibling (the maint_full_zero_churn lesson): bump
@@ -1416,6 +1454,30 @@ def rebuild_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
                 continue
             hash_by_file[rel] = rhash
             rows_by_file[rel] = rows
+
+        # Threshold fallback (deferred candidate #1): when the delta set
+        # (changed + deleted) approaches the full corpus, the incremental
+        # write path is slower than a clean full rebuild. Fold any carried
+        # files into the delta (compute their rows + hashes) and switch
+        # to the full write path so no rows/meta are lost.
+        if can_carry and files:
+            _deleted_now = (set(stored) - set(files)) | dropped
+            _touched = len(rows_by_file) + len(_deleted_now)
+            _total = len(files)
+            if _total > 0 and (_touched / _total) >= DELTA_FULL_FALLBACK_THRESHOLD:
+                for _rel in list(carried):
+                    _abs = files[_rel]
+                    _rows, _rhash, _carried_n = _file_rows(
+                        _abs, _rel, embed_fn, gemma=gemma_active
+                    )
+                    if _rhash is None:
+                        dropped.add(_rel)
+                        carried.discard(_rel)
+                        continue
+                    hash_by_file[_rel] = _rhash
+                    rows_by_file[_rel] = _rows
+                    carried.discard(_rel)
+                can_carry = False
 
         if can_carry:
             deleted_files = sorted((set(stored) - set(files)) | dropped)

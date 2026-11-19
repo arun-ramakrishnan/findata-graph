@@ -7,8 +7,10 @@ a DuckDB copy. These helpers implement the ordered sequences for the
 entities-rooted flows, matching SQLite cascade outcomes for identical input.
 
 Each helper takes a DuckDB connection to a *copy* and runs explicit
-DELETE/UPDATE statements (ordered, dependency-safe). They are intended for
-the swap program fixtures/tests; production rewrite wiring is a later phase.
+DELETE/UPDATE statements (ordered, dependency-safe). They are the canonical
+rewrite logic for the S3 swap: production writers route destructive writes
+through these helpers when the S2 ``ResearchEngine`` selector resolves to
+DuckDB (SQLite keeps its in-engine CASCADE/SET NULL behaviour).
 
 Flows:
   - drop_entity:   delete an entity, propagating deletes to all FK children
@@ -16,6 +18,9 @@ Flows:
                    declares it.
   - rename_entity: update entities.name and propagate to every referencing
                    child column.
+  - drop_event:    delete an events row, cascading to event_participants.
+  - drop_agent:    delete a provenance_agents row, SET NULL on every
+                   agent_id fact table.
 """
 
 from __future__ import annotations
@@ -49,6 +54,18 @@ SET_NULL_ON_DELETE: dict[str, tuple[str, str]] = {
     "events": ("counterparty_entity", "entities"),
     "speaker_identity": ("person_name", "entities"),
 }
+# entity FKs declared DELETE CASCADE only (NO ON UPDATE CASCADE) in both the
+# live SQLite DDL and the DuckDB draft. SQLite blocks a parent rename here
+# (default ON UPDATE NO ACTION); the DuckDB rewrite must skip these tables on
+# rename too, otherwise the two engines diverge. `ppr_results.entity` is
+# confirmed DELETE-CASCADE-only (manifest edge 18; draft :347-354).
+NO_UPDATE_CASCADE: frozenset[str] = frozenset({"ppr_results"})
+# fact tables carrying an `agent_id` FK to provenance_agents with DELETE SET
+# NULL (manifest edges 1/7/12/15/19, owner store_sweep). Mirrors
+# db_maint._AGENT_FACT_TABLES; kept local to avoid a maintenance→misc import.
+AGENT_FACT_TABLES: frozenset[str] = frozenset(
+    {"graph_edges", "events", "quotes", "company_metrics", "hyper_edges"}
+)
 # graph/hyper edge tables with two entity FK columns each
 EDGE_TABLES: dict[str, tuple[str, str]] = {
     "graph_edges": ("source", "target"),
@@ -84,7 +101,7 @@ def _rotate_rows(
     rows: list[Any],
     upd_cols: list[str],
     old: str,
-    new: str,
+    new: str | None,
 ) -> None:
     """Update rows of a table that is itself referenced by children (parent
     side of an FK). DuckDB refuses an in-place UPDATE of an FK-participating
@@ -175,8 +192,13 @@ def drop_entity(con, name: str) -> list[str]:
     return stmts
 
 
-def rename_entity(con, old: str, new: str) -> list[str]:
+def rename_entity(con, old: str, new: str, new_values: dict[str, Any] | None = None) -> list[str]:
     """Rename entity `old` -> `new`, propagating to every FK child column.
+
+    ``new_values`` (optional) seeds additional columns on the cloned ``new``
+    entity row (e.g. ``normalized_name``, ``file_path``, ``last_updated`` from
+    a production writer). The ``name`` column is always set from ``new``.
+    Default ``None`` keeps the minimal two-entity test fixtures unchanged.
 
     DuckDB enforces FKs at DML time (RESTRICT) and has no deferred/off
     switch, so a parent `UPDATE` is impossible while children still
@@ -191,7 +213,16 @@ def rename_entity(con, old: str, new: str) -> list[str]:
     ordered statements.
     """
     stmts: list[str] = []
-    _run(con, stmts, "INSERT INTO entities (name) VALUES (?)", (new,))
+    extras = dict(new_values or {})
+    extras.pop("name", None)  # `name` always comes from `new`
+    if extras:
+        cols = ["name", *sorted(extras)]
+        vals = [new, *(extras[c] for c in sorted(extras))]
+        marks = ", ".join("?" for _ in cols)
+        col_sql = ", ".join(f'"{c}"' for c in cols)
+        _run(con, stmts, f"INSERT INTO entities ({col_sql}) VALUES ({marks})", tuple(vals))
+    else:
+        _run(con, stmts, "INSERT INTO entities (name) VALUES (?)", (new,))
     # Tables whose rows are NOT referenced by children can be updated in
     # place (graph_edges, entity_tags, quotes, ...).
     for table, cols in EDGE_TABLES.items():
@@ -211,6 +242,10 @@ def rename_entity(con, old: str, new: str) -> list[str]:
             _run(con, stmts, f'UPDATE "{table}" SET "{col}" = ? WHERE "{col}" = ?', (new, old))
     for table, (col, _action) in ENTITY_CHILDREN.items():
         if not _has_column(con, table, col):
+            continue
+        # DELETE-CASCADE-only edges have no ON UPDATE CASCADE in SQLite;
+        # renaming the parent is blocked there, so skip on DuckDB too.
+        if table in NO_UPDATE_CASCADE:
             continue
         if table in REPOINT_CHILDREN:
             rows = [
@@ -239,4 +274,53 @@ def rename_entity(con, old: str, new: str) -> list[str]:
             (new, old),
         )
     _run(con, stmts, "DELETE FROM entities WHERE name = ?", (old,))
+    return stmts
+
+
+def drop_event(con, event_id: int) -> list[str]:
+    """Delete an ``events`` row, cascading to its ``event_participants``.
+
+    SQLite declares ``event_participants.event_id`` ON DELETE CASCADE (manifest
+    edge 6, owner name_dedup via this flow); DuckDB uses RESTRICT, so children
+    must be deleted first. Returns the ordered statements.
+    """
+    stmts: list[str] = []
+    for table, (col, _action) in EVENT_CHILDREN.items():
+        if _has_column(con, table, col):
+            _run(con, stmts, f'DELETE FROM "{table}" WHERE "{col}" = ?', (event_id,))
+    _run(con, stmts, "DELETE FROM events WHERE id = ?", (event_id,))
+    return stmts
+
+
+def drop_agent(con, agent_id: str) -> list[str]:
+    """Delete a ``provenance_agents`` row, SET NULL on every agent_id fact.
+
+    The five fact tables (manifest edges 1/7/12/15/19, owner store_sweep)
+    declare ``agent_id`` ON DELETE SET NULL; DuckDB uses RESTRICT, so the five
+    columns must be NULLed before deleting the agent. Returns ordered stmts.
+    """
+    stmts: list[str] = []
+    for table in sorted(AGENT_FACT_TABLES):
+        if not _has_column(con, table, "agent_id"):
+            continue
+        if table in REPOINT_CHILDREN:
+            # DuckDB 2.0 blocks in-place UPDATE of an agent_id column on a row
+            # that is itself an FK parent (events.id / hyper_edges.id are
+            # referenced by children). Rotate those rows so children keep
+            # pointing at the same id — mirrors rename_entity's handling.
+            rows = [
+                r[0]
+                for r in con.execute(
+                    f'SELECT id FROM "{table}" WHERE "agent_id" = ?', (agent_id,)
+                ).fetchall()
+            ]
+            _rotate_rows(con, stmts, table, rows, ["agent_id"], agent_id, None)
+        else:
+            _run(
+                con,
+                stmts,
+                f'UPDATE "{table}" SET "agent_id" = NULL WHERE "agent_id" = ?',
+                (agent_id,),
+            )
+    _run(con, stmts, "DELETE FROM provenance_agents WHERE agent_id = ?", (agent_id,))
     return stmts

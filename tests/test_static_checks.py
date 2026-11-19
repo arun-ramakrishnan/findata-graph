@@ -280,6 +280,14 @@ _SQLITE3_CONNECT_ALLOWLIST = {
     # sidecar is missing — mode=ro must fail loudly instead of leaving a
     # phantom 0-byte index behind.
     "helpers/misc/convo_query.py",
+    # S1 canonical converter: mode=ro URI open of the SOURCE research.db
+    # (the conversion source must never take a write lock on the live
+    # store; mode=ro fails loudly on a missing file instead of letting
+    # connect() bootstrap production schema into a phantom 0-byte db).
+    # The DESTINATION is a fresh DuckDB file — connect() targets
+    # research.db only and cannot express it. (Mirrors the static_checks
+    # allowlist in helpers/validators/static_checks.py.)
+    "helpers/misc/swap_convert.py",
     # Read-only diagnostics bench tools (mode=ro URI connections to the
     # note_search/doc_search sidecars for measurement SELECTs; FK
     # enforcement irrelevant — no writes ever). Sandbox copies (A/B

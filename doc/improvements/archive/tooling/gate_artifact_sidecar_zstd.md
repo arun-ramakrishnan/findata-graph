@@ -1,15 +1,15 @@
 ---
 title: "zstd-compress pytest metadata sidecars at gate-artifact retain time"
-status: proposed
+status: executed
 filed: "2026-11-19"
-executed: null
-completed_md: null
+executed: "2026-11-19"
+completed_md: "548"
 area: "tests/run_gate_report.py + helpers/misc/gate_query.py + outputs/.artifacts"
 ---
 
 # zstd-compress pytest metadata sidecars at gate-artifact retain time
 
-**Date:** 2026-11-19 · **Status:** PROPOSED · **Area:** `tests/run_gate_report.py`,
+**Date:** 2026-11-19 · **Status:** EXECUTED · **Area:** `tests/run_gate_report.py`,
 `helpers/misc/gate_query.py`, one-time backfill under `outputs/.artifacts/`
 
 ## 1. Context — the 63% that is redundant but not deletable

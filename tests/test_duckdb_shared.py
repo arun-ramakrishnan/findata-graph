@@ -196,10 +196,10 @@ class TestDiscovery:
 
 
 class TestConnectSharedUnsigned:
-    """Range-review R2: connect_shared must stay a PLAIN connect — no
-    ambient allow_unsigned_extensions. Onager materialization, the graph
-    file-mode build, and the quack server child carry the flag explicitly;
-    nothing loads an unsigned extension over a shared con."""
+    """connect_shared stays a PLAIN connect — no ambient
+    allow_unsigned_extensions. The vendored-build flag and its generic
+    helper were retired 2026-11-20 when the signed 2.0.1 distribution
+    arrived; nothing loads an unsigned extension over a shared con."""
 
     def test_file_mode_connect_is_plain(self, tmp_path):
         db = tmp_path / "plain.duckdb"
@@ -209,7 +209,3 @@ class TestConnectSharedUnsigned:
         finally:
             con.close()
         assert flag is False  # duckdb 2.0 surfaces the setting as BOOLEAN
-
-    def test_unsigned_kwargs_unchanged_for_explicit_users(self):
-        # onager._get_onager_connection / query.py build path / server child
-        assert ds.unsigned_ext_kwargs() == {"config": {"allow_unsigned_extensions": True}}

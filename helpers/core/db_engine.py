@@ -38,6 +38,7 @@ DuckDB connection (tuple rows, zero overhead).
 
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
 from pathlib import Path
@@ -90,8 +91,36 @@ class _DuckDBCursor:
         return [DuckDBRow(r, self._cols) for r in self._raw.fetchall()]
 
     def __iter__(self):
-        for row in self._raw:
-            yield DuckDBRow(row, self._cols)
+        # duckdb 2.0: connection.execute() returns the connection, which is
+        # not iterable — iterate the materialized rows instead.
+        return iter(self.fetchall())
+
+
+class _DuckDBConnCursor:
+    """sqlite3.Cursor-shaped handle over the shared DuckDB connection.
+
+    DuckDB has no cursor objects, but app.py readers call ``conn.cursor()``
+    then reuse the cursor for successive ``execute`` calls; this shim keeps
+    that pattern working (``fetchone``/``fetchall``/iteration off the last
+    executed statement).
+    """
+
+    def __init__(self, conn: _DuckDBConn) -> None:
+        self._conn = conn
+        self._last: _DuckDBCursor | None = None
+
+    def execute(self, sql: str, parameters: Any = ()) -> _DuckDBConnCursor:
+        self._last = self._conn.execute(sql, parameters)
+        return self
+
+    def fetchone(self):
+        return self._last.fetchone() if self._last is not None else None
+
+    def fetchall(self) -> list[DuckDBRow]:
+        return self._last.fetchall() if self._last is not None else []
+
+    def __iter__(self):
+        return iter(self.fetchall())
 
 
 class _DuckDBConn:
@@ -107,6 +136,10 @@ class _DuckDBConn:
         cols = tuple(d[0] for d in self.raw.description) if self.raw.description else ()
         return _DuckDBCursor(cur, cols)
 
+    def cursor(self) -> _DuckDBConnCursor:
+        """Return a sqlite3.Cursor-shaped handle over this connection."""
+        return _DuckDBConnCursor(self)
+
     def close(self) -> None:
         self.raw.close()
 
@@ -117,6 +150,53 @@ class _DuckDBConn:
         self.close()
 
 
+class ResearchEngine:
+    """Opt-in engine selector for the research store.
+
+    ``FINDATA_RESEARCH_ENGINE`` (default ``sqlite``):
+
+    - ``sqlite`` / unset — rollback/default: connect SQLite paths directly
+      via the unchanged ``helpers.core.db.connect``. ``.duckdb`` paths still
+      route to DuckDB by extension (the historical funnel behavior).
+    - ``auto`` / ``duckdb`` — opt-in: route every research-store path
+      through the funnel; when the selector names an engine the *path* is
+      resolved to that engine (a bare ``research.db`` becomes
+      ``research.duckdb`` alongside it), so callers that never pass a path
+      can opt in with just the env var. ``sqlite`` remains the rollback.
+    """
+
+    SQLITE = "sqlite"
+    AUTO = "auto"
+    DUCKDB = "duckdb"
+
+    def __init__(self, value: str | None) -> None:
+        self.name = (value or self.SQLITE).strip().lower() or self.SQLITE
+
+    @classmethod
+    def from_env(cls) -> ResearchEngine:
+        return cls(os.environ.get("FINDATA_RESEARCH_ENGINE"))
+
+    @property
+    def opt_in(self) -> bool:
+        return self.name in (self.AUTO, self.DUCKDB)
+
+    def resolve_path(self, db_path: Path | str | None) -> Path:
+        path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
+        if db_path is None and self.name == self.DUCKDB:
+            # No explicit path (app.py readers et al.): let the operator
+            # point the opt-in engine at a converted artifact. Production
+            # default is untouched — this env is read only when DuckDB is
+            # opted in and the caller passed no path.
+            override = os.environ.get("FINDATA_RESEARCH_DB_PATH")
+            if override:
+                path = Path(override)
+        if self.name == self.DUCKDB and path.suffix.lower() != ".duckdb":
+            duck = path.with_suffix(".duckdb")
+            if duck.exists():
+                return duck
+        return path
+
+
 def connect_funnel(
     db_path: Path | str | None = None,
     *,
@@ -124,15 +204,19 @@ def connect_funnel(
     enable_fk: bool = True,
     wal: bool = True,
     read_only: bool = False,
+    engine: ResearchEngine | str | None = None,
 ):
-    """Open a connection to ``db_path`` routing by file extension.
+    """Open a connection to ``db_path`` routing by engine + file extension.
 
-    ``*.duckdb`` → DuckDB (quack wire if served, else file mode);
-    anything else → SQLite via ``helpers.core.db.connect`` unchanged.
+    The opt-in ``FINDATA_RESEARCH_ENGINE`` selector (default ``sqlite``)
+    decides the engine for research-store paths; ``engine=`` overrides the
+    env var for a single call. DuckDB paths always route to DuckDB. The
+    SQLite default path delegates to ``helpers.core.db.connect`` unchanged.
 
     Args (mirror ``helpers.core.db.connect``):
-        db_path: Path to the store. Defaults to ``memory/research.db``
-            (SQLite). A ``.duckdb`` suffix selects the DuckDB branch.
+        db_path: Path to the store. Defaults to ``memory/research.db``.
+        engine: ``ResearchEngine`` (or raw string) override for the opt-in
+            selector; ``None`` reads ``FINDATA_RESEARCH_ENGINE`` from env.
         row_factory: SQLite: set on the connection as today. DuckDB:
             ``None`` returns the raw connection (tuple rows); otherwise a
             ``_DuckDBConn`` proxy with name-indexable rows is returned.
@@ -146,7 +230,13 @@ def connect_funnel(
         DuckDB: raw ``duckdb.DuckDBPyConnection`` when ``row_factory`` is
         None, else the ``_DuckDBConn`` proxy.
     """
-    path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
+    if isinstance(engine, ResearchEngine):
+        sel = engine
+    elif isinstance(engine, str):
+        sel = ResearchEngine(engine)
+    else:
+        sel = ResearchEngine.from_env()
+    path = sel.resolve_path(db_path)
     if path.suffix.lower() == ".duckdb":
         raw = _duckdb_connect_shared(path, read_only=read_only)
         if row_factory is None:
@@ -162,10 +252,16 @@ def connect_funnel(
 
 
 def is_duckdb_conn(conn: Any) -> bool:
-    """True when ``conn`` is a DuckDB connection (raw or funnel proxy)."""
+    """True when ``conn`` is a DuckDB connection (raw or funnel proxy).
+
+    duckdb 2.0 raw connections report ``type(conn).__module__ == '_duckdb'``
+    (older builds use ``'duckdb'``) — both are accepted. Importing duckdb
+    just to run ``isinstance`` is deliberately avoided (this module is
+    imported by SQLite-only consumers that may not have duckdb installed).
+    """
     if isinstance(conn, _DuckDBConn):
         return True
-    return type(conn).__module__ == "duckdb"
+    return type(conn).__module__ in ("duckdb", "_duckdb")
 
 
 def _safe_ident(name: str) -> str:

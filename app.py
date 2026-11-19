@@ -79,15 +79,41 @@ def index():
 
 
 def get_db_connection():
-    """Get database connection.
+    """Get a research-store connection (opt-in DuckDB, SQLite by default).
 
-    Uses the shared `helpers.core.db.connect` helper which enables FK
-    enforcement and WAL mode. Keeps the sqlite3.Row factory so handlers can
-    access columns by name.
+    Routes through ``helpers.core.db_engine.connect_funnel`` so the
+    ``FINDATA_RESEARCH_ENGINE`` selector (``duckdb``/``auto``) can point
+    the pure-reader routes at a converted DuckDB artifact. With the default
+    ``sqlite`` selector this calls the unchanged ``helpers.core.db.connect``
+    — same FK/WAL pragmas and ``sqlite3.Row`` factory as before.
     """
-    from helpers.core.db import connect
+    from helpers.core.db_engine import connect_funnel
 
-    return connect()
+    return connect_funnel(read_only=True)
+
+
+def _research_table_exists(conn, name: str) -> bool:
+    """Engine-agnostic ``sqlite_master`` table probe (S2 PRAGMA disposition)."""
+    from helpers.core.db_engine import is_duckdb_conn
+
+    if is_duckdb_conn(conn):
+        row = conn.execute(
+            "SELECT 1 FROM information_schema.tables WHERE table_name = ? "
+            "AND table_type = 'BASE TABLE'",
+            (name,),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name = ? AND type = 'table'", (name,)
+        ).fetchone()
+    return row is not None
+
+
+def _research_has_column(conn, table: str, column: str) -> bool:
+    """Engine-agnostic ``PRAGMA table_info`` column probe."""
+    from helpers.core.db_engine import table_info
+
+    return any(c["name"] == column for c in table_info(conn, table))
 
 
 def _sqlite_edge_union_sql(conn) -> str:
@@ -104,9 +130,7 @@ def _sqlite_edge_union_sql(conn) -> str:
     minimal fixture that never built it), the probe below returns the plain
     dyad read — the surface degrades instead of erroring.
     """
-    has_store = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
-    ).fetchone()
+    has_store = _research_table_exists(conn, "hyper_incidences")
     if has_store is None:
         return "SELECT source, target, edge_type FROM graph_edges"
     return """
@@ -669,7 +693,7 @@ def api_resolve():
     try:
         cursor = conn.cursor()
         entity = None
-        if "cin" in {r[1] for r in cursor.execute("PRAGMA table_info(entities)")}:
+        if _research_has_column(conn, "entities", "cin"):
             row = cursor.execute(
                 "SELECT name, entity_type, file_path FROM entities WHERE cin = ?",
                 (cin_normalize(identifier),),
@@ -683,9 +707,7 @@ def api_resolve():
                 }
         if (
             entity is None
-            and cursor.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='entity_identifiers' AND type='table'"
-            ).fetchone()
+            and _research_table_exists(conn, "entity_identifiers")
         ):
             row = cursor.execute(
                 "SELECT i.entity_name, i.identifier_type, e.entity_type, e.file_path "
@@ -875,27 +897,21 @@ def _hit_dict(row, similarity: float | None) -> dict:
     }
 
 
-def _search_schema(cursor) -> tuple[bool, bool] | None:
+def _search_schema(conn) -> tuple[bool, bool] | None:
     """Probe note_search's capabilities; None = table absent (caller 503s).
+
+    DuckDB route note_search lives in a separate sidecar (search route
+    returns 503 through the sidecar path), so a missing table here means
+    the legacy SQLite FTS5 index is genuinely absent.
 
     Returns (has_embedding, has_sections): a pre-embedding schema lacks
     ``embedding`` (hybrid degrades to plain FTS rather than 500-ing on the
     column reference); a pre-sectioning schema lacks section_title/anchor
     and is served one-row-per-doc with NULL-filled section slots."""
-    if not cursor.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='note_search'"
-    ).fetchone():
+    if not _research_table_exists(conn, "note_search"):
         return None
-    has_embedding = bool(
-        cursor.execute(
-            "SELECT 1 FROM pragma_table_info('note_search') WHERE name = 'embedding'"
-        ).fetchone()
-    )
-    has_sections = bool(
-        cursor.execute(
-            "SELECT 1 FROM pragma_table_info('note_search') WHERE name = 'section_title'"
-        ).fetchone()
-    )
+    has_embedding = _research_has_column(conn, "note_search", "embedding")
+    has_sections = _research_has_column(conn, "note_search", "section_title")
     return has_embedding, has_sections
 
 
@@ -1121,7 +1137,7 @@ def _search_legacy_fts5(
         # Guard + capability probes: table absent -> 503; pre-embedding and
         # pre-sectioning schemas degrade instead of 500-ing on the column
         # references (see _search_schema).
-        caps = _search_schema(cursor)
+        caps = _search_schema(conn)
         if caps is None:
             return jsonify(
                 {
@@ -3211,11 +3227,9 @@ _EDGE_SEMANTICS: dict[str, dict[str, object]] = {
 
 def _hyper_present(conn) -> bool:
     """True when the star store (hyper_edges/hyper_incidences) exists."""
-    n = conn.execute(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
-        " AND name IN ('hyper_edges','hyper_incidences')"
-    ).fetchone()[0]
-    return n == 2
+    return _research_table_exists(conn, "hyper_edges") and _research_table_exists(
+        conn, "hyper_incidences"
+    )
 
 
 @app.route("/api/graph/hyper/structure")

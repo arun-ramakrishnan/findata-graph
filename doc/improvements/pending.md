@@ -3,11 +3,24 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **Canonical `research.db` SQLite→DuckDB swap — UNPARKED / EXECUTION FILED
+  2026-11-19** (live proposal
+  `proposals/database/duckdb_research_swap_execution.md`; readiness program
+  Steps 0–8 in completed.md #533 was EXECUTED, swap itself was PARKED).
+  Operator unparked 2026-11-19: execute S0–S6 with the mandatory eval gate
+  (`ontology_eval_gate.py --parent` SQLite / `--candidate` DuckDB, v21/239
+  questions, zero regressions) at S1 and S6. No production writes until
+  cutover; all conversion on scratch copies. Filed baseline census 2026-11-19:
+  363,528,192 B, 38 tables, 24 FK links/22 action clauses (15 CASCADE,
+  7 SET NULL), 161 PRAGMA / 491 connect / 93 writer / 120 importer sites.
+  Trigger: operator go for the gate arc; no separate re-file needed.
+
 - **DuckDB rebuild deferred candidates — OPEN** (from
   `duckdb_rebuild_incremental_carry`, completed.md #528; measured
   2026-11-16, all three non-blocking): (1) delta-apply on a
-  100%-changed corpus ran **26.9 s vs 17.0 s full** — add a
-  threshold fallback when the delta set approaches full size;
+  100%-changed corpus ran **26.9 s vs 17.0 s full** — threshold
+  fallback (>= 0.8 touched) shipped in rebuild_doc_search (DuckDB +
+  sqlite carry paths);
   (2) ~~CachedEmbed point-lookup preload~~ **DONE 2026-11-19**
   (`CachedEmbed.preload()`, opt-in, wired at both doc rebuild
   sites; one 44 ms scan replaces 4,807 × 0.91 ms point lookups);

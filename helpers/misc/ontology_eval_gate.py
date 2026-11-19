@@ -30,6 +30,13 @@ apply, mandatory in acceptance criteria whenever a change alters
 query-visible semantics (rosters, crosswalks, hierarchies, extractor
 rules).
 
+Engine-agnostic (duckdb_research_swap_execution S1): both parent and
+candidate are routed through ``helpers.core.db_engine.connect_funnel``,
+so a ``.duckdb`` candidate answers against the converted store and a
+``.db`` path behaves exactly as before (SQLite v17). The question-set
+answers must be identical for the converted copy — the S1 and S6 runs
+are the same accept rule over both engines.
+
 Question shapes (answer = sorted list of strings):
 
 - ``subtree`` — params ``{"root": "scheme:code"}``: active-only closure
@@ -69,14 +76,21 @@ import sqlite3
 import sys
 from datetime import datetime, UTC
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402
 
+import duckdb  # noqa: E402
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
-from helpers.core.db import connect  # noqa: E402
+from helpers.core.db_engine import connect_funnel, is_duckdb_conn, table_info  # noqa: E402
 from helpers.misc.seed_concepts import subtree  # noqa: E402
 
 DEFAULT_QUESTIONS = Path(__file__).resolve().parent / "ontology_questions.json"
+
+# Engine-agnostic error surface: SQLite errors + DuckDB errors (missing
+# objects raise CatalogException/BinderException under duckdb.Error).
+_DB_ERRORS = (sqlite3.Error, duckdb.Error)
+_MISSING_TABLE_ERRORS = (sqlite3.OperationalError, duckdb.CatalogException, duckdb.BinderException)
 
 VERDICT_UNCHANGED = "unchanged"
 VERDICT_IMPROVED = "improved"
@@ -89,14 +103,38 @@ class GateError(RuntimeError):
     """Usage/IO error — the gate could not run (exit 2)."""
 
 
-def _answer_subtree(conn: sqlite3.Connection, params: dict) -> list[str]:
+def _table_exists(conn: Any, table: str) -> bool:
+    """Engine-agnostic table presence: sqlite_master ↔ information_schema.
+
+    Views are NOT counted — the answer shapes key on base tables (a view
+    has no columns to probe with ``table_info`` in some callers, and the
+    gate only ever asks about tables here).
+    """
+    if is_duckdb_conn(conn):
+        return (
+            conn.execute(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_name=? AND table_type='BASE TABLE'",
+                (table,),
+            ).fetchone()
+            is not None
+        )
+    return (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name=? AND type='table'", (table,)
+        ).fetchone()
+        is not None
+    )
+
+
+def _answer_subtree(conn: Any, params: dict) -> list[str]:
     root = params.get("root")
     if not root:
         raise GateError("subtree question needs params.root")
     return subtree(conn, root)
 
 
-def _answer_counterparties(conn: sqlite3.Connection, params: dict) -> list[str]:
+def _answer_counterparties(conn: Any, params: dict) -> list[str]:
     entity = params.get("entity")
     if not entity:
         raise GateError("event_counterparties question needs params.entity")
@@ -112,15 +150,12 @@ def _answer_counterparties(conn: sqlite3.Connection, params: dict) -> list[str]:
     return sorted(row[0] for row in conn.execute(sql, args))
 
 
-def _answer_resolve(conn: sqlite3.Connection, params: dict) -> list[str]:
+def _answer_resolve(conn: Any, params: dict) -> list[str]:
     value = params.get("value")
     if not value:
         raise GateError("resolve_identifier question needs params.value")
     names = [row[0] for row in conn.execute("SELECT name FROM entities WHERE cin=?", (value,))]
-    has_registry = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE name='entity_identifiers' AND type='table'"
-    ).fetchone()
-    if has_registry:
+    if _table_exists(conn, "entity_identifiers"):
         names += [
             row[0]
             for row in conn.execute(
@@ -132,7 +167,7 @@ def _answer_resolve(conn: sqlite3.Connection, params: dict) -> list[str]:
     return sorted(set(names))
 
 
-def _answer_entities_of_type(conn: sqlite3.Connection, params: dict) -> list[str]:
+def _answer_entities_of_type(conn: Any, params: dict) -> list[str]:
     entity_type = params.get("entity_type")
     if not entity_type:
         raise GateError("entities_of_type question needs params.entity_type")
@@ -142,7 +177,7 @@ def _answer_entities_of_type(conn: sqlite3.Connection, params: dict) -> list[str
     )
 
 
-def _answer_edge_neighbors(conn: sqlite3.Connection, params: dict) -> list[str]:
+def _answer_edge_neighbors(conn: Any, params: dict) -> list[str]:
     source, edge_type = params.get("source"), params.get("edge_type")
     if not source or not edge_type:
         raise GateError("edge_neighbors question needs params.source and params.edge_type")
@@ -157,7 +192,7 @@ def _answer_edge_neighbors(conn: sqlite3.Connection, params: dict) -> list[str]:
     )
 
 
-def _answer_hyperedge_members(conn: sqlite3.Connection, params: dict) -> list[str]:
+def _answer_hyperedge_members(conn: Any, params: dict) -> list[str]:
     edge_type, label = params.get("edge_type"), params.get("label")
     if not edge_type or not label:
         raise GateError("hyperedge_members question needs params.edge_type and params.label")
@@ -174,7 +209,7 @@ def _answer_hyperedge_members(conn: sqlite3.Connection, params: dict) -> list[st
     )
 
 
-def _answer_hyperedge_labels(conn: sqlite3.Connection, params: dict) -> list[str]:
+def _answer_hyperedge_labels(conn: Any, params: dict) -> list[str]:
     """The sorted distinct label set of one hyperedge family — pins a whole
     n-ary family in one question (a new merger fact changes the answer, so
     an undeclared write is caught without pinning speculative labels)."""
@@ -187,7 +222,7 @@ def _answer_hyperedge_labels(conn: sqlite3.Connection, params: dict) -> list[str
     )
 
 
-def _answer_concept_mappings_for(conn: sqlite3.Connection, params: dict) -> list[str]:
+def _answer_concept_mappings_for(conn: Any, params: dict) -> list[str]:
     scheme, concept = params.get("source_scheme"), params.get("source_concept")
     if not scheme or not concept:
         raise GateError("concept_mappings_for needs params.source_scheme and source_concept")
@@ -203,18 +238,14 @@ def _answer_concept_mappings_for(conn: sqlite3.Connection, params: dict) -> list
     return sorted(f"{r[0]}:{r[1]}:{r[2]}" for r in conn.execute(sql, args))
 
 
-def _answer_provenance_agents(conn: sqlite3.Connection, params: dict) -> list[str]:
+def _answer_provenance_agents(conn: Any, params: dict) -> list[str]:
     table = params.get("table")
     if not table:
         raise GateError("provenance_agents_for question needs params.table")
     if not re.fullmatch(r"[a-z_]+", table):
         raise GateError(f"provenance_agents_for: bad table name {table!r}")
-    has = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE name=? AND type='table'", (table,)
-    ).fetchone()
-    if has is None or "agent_id" not in {
-        row[1]
-        for row in conn.execute(f"PRAGMA table_info({table})")  # noqa: S608 — fullmatch-guarded identifier
+    if not _table_exists(conn, table) or "agent_id" not in {
+        col["name"] for col in table_info(conn, table)
     }:
         raise GateError(f"provenance_agents_for: table {table!r} has no agent_id column")
     return sorted(
@@ -237,7 +268,7 @@ def _answer_ultimate_parent(conn, params):
         rows = conn.execute(
             "SELECT ultimate_parent FROM ultimate_parent WHERE company = ?", (company,)
         ).fetchall()
-    except sqlite3.OperationalError:
+    except _MISSING_TABLE_ERRORS:
         return []
     return sorted({r[0] for r in rows})
 
@@ -282,7 +313,7 @@ def _answer_insight_counterparts(conn, params):
         n = 2 if kind == "hidden_connections" else 6
         rows = conn.execute(sql, (subject,) * n).fetchall()
         return sorted({r[0] for r in rows})
-    except sqlite3.OperationalError:
+    except _MISSING_TABLE_ERRORS:
         return []
 
 
@@ -305,7 +336,7 @@ def _answer_metric_value(conn, params):
             "WHERE entity = ? AND metric_label = ? AND period = ? AND consolidated = ?",
             (entity, label, period, 1 if scope == "consolidated" else 0),
         ).fetchall()
-    except sqlite3.OperationalError:
+    except _MISSING_TABLE_ERRORS:
         return []
     return sorted({str(r[0]) for r in rows if r[0] is not None})
 
@@ -326,7 +357,7 @@ _SHAPES = {
 }
 
 
-def answer_question(conn: sqlite3.Connection, question: dict) -> list[str]:
+def answer_question(conn: Any, question: dict) -> list[str]:
     """Answer one question against ``conn``; raises GateError on shape/param trouble."""
     shape = question.get("shape")
     fn = _SHAPES.get(shape)
@@ -355,8 +386,8 @@ def load_questions(path: Path) -> dict:
 
 
 def _evaluate_one(  # noqa: C901  # one verdict ladder (declared/change/shrink comparisons); the branches ARE the contract
-    parent: sqlite3.Connection,
-    candidate: sqlite3.Connection,
+    parent: Any,
+    candidate: Any,
     q: dict,
     declared: bool,
     expect_shrink: frozenset[str] = frozenset[str](),
@@ -371,12 +402,12 @@ def _evaluate_one(  # noqa: C901  # one verdict ladder (declared/change/shrink c
     entry: dict = {"id": qid, "shape": q["shape"], "declared": declared}
     try:
         p = answer_question(parent, q)
-    except (GateError, sqlite3.Error) as e:
+    except (GateError, *_DB_ERRORS) as e:
         p = None
         entry["parent_error"] = str(e)
     try:
         c = answer_question(candidate, q)
-    except (GateError, sqlite3.Error) as e:
+    except (GateError, *_DB_ERRORS) as e:
         c = None
         entry["candidate_error"] = str(e)
     if p is None or c is None:
@@ -431,8 +462,8 @@ def _evaluate_one(  # noqa: C901  # one verdict ladder (declared/change/shrink c
 
 
 def evaluate(
-    parent: sqlite3.Connection,
-    candidate: sqlite3.Connection,
+    parent: Any,
+    candidate: Any,
     questions: list[dict],
     expect_improve: set[str],
     expect_shrink: frozenset[str] = frozenset[str](),
@@ -456,7 +487,7 @@ def evaluate(
     return not reasons, results, reasons
 
 
-def rebaseline(candidate: sqlite3.Connection, questions_path: Path, data: dict, ref: str) -> dict:
+def rebaseline(candidate: Any, questions_path: Path, data: dict, ref: str) -> dict:
     """Rewrite expected answers from the candidate DB; bump version; stamp ref."""
     for q in data["questions"]:
         q["expected"] = answer_question(candidate, q)
@@ -527,10 +558,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # one CLI surface
         overlap_c = (expect | expect_shrink) & expect_change
         if overlap_c:
             raise GateError(f"--expect-change overlaps another declaration: {sorted(overlap_c)}")
-        candidate = connect(args.candidate)
+        candidate = connect_funnel(args.candidate)
         try:
             if args.rebaseline:
-                parent = connect(args.parent)
+                parent = connect_funnel(args.parent)
                 try:
                     accept, results, reasons = evaluate(
                         parent, candidate, data["questions"], expect, expect_shrink, expect_change
@@ -548,7 +579,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # one CLI surface
                     f"[gate] rebaselined {args.questions} (v{data['version']}, ref: {args.rebaseline})"
                 )
                 return 0
-            parent = connect(args.parent)
+            parent = connect_funnel(args.parent)
             try:
                 accept, results, reasons = evaluate(
                     parent, candidate, data["questions"], expect, expect_shrink, expect_change

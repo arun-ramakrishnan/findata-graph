@@ -760,7 +760,11 @@ def _check_generation_staleness(con, duckdb_path: Path, db_path: Path | None) ->
         duck_gen = None
     sqlite_gen = None
     try:
-        from helpers.core.db import connect as _db_connect
+        # S2: route source reads through the sanctioned research-store
+        # funnel. Default (FINDATA_RESEARCH_ENGINE=sqlite) delegates to the
+        # byte-identical helpers.core.db.connect; opt-in resolves a bare
+        # research.db to its converted .duckdb sibling.
+        from helpers.core.db_engine import connect_funnel as _db_connect
 
         for cand in (
             (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH)
@@ -918,7 +922,9 @@ def _probe_note_embed_state(  # noqa: C901  # probe: schema-variant ladder
                 scon.close()
         except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
             pass
-    from helpers.core.db import connect as _db_connect
+    # S2: route source reads through the funnel (see
+    # _check_generation_staleness); default stays byte-identical.
+    from helpers.core.db_engine import connect_funnel as _db_connect
 
     for cand in (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH):
         if not cand.exists():
@@ -965,7 +971,9 @@ def _mark_warm(  # noqa: C901  # warm-mark: per-table/per-mode branches
     gen_val = None
     note_model = None
     try:
-        from helpers.core.db import connect as _db_connect
+        # S2: funnel source reads (default delegates to helpers.core.db.connect;
+        # no read_only kwarg → byte-identical read-write semantics as before).
+        from helpers.core.db_engine import connect_funnel as _db_connect
 
         _scon = _db_connect(str(db_path))
         try:
@@ -2089,6 +2097,13 @@ def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
         r = con.execute(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='company_embeddings'"
         ).fetchone()
+        # S2 note: this probe runs on the DuckDB graph-cache connection
+        # where research.db is ATTACHed as ``fin`` (TYPE sqlite). Verified
+        # 2026-11-19 on duckdb 2.0: unqualified ``sqlite_master`` resolves
+        # the fin-attached SQLite catalog (real tables → 1, fake → 0), so
+        # this is already engine-agnostic on the cache conn. Do NOT switch
+        # to ``fin.sqlite_master`` — that raises CatalogException (the
+        # sqlite compat view is only exposed at the root, not per-schema).
         table_exists = r is not None and r[0] > 0
     except Exception:
         table_exists = False
@@ -2256,6 +2271,8 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
         r = con.execute(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='note_search'"
         ).fetchone()
+        # S2: same fin-attached sqlite_master probe as _materialise_embeddings
+        # — verified engine-agnostic on the DuckDB cache conn (2026-11-19).
         table_exists = r is not None and r[0] > 0
     except Exception:
         table_exists = False

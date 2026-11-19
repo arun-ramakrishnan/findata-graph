@@ -251,6 +251,60 @@ class TestSearchNotesDuckDB:
             conn.close()
 
 
+class TestS2FunnelRouting:
+    """S2: note_query's metadata probes route through the sanctioned funnel.
+
+    The .duckdb sidecar opens DuckDB under every selector (extension wins);
+    the legacy SQLite .db stays on the byte-identical default branch. Both
+    metadata helpers must report the same row_count/dims/model on each
+    engine, and ``_is_duckdb`` must detect the raw sidecar connection.
+    """
+
+    def test_probe_helpers_route_both_engines(self, seeded_tree, tmp_path, monkeypatch, fake_local):
+        # DuckDB sidecar via the real rebuild (writes note_search_info stamps).
+        sidecar = tmp_path / "note_search.duckdb"
+        monkeypatch.setattr(rns, "resolve_embedder", lambda: (_pseudo_embed, 64, "pseudo-test"))
+        rns.rebuild(sidecar, write=True)
+
+        rc, dims = nq._index_count_dims(sidecar)
+        assert rc >= 1
+        assert dims == 64
+        assert nq._stored_note_model(sidecar) == "pseudo-test"
+
+        # _is_duckdb must detect the raw connection returned by open_note_index.
+        conn, engine = nq.open_note_index(sidecar)
+        try:
+            assert engine == "duckdb"
+            assert nq._is_duckdb(conn) is True
+        finally:
+            conn.close()
+
+    def test_probe_helpers_sqlite_branch(self, seeded_tree, tmp_path, monkeypatch, fake_local):
+        # Legacy SQLite store via the real FTS5 rebuild path; the funnel's
+        # default SQLite branch must stay byte-identical (no raised error).
+        db = tmp_path / "research.db"
+        import sqlite3
+
+        conn = sqlite3.connect(str(db))
+        conn.execute(ENTITIES_DDL)
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(rns, "resolve_embedder", lambda: (_pseudo_embed, 64, "pseudo-test"))
+        rns.rebuild(db, write=True)
+
+        rc, dims = nq._index_count_dims(db)
+        assert rc >= 1
+        assert dims == 64
+        assert nq._stored_note_model(db) == "pseudo-test"
+
+        conn2, engine = nq.open_note_index(db)
+        try:
+            assert engine == "sqlite"
+            assert nq._is_duckdb(conn2) is False
+        finally:
+            conn2.close()
+
+
 class TestBm25OnlyIndependence:
     def test_bm25_ranks_rows_with_null_embeddings(self, sidecar):
         """bm25-only must work even when embeddings are absent: rows with

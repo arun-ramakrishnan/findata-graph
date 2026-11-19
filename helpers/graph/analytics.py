@@ -52,6 +52,7 @@ REPORTS = (
     "top-entities",
     "coverage",
     "temporal",
+    "hypergraph",
 )
 
 # Membership edges are structural (company -> sector/dir) and would drown
@@ -424,6 +425,32 @@ def _temporal(root: Path, con: duckdb.DuckDBPyConnection) -> list[Report]:
     return [t1, t2, t3, t4]
 
 
+def _hypergraph(root: Path, con: duckdb.DuckDBPyConnection) -> Report:
+    rows = con.execute(
+        """
+        SELECT he.edge_type,
+               count(DISTINCT he.id) AS edges,
+               count(hi.entity_name) AS incidences,
+               round(avg(ic.n), 2) AS avg_incidence_size
+        FROM read_parquet($1) he
+        LEFT JOIN read_parquet($2) hi ON hi.edge_id = he.id
+        LEFT JOIN (
+            SELECT edge_id, count(*) AS n
+            FROM read_parquet($2)
+            GROUP BY 1
+        ) ic ON ic.edge_id = he.id
+        GROUP BY 1 ORDER BY edges DESC, he.edge_type
+        """,
+        [_p(root, "sqlite", "hyper_edges.parquet"), _p(root, "sqlite", "hyper_incidences.parquet")],
+    ).fetchall()
+    return Report(
+        "Hypergraph summary",
+        ["edge_type", "edges", "incidences", "avg_incidence_size"],
+        [[r[0] or "?", str(r[1]), str(r[2] or 0), str(r[3] if r[3] is not None else 0)] for r in rows],
+        note="hyper_edges x hyper_incidences from the parquet snapshot",
+    )
+
+
 _FETCHERS = {
     "summary": _summary,
     "edge-growth": _edge_growth,
@@ -431,6 +458,7 @@ _FETCHERS = {
     "top-entities": _top_entities,
     "coverage": _coverage,
     "temporal": _temporal,
+    "hypergraph": _hypergraph,
 }
 
 

@@ -822,6 +822,21 @@ commit, referenced by nothing). Entry numbers point at
   switches/viol/proto + violation-banner removal, and a `fold@…`
   tier-watch heartbeat line distilling the ~8-line bili.log fold
   burst — completed.md #525
+- [`gate_artifact_sidecar_zstd.md`](tooling/gate_artifact_sidecar_zstd.md) —
+  zstd-compress gate artifacts at retain time (library-default level per
+  policy #174, `copystat` keeps the reader mtime window honest) — pytest
+  metadata sidecars `.json.zst` (111.7 MB = 63% of `outputs/.artifacts`;
+  load-bearing for `refresh --rebuild-tests` since retained junit carries NO
+  pytest properties — 6,486 testcases 0 measured), junit `.xml.zst`
+  (34.2 → 5.2 MB, `runs.junit_path` rewritten for exactly the 120 compressed),
+  step logs `.log.zst` (31.0 → 5.3 MB, `cmd_output` reads both forms);
+  readers keep plain-first fallback, `ZstdError` skipped like
+  `JSONDecodeError`; `.artifacts` 176.9 → 26.8 MB; backfill parity
+  multiset-hash 369/369 runs identical (275,335 `test_facts` rows re-derived);
+  caught `_test_metadata_by_node` stripping `.junit.xml` but not `.zst`
+  (sidecar enrichment silently vanished for compressed junit); 94 tests green
+  across test_run_gate_report/test_gate_query/test_gate_retain/
+  test_report_append_convention — completed.md #548
 - [`findata_misc_json_git_inclusion.md`](tooling/findata_misc_json_git_inclusion.md) —
   git-tracking criteria for `findata/Misc/*.json` operator surfaces — the
   criterion written down (track iff runtime input the code reads OR a

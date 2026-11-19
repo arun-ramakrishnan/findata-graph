@@ -262,17 +262,14 @@ def memory_cap_config() -> dict[str, Any]:
 
 def unsigned_ext_kwargs() -> dict[str, Any]:
     """``duckdb.connect`` kwargs permitting locally-built (unsigned)
-    extensions — the vendored onager build (vendor/onager/,
-    helpers/graph/onager.py) is the resident case. duckdb 2.0 locks
-    ``allow_unsigned_extensions`` once a database is open, so this rides
-    the connect config.
+    extensions.
 
-    Scope is deliberately narrow: onager's own connection, the graph
-    file-mode build path, and the quack server child. Shared/file-mode
-    reads stay plain — the old ambient form ("harmless where no
-    extension ever loads") was retired 2026-11-04 (range-review R2).
+    RETIRED as of 2026-11-20: the vendored onager build was superseded by
+    the signed upstream 2.0.1 distribution (``INSTALL onager FROM
+    community;``), which loads flaglessly. Kept as a thin compatibility
+    shim returning the empty config — no code path needs the flag now.
     """
-    return {"config": {"allow_unsigned_extensions": True}}
+    return {}
 
 
 def is_served(path: Path | str, *, discovery: Path | None = None) -> bool:

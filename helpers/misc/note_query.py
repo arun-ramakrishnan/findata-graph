@@ -57,6 +57,16 @@ def open_note_index(db_path):
     — ``duckdb_extensions()`` shows fts autoload/autoinstall, and the
     macro fallback path resolves without ``LOAD fts``; explicit LOAD
     costs ~34 ms per fresh connection).
+
+    S2 note on the deliberate funnel exception: the ``.duckdb`` branch
+    intentionally uses ``duckdb_lock.open_read_only`` (flock ``LOCK_SH``
+    + the 2/10/48 s retry ladder) instead of ``connect_funnel``. The
+    note sidecar is rebuilt by a long holder (multi-minute), and a
+    plain funnel open would fail fast against it — a regression. The
+    sidecar is a SEPARATE store from research.db; only research-store
+    consumers take the ``FINDATA_RESEARCH_ENGINE`` funnel. Metadata
+    probes (``_index_count_dims``/``_stored_note_model``) do route via
+    the funnel so the opt-in selector applies there.
     """
     if str(db_path).endswith(".duckdb"):
         from helpers.misc.duckdb_lock import (
@@ -75,11 +85,15 @@ def open_note_index(db_path):
 
 
 def _is_duckdb(conn) -> bool:
-    try:
-        import duckdb
-    except ImportError:
-        return False
-    return isinstance(conn, duckdb.DuckDBPyConnection)
+    """Engine check for the conn returned by :func:`open_note_index`.
+
+    S2: delegates to the funnel's shared ``is_duckdb_conn`` so both the
+    raw ``DuckDBPyConnection`` (sidecar backoff path) and the
+    ``_DuckDBConn`` proxy (funnel path) are recognised with one rule.
+    """
+    from helpers.core.db_engine import is_duckdb_conn
+
+    return is_duckdb_conn(conn)
 
 
 def fts_safe(query: str) -> str:
@@ -395,32 +409,29 @@ def _index_count_dims(db_path: Path) -> tuple[int, int | None]:
     sidecar: the info table's ``row_count``/``embed_dims`` stamps (written
     by the rebuild; no need to decode a blob).
     """
-    if str(db_path).endswith(".duckdb"):
-        import duckdb
+    from helpers.core.db_engine import connect_funnel, is_duckdb_conn
 
-        from helpers.core.duckdb_shared import memory_cap_config
-
-        con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
-        try:
-            row_count = con.execute("SELECT COUNT(*) FROM note_search").fetchone()
-            dims_row = con.execute(
+    # S2: route through the sanctioned research-store funnel so the
+    # FINDATA_RESEARCH_ENGINE opt-in applies. Extension still decides the
+    # engine (a .duckdb sidecar opens DuckDB under every selector), and
+    # the default SQLite branch is byte-identical to the old db_connect.
+    conn = connect_funnel(db_path, read_only=True, wal=False)
+    try:
+        if is_duckdb_conn(conn):
+            row_count = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()
+            dims_row = conn.execute(
                 "SELECT value FROM note_search_info WHERE key = 'embed_dims'"
             ).fetchone()
             dims = int(dims_row[0]) if dims_row and dims_row[0] else None
             rc = int(row_count[0]) if row_count is not None else 0
-        finally:
-            con.close()
-        return rc, dims
-    from helpers.core.db import connect as db_connect
-    from helpers.maintenance.rebuild_note_search import stored_embed_dims
+            return rc, dims
+        from helpers.maintenance.rebuild_note_search import stored_embed_dims
 
-    conn = db_connect(db_path, read_only=True, wal=False)
-    try:
         row_count = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
         dims = stored_embed_dims(conn)
+        return row_count, dims
     finally:
         conn.close()
-    return row_count, dims
 
 
 def note_query_embedder(model_label: str | None = None):
@@ -441,35 +452,29 @@ def _stored_note_model(db_path: Path) -> str | None:
     SQLite: ``db_meta.note_embed_model``. DuckDB sidecar: the info
     table's ``embed_model`` stamp. None when unstamped (dims-only
     back-compat, not a reject)."""
-    if str(db_path).endswith(".duckdb"):
-        import duckdb
+    from helpers.core.db_engine import connect_funnel, is_duckdb_conn
 
-        from helpers.core.duckdb_shared import memory_cap_config
-
-        try:
-            con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
-            try:
-                row = con.execute(
-                    "SELECT value FROM note_search_info WHERE key = 'embed_model'"
-                ).fetchone()
-            finally:
-                con.close()
-        except Exception:  # noqa: BLE001  # missing table / locked db -> None
-            return None
-        return row[0] if row else None
+    # S2: route through the funnel (see _index_count_dims for the contract).
+    conn = None
     try:
-        from helpers.core.db import connect as db_connect
-
-        conn = db_connect(Path(db_path), read_only=True, wal=False)
-        try:
+        conn = connect_funnel(db_path, read_only=True, wal=False)
+        if is_duckdb_conn(conn):
+            row = conn.execute(
+                "SELECT value FROM note_search_info WHERE key = 'embed_model'"
+            ).fetchone()
+        else:
             row = conn.execute(
                 "SELECT value FROM db_meta WHERE key = 'note_embed_model'"
             ).fetchone()
-        finally:
-            conn.close()
+        return row[0] if row else None
     except Exception:  # noqa: BLE001  # missing table / locked db -> None
         return None
-    return row[0] if row else None
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:  # noqa: BLE001  # best-effort close
+                pass
 
 
 def semantic_hits(db_path: Path, query: str, limit: int, query_vec=None) -> tuple[list[dict], str]:

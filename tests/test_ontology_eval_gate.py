@@ -675,3 +675,209 @@ class TestR3InsightShapes:
                     "params": {"kind": "bogus", "subject": "X"},
                 },
             )
+
+
+_DUCKDB_COMPANY_METRICS_RULED = """
+CREATE VIEW company_metrics_ruled AS
+SELECT * FROM company_metrics WHERE period IS NULL OR metric_label IS NULL
+UNION ALL
+SELECT * FROM company_metrics WHERE id IN (
+    SELECT id FROM (
+        SELECT id, ROW_NUMBER() OVER (
+            PARTITION BY entity, metric_label, period, consolidated
+            ORDER BY CASE WHEN regexp_matches(source_ref, '_[0-9]{14}_WEB\\.xml$')
+                         THEN substr(source_ref, -18, 4) || substr(source_ref, -20, 2)
+                              || substr(source_ref, -22, 2) || substr(source_ref, -14, 6)
+                         ELSE NULL END DESC,
+                     id DESC
+        ) AS rn
+        FROM company_metrics
+        WHERE period IS NOT NULL AND metric_label IS NOT NULL
+    ) WHERE rn = 1
+)
+"""
+
+
+def _build_duckdb_db(path: Path) -> None:
+    """Same logical fixture as _build_db but a converted DuckDB store.
+
+    The certified-grain view is rebuilt with DuckDB-native regex (the
+    SQLite GLOB pattern would not parse) — a faithful conversion of
+    grain proposal §3.2's selection rule.
+    """
+    import duckdb
+
+    conn = duckdb.connect(str(path))
+    conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, cin TEXT, entity_type TEXT)")
+    conn.execute(
+        "CREATE TABLE entity_identifiers (entity_name TEXT, identifier_type TEXT, "
+        "identifier_value TEXT, namespace TEXT, source_ref TEXT)"
+    )
+    conn.execute(
+        "CREATE TABLE concept_schemes (scheme_id TEXT PRIMARY KEY, label TEXT, "
+        "scheme_type TEXT, version TEXT, source_uri TEXT, license TEXT, "
+        "attribution TEXT, active INTEGER DEFAULT 1)"
+    )
+    conn.execute(
+        "CREATE TABLE concepts (concept_id TEXT PRIMARY KEY, scheme_id TEXT, "
+        "concept_code TEXT, pref_label TEXT, alt_label TEXT, notation TEXT, "
+        "broader_id TEXT, scope_note TEXT, source_ref TEXT, "
+        "status TEXT NOT NULL DEFAULT 'active')"
+    )
+    conn.execute(
+        "CREATE TABLE events (entity TEXT, event_type TEXT, event_date TEXT, "
+        "counterparty_entity TEXT, agent_id TEXT)"
+    )
+    conn.execute(
+        "CREATE TABLE concept_mappings (source_scheme TEXT, source_concept TEXT, "
+        "target_scheme TEXT, target_concept TEXT, match_type TEXT, source_ref TEXT, "
+        "version TEXT, status TEXT NOT NULL DEFAULT 'active')"
+    )
+    conn.execute("CREATE TABLE graph_edges (source TEXT, target TEXT, edge_type TEXT)")
+    conn.execute("CREATE TABLE hyper_edges (id INTEGER PRIMARY KEY, edge_type TEXT, label TEXT)")
+    conn.execute("CREATE TABLE hyper_incidences (edge_id INTEGER, entity_name TEXT)")
+    for name, scheme_id, broader in (
+        ("Financials", "super_sector", None),
+        ("Banking", "sector", "super_sector:Financials"),
+        ("Software", "subsector", "sector:Banking"),
+    ):
+        conn.execute(
+            "INSERT INTO concepts (concept_id, scheme_id, concept_code, pref_label, "
+            "source_ref, broader_id, status) VALUES (?, ?, ?, ?, 'seed:test', ?, 'active')",
+            (f"{scheme_id}:{name}", scheme_id, name, name, broader),
+        )
+    conn.execute(
+        "INSERT INTO entities (name, cin, entity_type) VALUES "
+        "('Acme Ltd', 'L00000KA0000PLC000000', 'company'), "
+        "('Financials', NULL, 'super_sector')"
+    )
+    conn.execute(
+        "INSERT INTO entity_identifiers VALUES ('Zen Corp', 'lei', 'LEI-ZEN', 'gleif', 'test')"
+    )
+    conn.execute(
+        "INSERT INTO events (entity, event_type, counterparty_entity, agent_id) "
+        "VALUES ('Acme Ltd', 'acquisition', 'Target One', 'derive:events')"
+    )
+    conn.execute(
+        "INSERT INTO concept_mappings VALUES ('industry', 'Op Label', 'subsector', "
+        "'Software', 'exactMatch', 'manual:t', 'v1', 'active'), "
+        "('industry', 'Op Label', 'subsector', 'Ghost', 'closeMatch', 'manual:t', 'v1', 'superseded')"
+    )
+    conn.execute(
+        "INSERT INTO graph_edges (source, target, edge_type) VALUES "
+        "('Acme Ltd', 'Financials', 'part_of'), ('Financials', 'Acme Ltd', 'has_company')"
+    )
+    conn.execute("INSERT INTO hyper_edges (id, edge_type, label) VALUES (1, 'edition', 'Ed. 1')")
+    conn.execute("INSERT INTO hyper_incidences VALUES (1, 'Acme Ltd'), (1, 'Zen Corp')")
+    conn.execute(
+        "CREATE TABLE company_metrics (id INTEGER PRIMARY KEY, entity TEXT, "
+        "metric_label TEXT, value_num REAL, period TEXT, source_ref TEXT, "
+        "properties TEXT, consolidated INTEGER)"
+    )
+    conn.execute(
+        "INSERT INTO company_metrics VALUES "
+        "(1, 'Acme Ltd', 'q_revenue', 100.0, 'FY27Q1', "
+        "'https://nsearchives.nseindia.com/xbrl/INTEGRATED_FILING_INDAS_1_15072026075004_WEB.xml', "
+        "'{\"consolidated\": true}', 1), "
+        "(2, 'Acme Ltd', 'q_revenue', 120.0, 'FY27Q1', "
+        "'https://nsearchives.nseindia.com/xbrl/INTEGRATED_FILING_INDAS_1_17072026075004_WEB.xml', "
+        "'{\"consolidated\": true}', 1), "
+        "(3, 'Acme Ltd', 'q_revenue', 40.0, 'FY27Q1', "
+        "'https://nsearchives.nseindia.com/xbrl/INTEGRATED_FILING_INDAS_1_17072026075004_WEB.xml', "
+        "'{\"consolidated\": false}', 0)"
+    )
+    conn.execute(_DUCKDB_COMPANY_METRICS_RULED)
+    conn.close()
+
+
+_DUCKDB_SHAPE_CASES = [
+    ("subtree", {"root": "super_sector:Financials"}),
+    ("event_counterparties", {"entity": "Acme Ltd", "event_type": "acquisition"}),
+    ("resolve_identifier", {"value": "LEI-ZEN"}),
+    ("entities_of_type", {"entity_type": "super_sector"}),
+    ("edge_neighbors", {"source": "Acme Ltd", "edge_type": "part_of"}),
+    ("hyperedge_members", {"edge_type": "edition", "label": "Ed. 1"}),
+    ("hyperedge_labels", {"edge_type": "edition"}),
+    (
+        "concept_mappings_for",
+        {"source_scheme": "industry", "source_concept": "Op Label"},
+    ),
+    ("provenance_agents_for", {"table": "events"}),
+    (
+        "metric_value",
+        {"entity": "Acme Ltd", "metric_label": "q_revenue", "period": "FY27Q1", "scope": "consolidated"},
+    ),
+    (
+        "metric_value",
+        {"entity": "Acme Ltd", "metric_label": "q_revenue", "period": "FY27Q1", "scope": "standalone"},
+    ),
+    ("ultimate_parent_of", {"company": "Acme Ltd"}),  # absent table -> []
+    ("insight_counterparts", {"kind": "hidden_connections", "subject": "Acme Ltd"}),
+]
+
+
+@pytest.fixture()
+def duckdb_pair(tmp_path: Path):
+    """Parent = the live SQLite store; candidate = the converted DuckDB copy."""
+    parent = tmp_path / "parent.db"
+    _build_db(parent)
+    candidate = tmp_path / "candidate.duckdb"
+    _build_duckdb_db(candidate)
+    return parent, candidate
+
+
+class TestDuckDbCandidate:
+    """S1 (duckdb_research_swap_execution): the mandatory eval gate must
+    answer against a converted DuckDB candidate via connect_funnel with
+    byte-identical answers to the SQLite store — the S1/S6 accept rule
+    depends on it."""
+
+    def test_every_shape_matches_sqlite(self, duckdb_pair):
+        parent, candidate = duckdb_pair
+        from helpers.core.db_engine import connect_funnel
+
+        sqlite_conn = connect(parent)
+        duck_conn = connect_funnel(candidate)
+        try:
+            for shape, params in _DUCKDB_SHAPE_CASES:
+                question = {"id": f"duck-{shape}", "shape": shape, "params": params}
+                assert gate.answer_question(duck_conn, question) == gate.answer_question(
+                    sqlite_conn, question
+                ), shape
+        finally:
+            duck_conn.close()
+            sqlite_conn.close()
+
+    def test_gate_accepts_duckdb_candidate_end_to_end(self, duckdb_pair, tmp_path, capsys):
+        parent, candidate = duckdb_pair
+        q = _questions(tmp_path)
+        rc = gate.main(
+            ["--parent", str(parent), "--candidate", str(candidate), "--questions", str(q)]
+        )
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "ACCEPT" in out or "accept" in out.lower()
+
+    def test_shadow_sqlite_candidate_parity_on_shipped_set(self, duckdb_pair, tmp_path):
+        parent, candidate = duckdb_pair
+        from helpers.core.db_engine import connect_funnel
+
+        q = _questions(tmp_path)
+        data = json.loads(q.read_text(encoding="utf-8"))
+        from helpers.misc.ontology_eval_gate import evaluate
+
+        sqlite_conn = connect(parent)
+        duck_conn = connect_funnel(candidate)
+        try:
+            _accept, sql_results, _reasons = evaluate(
+                sqlite_conn, sqlite_conn, data["questions"], set()
+            )
+            _accept2, duck_results, _reasons2 = evaluate(
+                connect(parent), duck_conn, data["questions"], set()
+            )
+            assert [(r["id"], r["verdict"]) for r in duck_results] == [
+                (r["id"], r["verdict"]) for r in sql_results
+            ]
+        finally:
+            sqlite_conn.close()
+            duck_conn.close()

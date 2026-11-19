@@ -1186,6 +1186,14 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
         # research.db, a different database. (Mirrors the pytest allowlist in
         # tests/test_static_checks.py.)
         "helpers/analytics/bili_tier_nudge.py",
+        # S1 canonical converter: mode=ro URI open of the SOURCE research.db
+        # (the conversion source must never take a write lock on the live
+        # store; mode=ro fails loudly on a missing file instead of letting
+        # connect() bootstrap production schema into a phantom 0-byte db).
+        # The DESTINATION is a fresh DuckDB file — connect() targets
+        # research.db only and cannot express it. (Mirrors the pytest
+        # allowlist in tests/test_static_checks.py.)
+        "helpers/misc/swap_convert.py",
     )
     failures: list[str] = []
     if scope is not None:

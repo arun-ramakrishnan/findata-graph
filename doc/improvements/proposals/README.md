@@ -47,12 +47,24 @@ entry number and stale DONE pointers):
   retro_resolution_worklist (one-shot curation, never regenerate), and the
   country (235 → 19,141) / nic (journal source gone) / counterparty
   worklists regenerated same-day; no eval-gate bullet — data files only).
-- `gate_artifact_sidecar_zstd` — LIVE, filed 2026-11-19
-  (`tooling/gate_artifact_sidecar_zstd.md`); zstd-compress the pytest metadata
-  sidecars — 63% of `outputs/.artifacts` at 111.7 MB, redundant with
-  `test_facts` but the only source for a `--rebuild-tests` — at retain time,
-  teach `gate_query._test_metadata_by_node` the `.json.zst` form, and backfill
-  the 120 kept run dirs; expected `.artifacts` 176.9 → ~80 MB at keep=40.
+- `duckdb_research_swap_execution` — LIVE, filed 2026-11-19
+  (`database/duckdb_research_swap_execution.md`); unparked execution of the
+  canonical `research.db` SQLite→DuckDB swap from the de-risked readiness
+  program (Steps 0–8, completed.md #533). Six independent slices S0–S6:
+  frozen census baseline → converted artifact + full parity → opt-in engine
+  switch (read lanes first) → 22/22 cascade rewrites → integrity/maintenance
+  redesign → consumer sweep → cutover + full gates. Mandatory eval-gate
+  bullet (`ontology_eval_gate.py --parent` SQLite / `--candidate` DuckDB,
+  v21/239 questions, zero regressions) at S1 and S6. Baseline 2026-11-19:
+  363,528,192 B / 38 tables / 24 FK links / 161 PRAGMA / 491 connect sites.
+- *(archived 2026-11-20)* — `gate_artifact_sidecar_zstd` (tooling/, filed +
+  executed 2026-11-19, completed.md #548 — zstd-compress gate artifacts at
+  retain time: pytest metadata sidecars (111.7 MB = 63% of `outputs/.artifacts`,
+  load-bearing for `--rebuild-tests` since retained junit carries no pytest
+  properties), junit (34.2 → 5.2 MB) and step logs (31.0 → 5.3 MB) —
+  `.artifacts` 176.9 → 26.8 MB; parity 369/369 runs multiset-identical after
+  rebuilding 275,335 test_facts rows from compressed artifacts; caught the
+  `removesuffix(".junit.xml")`-vs-`.zst` enrichment bug en route).
 - *(archived 2026-11-19)* — `embed_preload_sidecar_lock_bfs` (tooling/, filed
   + executed 2026-11-19, completed.md #546 — sidecar readers queue on a held
   DuckDB lock (embed-gc crash + 7 raw openers incl. the two convo migration

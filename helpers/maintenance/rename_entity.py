@@ -33,7 +33,13 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(PROJECT_ROOT / "helpers") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "helpers"))
 
-from helpers.core.db import connect, utc_now  # noqa: E402  (T1: utc_now for last_updated)
+from helpers.core.db import utc_now  # noqa: E402  (T1: utc_now for last_updated)
+from helpers.core.db_engine import (  # noqa: E402  (S3: DuckDB destructive-write routing)
+    ResearchEngine,
+    connect_funnel,
+    is_duckdb_conn,
+)
+from helpers.misc.swap_rewrite_flows import rename_entity as duckdb_rename_entity  # noqa: E402
 
 # Reuse the canonical normalizer rather than maintaining a second copy.
 # Both functions must agree on the filename contract (PascalCase, single
@@ -80,11 +86,21 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
     new_normalized = _normalize_name(new_name)
 
-    # row_factory=None: this script uses tuple-style fetchone() unpacking.
-    # FK ON is required for ON UPDATE CASCADE on rename.
-    conn = connect(DB_PATH, row_factory=None)
+    # S3: resolve the S2 selector. SQLite (default) keeps the byte-identical
+    # in-place UPDATE path below; DuckDB routes the destructive write through
+    # the canonical rewrite flow (DuckDB parse-rejects ON UPDATE CASCADE).
+    selector = ResearchEngine.from_env()
+    conn = connect_funnel(DB_PATH, row_factory=None, engine=selector)
+    use_duckdb = is_duckdb_conn(conn)
     try:
-        conn.execute("BEGIN")
+        # DuckDB 2.0 FK validation is not transaction-safe for the
+        # clone-move-delete rewrite: an FK violation on an intermediate
+        # statement aborts the whole transaction (and is not rolled back by
+        # ROLLBACK). The rewrite is ordered so each statement leaves the store
+        # consistent, so let DuckDB autocommit each one. SQLite keeps the
+        # explicit BEGIN…COMMIT it has always used.
+        if not use_duckdb:
+            conn.execute("BEGIN")
 
         row = conn.execute(
             "SELECT name, normalized_name, sector_classification, file_path FROM entities WHERE name = ?",
@@ -115,7 +131,19 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         # staleness comparison against graph_analytics.computed_at (also UTC
         # CURRENT_TIMESTAMP) is apples-to-apples. TODAY (date-only) is for
         # the markdown YAML last_modified field only.
-        if ticker_override:
+        if use_duckdb:
+            # DuckDB: ordered clone-move-delete rewrite. Seed every column the
+            # SQLite path updates so the cloned row is indistinguishable.
+            new_values = {
+                "normalized_name": new_normalized,
+                "file_path": new_file_path,
+                "sector_classification": sector,
+                "last_updated": utc_now(),
+            }
+            if ticker_override:
+                new_values["ticker"] = ticker_override
+            duckdb_rename_entity(conn, old_name, new_name, new_values=new_values)
+        elif ticker_override:
             conn.execute(
                 "UPDATE entities SET name = ?, normalized_name = ?, file_path = ?, sector_classification = ?, ticker = ?, last_updated = ? WHERE name = ?",
                 (
@@ -166,12 +194,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         else:
             print("  ⚠ fileless entity (D14 stub) — no markdown to move")
 
-        conn.commit()
-        # Integrity check: with cascades on, this should be clean.
-        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
-        if violations:
-            print(f"  ⚠ FK violations after rename: {violations}", file=sys.stderr)
-            return 1
+        if not use_duckdb:
+            conn.commit()  # no-op on DuckDB (each rewrite statement autocommitted)
+        # Integrity check: with cascades on, this should be clean. DuckDB has
+        # no PRAGMA foreign_key_check; the rewrite flow is ordered so an
+        # orphan cannot survive (each child FK is repointed before delete).
+        if not use_duckdb:
+            violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+            if violations:
+                print(f"  ⚠ FK violations after rename: {violations}", file=sys.stderr)
+                return 1
         print(f"\n✅ Renamed {old_name} → {new_name} (DB + file).")
         return 0
     except Exception as e:

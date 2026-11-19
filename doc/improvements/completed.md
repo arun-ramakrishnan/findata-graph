@@ -16432,3 +16432,36 @@ question set) per the proposal's §4 house rule.
 - **Verification:** `git check-ignore` clean ×7, all tracked in `git ls-files`;
   `static_checks` rc=0 (3 advisory); `make search-fresh` check rc=0.
   Proposal: `archive/tooling/findata_misc_json_git_inclusion.md`.
+
+
+## 548. zstd-compress pytest metadata sidecars (plus junit + step logs) at gate-artifact retain time
+
+- **Problem** (`archive/tooling/gate_artifact_sidecar_zstd.md`): pytest metadata
+  sidecars were 111.7 MB = 63% of `outputs/.artifacts` (176.9 MB) — redundant
+  with `gate_runs.duckdb` `test_facts` but load-bearing: `gate_query refresh
+  --rebuild-tests` re-derives test facts from the RETAINED artifacts and
+  `_test_metadata_by_node` reads the sidecars for markers/phases/`file_line`/
+  worker; retained junit XML carries NO pytest properties (6,486 testcases,
+  0 measured), so deleting sidecars would permanently degrade future rebuilds.
+- **Design:** zstd at retain time, library-default level (repo policy #174),
+  `copystat` so the reader mtime window (`lo-120s .. hi+300s`) stays honest;
+  plain-first fallback everywhere; `ZstdError` skipped like
+  `JSONDecodeError`; suffix-append `.zst` (`zstd_io.zst_path` convention).
+- **Slices landed 2026-11-19:** S1 writer (`retain_test_artifacts` →
+  `<name>.json.zst`), S2 reader (`_test_metadata_by_node` candidates gain the
+  `.zst` variants), S3 one-time backfill of the 120 kept run dirs (sidecars
+  111.5 → 16.1 MB, 14.4%), S4 tests, S5 retained junit `.xml.zst`
+  (34.2 → 5.2 MB; `_retained_artifact_junit` twin feeds `runs.junit_path`,
+  rewritten for exactly the 120 compressed files), S6 step logs `.log.zst`
+  (31.0 → 5.3 MB; `cmd_output` listing/resolution/read).
+- **Outcome:** `outputs/.artifacts` 176.9 → 81.4 → **26.8 MB**; backfill
+  parity = per-run multiset hash (`count(*)` + `sum(hash(<15 cols>))`) before
+  vs after `refresh --rebuild-tests`: **369/369 runs identical, 0 missing,
+  0 new** (275,335 rows re-derived from compressed artifacts).
+- **Bug caught en route:** `_test_metadata_by_node` derived sidecar names via
+  `removesuffix(".junit.xml")`, leaving `.zst` unstripped — sidecar enrichment
+  silently vanished for compressed junit; fixed to strip `.zst` first.
+- **Verification:** 94 tests green across `test_run_gate_report` /
+  `test_gate_query` / `test_gate_retain` / `test_report_append_convention`;
+  ruff + static_checks rc 0; `gate_query refresh --check` clean.
+  Proposal: `archive/tooling/gate_artifact_sidecar_zstd.md`.

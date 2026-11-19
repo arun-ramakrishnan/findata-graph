@@ -132,9 +132,8 @@ def main(argv: list[str] | None = None) -> int:
     signal.signal(signal.SIGTERM, _flag)
     signal.signal(signal.SIGINT, _flag)
 
-    # allow_unsigned_extensions is a connect-time config in duckdb 2.0 — the
-    # server's con must carry it or every onager lane arriving over the wire
-    # degrades to the graph fallbacks (helpers/graph/onager.py::connect_kwargs).
+    # Onager lanes load the signed distribution flaglessly (vendored build
+    # retired 2026-11-20); connect_kwargs now only carries the memory cap.
     try:
         from helpers.graph.onager import connect_kwargs
 
