@@ -57,7 +57,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import duckdb
-from compression.zstd import compress, decompress
+from compression.zstd import ZstdError, compress, decompress
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -500,9 +500,22 @@ def _test_metadata_by_node(
 ) -> dict[str, dict]:
     lo = run_start or run_gen or datetime.fromtimestamp(junit.stat().st_mtime)
     hi = run_gen or datetime.fromtimestamp(junit.stat().st_mtime)
-    base_name = junit.name.removesuffix(".junit.xml")
+    # gate_artifact_sidecar_zstd S5: the retained junit itself may be the
+    # compressed <gate>.junit.xml.zst — strip .zst first so the sidecar
+    # candidates still resolve to <gate>.metadata.json[.zst].
+    base_name = junit.name.removesuffix(".zst").removesuffix(".junit.xml")
     base = junit.with_name(f"{base_name}.metadata.json")
-    candidates = [base, *sorted(junit.parent.glob(f"{base_name}.metadata.*.json"))]
+    # gate_artifact_sidecar_zstd S2: retain_test_artifacts stores the
+    # sidecars zstd-compressed (<name>.json.zst); plain .json stays readable
+    # (pre-backfill run dirs, or any external producer). The plain globs do
+    # not match ".json.zst" names, so the compressed forms are separate
+    # candidates.
+    candidates = [
+        base,
+        *sorted(junit.parent.glob(f"{base_name}.metadata.*.json")),
+        junit.with_name(base.name + ".zst"),
+        *sorted(junit.parent.glob(f"{base_name}.metadata.*.json.zst")),
+    ]
     out: dict[str, dict] = {}
     for path in candidates:
         if not path.exists():
@@ -511,8 +524,11 @@ def _test_metadata_by_node(
         if not (lo - timedelta(seconds=120) <= mtime <= hi + timedelta(seconds=300)):
             continue
         try:
-            payload = jsonio.loads(path.read_text())
-        except OSError, jsonio.JSONDecodeError:
+            raw = path.read_bytes()
+            if path.name.endswith(".zst"):
+                raw = decompress(raw)
+            payload = jsonio.loads(raw)
+        except OSError, ZstdError, jsonio.JSONDecodeError:
             continue
         if payload.get("schema") != "test-metadata.v1":
             continue
@@ -569,8 +585,13 @@ def _junit_facts(
         # machine-local gate-run junit (operator-generated, not attacker input);
         # defusedxml not a dep by design — three-tool suppression per the house
         # noqa doctrine: ruff S314 + bandit nosec + semgrep nosemgrep (L15).
-        root = ET.parse(junit).getroot()  # noqa: S314  # nosec B314  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
-    except ET.ParseError, OSError:
+        # gate_artifact_sidecar_zstd S5: retained junit arrives zstd-compressed
+        # (<gate>.junit.xml.zst); the live staging file stays plain.
+        if junit.name.endswith(".zst"):
+            root = ET.fromstring(decompress(junit.read_bytes()))  # noqa: S314  # nosec B314  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
+        else:
+            root = ET.parse(junit).getroot()  # noqa: S314  # nosec B314  # nosemgrep: python.lang.security.use-defused-xml-parse.use-defused-xml-parse
+    except ET.ParseError, OSError, ZstdError:
         return None, []
     metadata = _test_metadata_by_node(junit, run_start, run_gen)
     facts: list[dict] = []
@@ -678,11 +699,17 @@ def _retained_artifact_junit(
     junit = base / f"{gate}.junit.xml"
     if junit.exists():
         return junit, "retained"
+    # gate_artifact_sidecar_zstd S5: retained junit arrives compressed.
+    junit_zst = base / (junit.name + ".zst")
+    if junit_zst.exists():
+        return junit_zst, "retained"
     # A run whose lane retains per-leg stdout logs but has no junit at all
     # (perf, maint, integrity, verify) is NOT a broken run — it is a lane
     # with a different artifact shape. The pre-fix answer ('missing') read
     # as data loss and hid the fact that `gate_query output` works.
-    if any(base.glob(f"{gate}.*{_STEP_LOG_SUFFIX}")):
+    if any(base.glob(f"{gate}.*{_STEP_LOG_SUFFIX}")) or any(
+        base.glob(f"{gate}.*{_STEP_LOG_SUFFIX}.zst")
+    ):
         return None, "logs"
     return None, "missing"
 
@@ -1157,8 +1184,16 @@ def refresh(con, *, full: bool = False, check: bool = False, root: Path | None =
             # (the exact silent 45 MB-rescan failure class) — name it.
             counts["zero_block_files"].append(rel)
         now = datetime.now()
+        # Explicit DELETE+INSERT instead of INSERT OR REPLACE: legacy
+        # gate_runs.duckdb files carry a parse_state table without the
+        # src_rel PRIMARY KEY (CREATE TABLE IF NOT EXISTS won't retrofit a
+        # constraint onto an existing table), and DuckDB then rejects
+        # INSERT OR REPLACE with "no UNIQUE/PRIMARY KEY constraints". This
+        # form is correct on both the old (no-PK) and current (PK) schemas,
+        # and mirrors the DELETE-then-INSERT pattern used by _store_run.
+        con.execute("DELETE FROM parse_state WHERE src_rel = ?", [rel])
         con.execute(
-            "INSERT OR REPLACE INTO parse_state VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO parse_state VALUES (?, ?, ?, ?, ?)",
             [rel, new_off, len(raw), path.stat().st_mtime_ns, now],
         )
         counts["files"] += 1
@@ -2339,10 +2374,12 @@ def cmd_output(con, args) -> str:
 
     The report carries a capped tail and the index carries a capped
     ``err_head``; neither is the whole story when a leg fails deep inside
-    its output. ``retain_test_artifacts`` copies each step's complete
-    stdout next to the junit as ``<gate>.<label>.log``, so this verb reads the
-    record of what actually happened instead of re-running the leg and
-    getting a different tree, load average, and (for perf) verdict.
+    its output. ``retain_test_artifacts`` retains each step's complete
+    stdout next to the junit as ``<gate>.<label>.log`` — zstd-compressed as
+    ``<gate>.<label>.log.zst`` since gate_artifact_sidecar_zstd S6 (plain
+    logs from older runs stay readable) — so this verb reads the record of
+    what actually happened instead of re-running the leg and getting a
+    different tree, load average, and (for perf) verdict.
     """
     gate = None if args.gate == "all" else args.gate
     r = _pick_run(con, args.run, args.wt, gate, only_failed=False)
@@ -2357,7 +2394,15 @@ def cmd_output(con, args) -> str:
         )
     label = args.leg
     if not label:
-        available = sorted(p.name for p in base.glob(f"*{_STEP_LOG_SUFFIX}"))
+        # gate_artifact_sidecar_zstd S6: logs are retained as .log.zst; older
+        # run dirs still hold the plain form — list both.
+        available = sorted(
+            p.name
+            for p in (
+                *base.glob(f"*{_STEP_LOG_SUFFIX}"),
+                *base.glob(f"*{_STEP_LOG_SUFFIX}.zst"),
+            )
+        )
         if not available:
             return f"run {r['run_id']}: no per-step output logs retained in {base}"
         return "retained output logs (pass --leg <name>):\n" + "\n".join(
@@ -2365,15 +2410,23 @@ def cmd_output(con, args) -> str:
         )
     path = base / f"{r['gate']}.{_safe_step_label(label)}{_STEP_LOG_SUFFIX}"
     if not path.exists():
+        path = base / (path.name + ".zst")
+    if not path.exists():
         known = sorted(
-            p.name.removesuffix(_STEP_LOG_SUFFIX).removeprefix(f"{r['gate']}.")
-            for p in base.glob(f"{r['gate']}.*{_STEP_LOG_SUFFIX}")
+            p.name.removesuffix(".zst").removesuffix(_STEP_LOG_SUFFIX).removeprefix(f"{r['gate']}.")
+            for p in (
+                *base.glob(f"{r['gate']}.*{_STEP_LOG_SUFFIX}"),
+                *base.glob(f"{r['gate']}.*{_STEP_LOG_SUFFIX}.zst"),
+            )
         )
         return (
             f"no retained output for leg {label!r} in run {r['run_id']} "
             f"(retained legs: {', '.join(known) or 'none'})"
         )
-    text = path.read_text(errors="replace")
+    raw = path.read_bytes()
+    if path.name.endswith(".zst"):
+        raw = decompress(raw)
+    text = raw.decode("utf-8", errors="replace")
     lines = text.splitlines()
     if args.grep:
         needle = args.grep.lower()
@@ -2431,7 +2484,15 @@ def cmd_rotate(con, args) -> str:
         if len(blocks) <= args.keep_runs:
             continue
         cut = blocks[len(blocks) - args.keep_runs]
-        prefix_end = cut[1]
+        # Clamp to the live file: an index whose offsets drifted past EOF
+        # (rotations before 2026-11-19 never rebased live rows — see the
+        # header_offset rebase below) would otherwise cut beyond the tail,
+        # and f.read(prefix_end) then returns the WHOLE file, archiving it
+        # and truncating the live report to 0 bytes. Symptom 2026-11-19:
+        # database_integrity_report.md 154,375,253 -> 0 bytes.
+        prefix_end = min(cut[1], size)
+        if prefix_end <= 0 or prefix_end >= size:
+            continue  # never archive the whole file; nothing real to keep
         ts = blocks[0][2]
         stamp = ts.strftime("%Y%m%dT%H%M%S") if ts else str(int(time.time()))
         arch = ROOT / "archives" / Path(rel).stem / f"{Path(rel).stem}.{stamp}.zst"
@@ -2457,6 +2518,38 @@ def cmd_rotate(con, args) -> str:
                 "UPDATE runs SET arch_path = ? WHERE src_rel = ? AND header_offset < ?",
                 [str(arch), rel, prefix_end],
             )
+            # Rebase the SURVIVORS. Removing prefix_end bytes from the head
+            # shifts every remaining block start down by exactly that much;
+            # before 2026-11-19 this rebase was missing, so each rotation
+            # left live header_offsets inflated by the cumulative archived
+            # prefix. (_full_tail's f.seek then read past EOF and returned
+            # empty; cmd_rotate's cut eventually landed beyond the tail and
+            # archived the WHOLE file, truncating it to 0 bytes.)
+            con.execute(
+                "UPDATE runs SET header_offset = header_offset - ? "
+                "WHERE src_rel = ? AND arch_path IS NULL AND header_offset >= ?",
+                [prefix_end, rel, prefix_end],
+            )
+            # Rows whose offset was already past EOF cannot be recovered by
+            # the shift alone (the bytes they point at are gone) — drop them
+            # so the next index pass re-derives the surviving tail blocks
+            # from the live file instead of trusting a stale pointer.
+            stale_ids = [
+                r[0]
+                for r in con.execute(
+                    "SELECT run_id FROM runs WHERE src_rel = ? AND arch_path IS NULL "
+                    "AND header_offset >= ?",
+                    [rel, len(tail)],
+                ).fetchall()
+            ]
+            for old_id in stale_ids:
+                for table in ("legs", "bench", "tests", "test_facts", "artifacts"):
+                    con.execute(f"DELETE FROM {table} WHERE run_id = ?", [old_id])  # noqa: S608  # table names are a literal tuple
+            if stale_ids:
+                con.execute(
+                    "DELETE FROM runs WHERE src_rel = ? AND arch_path IS NULL AND header_offset >= ?",
+                    [rel, len(tail)],
+                )
             con.execute(
                 "UPDATE parse_state SET parse_offset = GREATEST(parse_offset - ?, 0), size = ?, mtime_ns = ?, updated_at = ? WHERE src_rel = ?",
                 [prefix_end, len(tail), path.stat().st_mtime_ns, datetime.now(), rel],

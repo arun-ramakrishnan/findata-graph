@@ -56,6 +56,7 @@ import threading
 import time
 from collections import deque
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from compression.zstd import compress
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -129,6 +130,14 @@ def _publish_heartbeat(lane: str, run_id: str) -> None:
 _JUNIT_DIR = OUTPUTS_ROOT / ".junit"
 _JUNIT_DIR.mkdir(parents=True, exist_ok=True)
 _ARTIFACT_ROOT = OUTPUTS_ROOT / ".artifacts"
+# Bounded like gate_query rotate's default keep policy, and identical to the
+# value every OTHER lane already uses (tests/run_perf_benchmarks.py:67,
+# helpers/validators/verify_notes.py:45, helpers/misc/database_integrity_check.py:121,
+# helpers/maintenance/maint.py:199). This runner had NO prune at all until
+# 2026-11-19, which is why exactly the three gates it owns grew unbounded
+# (qa 163 run dirs / 405 MB, advisory 133 / 22 MB, integration 73 / 30 MB)
+# while perf/maint/integrity/verify each sat at exactly 40.
+_ARTIFACT_KEEP_RUNS = 40
 
 _TAIL_LINES = 60  # lines appended to the report per step
 # Failing steps get the whole capture: the 60-line budget truncated exactly
@@ -630,6 +639,18 @@ def table_lines(
     return lines
 
 
+def _retain_zst(source: Path, destination: Path) -> None:
+    """Compress a fresh staging artifact into the run dir (S1/S5/S6).
+
+    Append ``.zst`` (the zstd_io.zst_path convention; library-default level
+    per the #174 policy) and keep the source mtime — gate_query's freshness
+    windows trust it.
+    """
+    dst = destination / (source.name + ".zst")
+    dst.write_bytes(compress(source.read_bytes()))
+    shutil.copystat(source, dst)
+
+
 def retain_test_artifacts(gate_name: str, run_id: str, started: datetime) -> str | None:
     """Copy this run's machine-readable artifacts into .artifacts/<gate>/<run>/.
 
@@ -652,14 +673,22 @@ def retain_test_artifacts(gate_name: str, run_id: str, started: datetime) -> str
         return None
     destination = _ARTIFACT_ROOT / gate_name / run_id
     destination.mkdir(parents=True, exist_ok=True)
-    sources = [
-        junit,
+    # gate_artifact_sidecar_zstd S1/S5/S6: the pytest metadata sidecars
+    # (63% of .artifacts), the junit XML and the per-step logs are retained
+    # zstd-compressed as <name>.zst (append-only suffix, the zstd_io.zst_path
+    # convention; library-default level per the #174 policy). Measured
+    # 2026-11-19: sidecars 111.7 MB -> 14.4%, junit 34.2 MB -> 15.2%, logs
+    # 31.0 MB -> 17.2%. copystat keeps the source mtime so gate_query's
+    # freshness windows — which gate sidecar/junit trust on run-time
+    # proximity — stay honest.
+    if has_junit:
+        _retain_zst(junit, destination)
+    for source in (
         _JUNIT_DIR / f"{gate_name}.metadata.json",
         *sorted(_JUNIT_DIR.glob(f"{gate_name}.metadata.*.json")),
-    ]
-    for source in sources:
+    ):
         if source.exists() and source.stat().st_mtime >= cutoff:
-            shutil.copy2(source, destination / source.name)
+            _retain_zst(source, destination)
     manifest = _JUNIT_DIR / f"{gate_name}.gate-artifacts.json"
     if manifest.exists() and manifest.stat().st_mtime >= cutoff:
         shutil.copy2(manifest, destination / "gate-artifacts.json")
@@ -686,8 +715,28 @@ def retain_test_artifacts(gate_name: str, run_id: str, started: datetime) -> str
     # complete record of what a failing leg printed — the report tail is
     # capped and the run's own console output is not persisted anywhere.
     for log in fresh_logs:
-        shutil.copy2(log, destination / log.name)
+        _retain_zst(log, destination)
     return str(destination.relative_to(OUTPUTS_ROOT))
+
+
+def prune_test_artifacts(gate_name: str) -> list[Path]:
+    """Delete all but the newest _ARTIFACT_KEEP_RUNS dirs for this gate.
+
+    Delegates to helpers.misc.gate_retain.prune_old_runs — the same proven
+    path perf/verify/integrity/maint already use — rather than growing a
+    second deletion implementation. Retention is bounded so a daily gate
+    cannot silently fill the disk (measured 2026-11-19: qa alone held 163
+    run dirs / 405 MB, all of them past the keep-40 mark every other lane
+    enforces).
+    """
+    try:
+        from helpers.misc import gate_retain  # noqa: PLC0415  # repo root is on sys.path only in the runner
+    except ImportError:
+        return []  # helpers unavailable: never fail a gate over housekeeping
+    try:
+        return gate_retain.prune_old_runs(_ARTIFACT_ROOT, gate_name, _ARTIFACT_KEEP_RUNS)
+    except OSError:
+        return []  # housekeeping must never gate the run
 
 
 def write_report(
@@ -821,6 +870,7 @@ def main(argv: list[str] | None = None) -> int:
         ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print("\n".join(table_lines(results, started=started, ended=ended, elapsed=elapsed)))
         artifact_dir = retain_test_artifacts(name, run_id, started_dt)
+        prune_test_artifacts(name)
         report = OUTPUTS_ROOT / f"{name}_report.md"
         write_report(
             report,

@@ -3786,16 +3786,24 @@ def scan(
     target: str,
     conn,
     corpus: Corpus | None = None,
-    workers: int | None = None,
+    workers: int = 1,
 ) -> tuple[list[Quote], list[Metric]]:
     """Scan one or more newsletter files; return ``(quotes, metrics)``.
 
-    ``workers``: process fan-out for the per-file scan (default: auto =
-    min(4, cpu_count); 1 or below forces the serial loop). Pool shards
+    ``workers``: process fan-out for the per-file scan (default: serial =
+    1; ``--workers N`` opts into the process pool). The pool shards
     only the file-reading + regex phase — ``_scan_one_file`` is pure
     (docstring: thread-safe, no DB) and ``ex.map`` preserves input order,
     so aggregation is deterministic. Small targets (< 8 files) always run
     serial: fork startup exceeds the win.
+
+    Serial is the default as of 2026-11-19: at the current 131-file corpus
+    the pool costs more than it saves on the live box — measured 30.8 s
+    pooled (default and ``--workers 4``) vs 7.9 s serial (7.2 s CPU),
+    consistently since the 2026-11-12 window (perf leg 15.5–36.3 s vs the
+    9.0 s budget). The fork+import+IPC overhead of spinning the pool
+    dominates a scan whose whole CPU cost is ~7 s; the pool only pays on a
+    corpus several times larger.
     """
     # S1a single-DB-query: was N queries (one per file via _resolve_entities), now 1.
     # S1b corpus: when corpus is given (maint --full --corpus), iterate over pre-parsed notes instead of re-walking.
@@ -3815,9 +3823,7 @@ def scan(
         paths = [p for p in paths if any(t in p.parts for t in _NEWSLETTER_TREES)]
     if not paths:
         return [], []
-    import os as _os
-
-    n_workers = min(4, _os.cpu_count() or 1) if workers is None else workers
+    n_workers = int(workers or 1)
     if n_workers <= 1 or len(paths) < 8:
         return _scan_serial(paths, resolver_map)
     return _scan_parallel(paths, resolver_map, n_workers)
@@ -4037,9 +4043,11 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p.add_argument(
         "--workers",
         type=int,
-        default=None,
-        help="Process fan-out for the per-file scan (default: auto = min(4, "
-        "cpus); 1 or below forces serial). Small targets (< 8 files) run "
+        default=1,
+        help="Process fan-out for the per-file scan (default: serial; N>1 "
+        "opts into the process pool — measured slower than serial at the "
+        "current corpus size, 30.8 s pooled vs 7.9 s serial, 2026-11-19). "
+        "Small targets (< 8 files) run "
         "serial regardless.",
     )
     args = p.parse_args(argv)

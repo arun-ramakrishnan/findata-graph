@@ -143,9 +143,13 @@ _LOAD_RUN_CEIL = float(os.cpu_count() or 1)  # refusal bar: load1 vs cores ("unl
 #   graph_link_prediction    6.1 s (fb) 8.0     fallback-lane sparse matmul
 #                                                (sub-second) + boot/wire
 #                                                fetch; was 2.5-2.7 s onager
-#   derive_insights          4.8-7.5 s   9.0     scan/render wall (corpus
-#                                                growth); +2 s operator
-#                                                boost 09-26
+#   derive_insights          7.2-8.8 s   9.0     serial scan/render wall
+#                                                (pool default removed
+#                                                2026-11-19: pooled runs
+#                                                cost 30.8 s wall vs 7.9 s
+#                                                serial — fork+IPC overhead
+#                                                dominates the 131-file
+#                                                scan; --workers N opts in)
 #   graph_rebuild            2.5-2.7 s   5.0     O(E) data-only rebuild
 #                                                (tightened from 8.0 — was
 #                                                a regression ceiling)

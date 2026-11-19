@@ -38,7 +38,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none)*
+- `gate_artifact_sidecar_zstd` — LIVE, filed 2026-11-19
+  (`tooling/gate_artifact_sidecar_zstd.md`); zstd-compress the pytest metadata
+  sidecars — 63% of `outputs/.artifacts` at 111.7 MB, redundant with
+  `test_facts` but the only source for a `--rebuild-tests` — at retain time,
+  teach `gate_query._test_metadata_by_node` the `.json.zst` form, and backfill
+  the 120 kept run dirs; expected `.artifacts` 176.9 → ~80 MB at keep=40.
 - *(archived 2026-11-19)* — `live_search_perf_slices` (tooling/, filed
   2026-11-18, executed 2026-11-19, completed.md #545 — four measured latency
   slices: S1 note_search cosine 504.3 → 50.28 ms k=None / 21.4 ms k=10 at

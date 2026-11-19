@@ -174,6 +174,35 @@ def _gate_block(gen: str, start: str, *, fail: bool = False, exit_code: int | No
     )
 
 
+def test_refresh_upserts_legacy_parse_state_without_primary_key(corpus, capsys):
+    """Outputs-compression era DBs have a parse_state table with no src_rel
+    PK (CREATE TABLE IF NOT EXISTS can't retrofit one). DuckDB then rejects
+    INSERT OR REPLACE; refresh must upsert via explicit DELETE+INSERT so the
+    main debugging tool survives the legacy schema."""
+    rep = corpus / "qa_report.md"
+    _write(rep, _gate_block("2026-11-19 10:00:00", "2026-11-19 09:59:50"))
+    dbp = corpus / "gate_runs.duckdb"
+    con = gq.duckdb.connect(str(dbp))
+    con.execute(
+        "CREATE TABLE parse_state(src_rel VARCHAR, parse_offset UBIGINT, "
+        "size UBIGINT, mtime_ns BIGINT, updated_at TIMESTAMP)"
+    )
+    # prime a stale row under the legacy (no-PK) schema
+    con.execute(
+        "INSERT INTO parse_state VALUES (?, 0, 0, 0, ?)",
+        ["qa_report.md", datetime.now()],
+    )
+    con.close()  # SCHEMA's CREATE IF NOT EXISTS must NOT add a PK here
+    assert gq.main(["refresh"]) == 0
+    con = gq.connect()
+    rows = con.execute(
+        "SELECT src_rel, parse_offset FROM parse_state WHERE src_rel = ?",
+        ["qa_report.md"],
+    ).fetchall()
+    assert len(rows) == 1 and rows[0][1] > 0  # replaced, not duplicated
+    con.close()
+
+
 def test_refresh_latest_incremental(corpus):
     rep = corpus / "qa_report.md"
     _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
@@ -471,6 +500,140 @@ def test_junit_facts_normalize_metadata_and_fingerprints(corpus):
     assert failed[0][8] == failed[1][8]
     assert all(row[8] for row in failed)
     assert one(con, "SELECT artifact_schema FROM runs")[0] == gq.TEST_ARTIFACT_SCHEMA
+    con.close()
+
+
+def test_junit_facts_read_zstd_sidecars(corpus):
+    """gate_artifact_sidecar_zstd S2: retained sidecars arrive as
+    <gate>.metadata.json.zst; the reader must decompress them and enrich
+    test_facts exactly like the plain form (markers, worker, file_line,
+    phases). A corrupt frame is skipped like a JSONDecodeError, never a
+    refresh crash."""
+    from compression.zstd import compress
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    _write(corpus / "qa_report.md", _gate_block(now, now, fail=True))
+    _write(corpus / ".junit" / "qa.junit.xml", JUNIT_FACTS)
+    payload = json.dumps(
+        {
+            "schema": "test-metadata.v1",
+            "worker": "gw3",
+            "tests": [
+                {
+                    "node_id": "tests/test_facts.py::test_pass",
+                    "file": "tests/test_facts.py",
+                    "file_line": 42,
+                    "markers": ["live"],
+                    "phases": {
+                        "setup": {"seconds": 0.01, "outcome": "passed"},
+                        "call": {"seconds": 0.09, "outcome": "passed"},
+                    },
+                    "worker": "gw3",
+                }
+            ],
+        }
+    )
+    (corpus / ".junit" / "qa.metadata.json.zst").write_bytes(compress(payload.encode()))
+    # garbage frame: must be skipped, not fatal
+    (corpus / ".junit" / "qa.metadata.gw9.json.zst").write_bytes(b"not a zstd frame")
+    con = gq.connect()
+    gq.refresh(con)
+    row = one(
+        con,
+        "SELECT file, markers_json, file_line, worker FROM test_facts "
+        "WHERE node_id = 'tests/test_facts.py::test_pass'",
+    )
+    # worker comes from the junit property (gw2) — props take precedence over
+    # the sidecar; markers/file_line exist ONLY in the sidecar, so they are
+    # the proof the .zst form was read.
+    assert row == ("tests/test_facts.py", '["live"]', 42, "gw2")
+    con.close()
+
+
+def test_retained_zstd_junit_rebuilds_test_facts(corpus):
+    """gate_artifact_sidecar_zstd S5: retained junit arrives as
+    <gate>.junit.xml.zst; _retained_artifact_junit must feed the .zst path
+    into runs.junit_path and _junit_facts must parse it (with the .zst
+    sidecar enrichment) exactly like the plain form."""
+    from compression.zstd import compress
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    artifact_dir = ".artifacts/qa/run-zst"
+    retained = corpus / artifact_dir
+    retained.mkdir(parents=True, exist_ok=True)
+    (retained / "qa.junit.xml.zst").write_bytes(compress(JUNIT_FACTS.encode()))
+    payload = json.dumps(
+        {
+            "schema": "test-metadata.v1",
+            "worker": "gw1",
+            "tests": [
+                {
+                    "node_id": "tests/test_facts.py::test_pass",
+                    "file": "tests/test_facts.py",
+                    "file_line": 42,
+                    "markers": ["integration"],
+                    "phases": {"call": {"seconds": 0.1, "outcome": "passed"}},
+                    "worker": "gw1",
+                }
+            ],
+        }
+    )
+    (retained / "qa.metadata.json.zst").write_bytes(compress(payload.encode()))
+    block = _gate_block(now, now).replace(
+        "**Python:** 3.14.0",
+        f"**Python:** 3.14.0  ·  **Artifacts:** {artifact_dir}",
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    row = one(con, "SELECT artifact_state, junit_path FROM runs")
+    assert row[0] == "retained"
+    assert row[1].endswith("qa.junit.xml.zst")
+    assert one(con, "SELECT COUNT(*) FROM test_facts")[0] == 5
+    fact = one(
+        con,
+        "SELECT file, markers_json, file_line FROM test_facts "
+        "WHERE node_id = 'tests/test_facts.py::test_pass'",
+    )
+    # markers are the UNION of junit properties (live) and sidecar
+    # markers (integration) — gate_query.py merges both, sorted.
+    assert fact == ("tests/test_facts.py", '["integration","live"]', 42)
+    con.close()
+
+
+def test_output_verb_reads_zstd_step_log(corpus):
+    """gate_artifact_sidecar_zstd S6: retained step logs arrive as
+    <gate>.<label>.log.zst; cmd_output must list, resolve, and serve them
+    byte-identically to the plain form (plain logs stay readable)."""
+    from compression.zstd import compress
+
+    now = datetime.now().strftime(gq._TS_FMT)
+    artifact_dir = ".artifacts/qa/run-out"
+    retained = corpus / artifact_dir
+    retained.mkdir(parents=True, exist_ok=True)
+    log_lines = ["collected 3 items", *[f"noise-{i}" for i in range(50)], "FAILED tests/test_x.py"]
+    (retained / "qa.pytest.log.zst").write_bytes(compress(("\n".join(log_lines) + "\n").encode()))
+    block = _gate_block(now, now, fail=True).replace(
+        "**Python:** 3.14.0",
+        f"**Python:** 3.14.0  ·  **Artifacts:** {artifact_dir}",
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    base = SimpleNamespace(run=None, gate="qa", wt="", leg="pytest", grep=None, tail=5)
+    out = gq.cmd_output(con, base)
+    assert "qa.pytest.log.zst: 52 line(s)" in out
+    assert "FAILED tests/test_x.py" in out and "noise-0" not in out
+    base.tail = 0
+    assert "noise-0" in gq.cmd_output(con, base)
+    base.grep = "failed"
+    assert "1 of 52 line(s) matching 'failed'" in gq.cmd_output(con, base)
+    # unknown leg names what IS retained instead of failing silently
+    base.leg, base.grep = "type_check", None
+    assert "retained legs: pytest" in gq.cmd_output(con, base)
+    # no --leg lists the retained set (both suffixes)
+    base.leg = None
+    assert "qa.pytest.log.zst" in gq.cmd_output(con, base)
     con.close()
 
 
@@ -1094,6 +1257,67 @@ def test_rotation_archive_and_readback(corpus):
     counts = gq.refresh(con)
     assert counts["runs"] == 0
     assert one(con, "SELECT COUNT(*) FROM runs")[0] == 8
+    con.close()
+
+
+def test_rotation_rebases_live_offsets(corpus):
+    """Surviving header_offsets must shift by the archived prefix.
+
+    Regression (2026-11-19): the first rotation rebased parse_state but not
+    the live runs rows, so every later rotation cut further past the tail.
+    On outputs/database_integrity_report.md the drift accumulated to 34 MB
+    and the final cut (header_offset 172,135,656 vs a 154,375,253-byte
+    file) archived the WHOLE report and truncated it to 0 bytes.
+    """
+    rep = corpus / "qa_report.md"
+    gens = [f"2026-09-23 {h:02d}:00:00" for h in range(20)]
+    for g in gens:
+        _write(rep, _gate_block(g, g))
+    con = gq.connect()
+    gq.refresh(con)
+    size_before = rep.stat().st_size
+    gq.cmd_rotate(con, SimpleNamespace(apply=True, keep_runs=6, max_mb=0.000001))
+    size_after = rep.stat().st_size
+    assert 0 < size_after < size_before, "rotation must keep a non-empty tail"
+    live = con.execute(
+        "SELECT run_id, header_offset FROM runs WHERE arch_path IS NULL ORDER BY header_offset"
+    ).fetchall()
+    assert len(live) == 6
+    assert all(off < size_after for _, off in live)
+    raw = rep.read_bytes()
+    for run_id, off in live:
+        nbytes = one(con, f"SELECT nbytes FROM runs WHERE run_id = {run_id}")[0]
+        block = raw[off : off + nbytes].decode()
+        assert "make qa" in block, f"run {run_id} offset {off} points at no block head"
+    # a second rotation must not compound drift
+    gq.cmd_rotate(con, SimpleNamespace(apply=True, keep_runs=4, max_mb=0.000001))
+    size_after2 = rep.stat().st_size
+    assert size_after2 > 0
+    live2 = con.execute(
+        "SELECT header_offset FROM runs WHERE arch_path IS NULL ORDER BY header_offset"
+    ).fetchall()
+    assert all(off < size_after2 for (off,) in live2)
+    con.close()
+
+
+def test_rotation_never_archives_whole_file(corpus):
+    """A cut at/after EOF must be refused, not silently swallow the file.
+
+    The pre-fix path called f.read(prefix_end) with prefix_end past EOF,
+    which returns the ENTIRE file: it was archived and the live report was
+    rewritten with an empty tail.
+    """
+    rep = corpus / "qa_report.md"
+    gens = [f"2026-09-23 {h:02d}:00:00" for h in range(8)]
+    for g in gens:
+        _write(rep, _gate_block(g, g))
+    con = gq.connect()
+    gq.refresh(con)
+    con.execute("UPDATE runs SET header_offset = header_offset + 1000000")
+    size_before = rep.stat().st_size
+    out = gq.cmd_rotate(con, SimpleNamespace(apply=True, keep_runs=4, max_mb=0.000001))
+    assert rep.stat().st_size == size_before, "file must be untouched when the cut is bogus"
+    assert "nothing to rotate" in out
     con.close()
 
 

@@ -6,6 +6,7 @@ Exercises the runner mechanics against fake steps only — the real gates
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from datetime import datetime
@@ -164,13 +165,29 @@ def test_retain_test_artifacts_copies_current_run_files(tmp_path, monkeypatch):
     assert sorted(path.name for path in retained.iterdir()) == sorted(
         [
             "gate-artifacts.json",
-            "qa.junit.xml",
-            "qa.metadata.gw0.json",
-            "qa.metadata.json",
-            "qa.pytest.log",
+            "qa.junit.xml.zst",
+            "qa.metadata.gw0.json.zst",
+            "qa.metadata.json.zst",
+            "qa.pytest.log.zst",
             *native_names,
         ]
     )
+    # gate_artifact_sidecar_zstd S1/S4/S5/S6: sidecars, junit and step logs
+    # are retained compressed and must round-trip byte-identical, with the
+    # source mtime preserved (the gate_query reader trusts sidecars/junit
+    # only inside a run-time window).
+    from compression.zstd import decompress
+
+    assert json.loads(decompress((retained / "qa.metadata.gw0.json.zst").read_bytes())) == {
+        "schema": "test-metadata.v1"
+    }
+    assert decompress((retained / "qa.junit.xml.zst").read_bytes()) == b"<testsuites/>"
+    assert decompress((retained / "qa.pytest.log.zst").read_bytes()) == b"fullline\n"
+    src = live / "qa.metadata.gw0.json"
+    assert (retained / "qa.metadata.gw0.json.zst").stat().st_mtime == src.stat().st_mtime
+    assert (retained / "qa.junit.xml.zst").stat().st_mtime == (
+        live / "qa.junit.xml"
+    ).stat().st_mtime
 
 
 def test_retain_test_artifacts_without_junit_keeps_step_logs(tmp_path, monkeypatch):
@@ -189,7 +206,7 @@ def test_retain_test_artifacts_without_junit_keeps_step_logs(tmp_path, monkeypat
 
     assert relative == ".artifacts/perf/run-1"
     assert sorted(p.name for p in (artifacts / "perf" / "run-1").iterdir()) == [
-        "perf.bench_one.log"
+        "perf.bench_one.log.zst"
     ]
 
 
