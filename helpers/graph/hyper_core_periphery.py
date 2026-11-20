@@ -1,5 +1,20 @@
 #!/usr/bin/env python3
-"""Core-periphery lane."""
+"""Core-periphery lane (HGX unlock-shelf #2).
+
+Per-node coreness in [0,1] via hypergraphx's core-periphery MLE — a
+graded signal no other seat produces (MMSBM/HySC/HypergraphMT emit
+blocks; this emits a coreness score).
+
+Standing (2026-11-20, harvest_promotions_and_census_writeup S2b):
+RECORDED PROBE, unwired by design — no make target, no test, zero
+importers outside doc/. Smoke (#549, sector, n_iter=50): 1225 nodes in
+14.8 s, top coreness ~1.0, 781/1225 >= 0.5 (near-degenerate on the
+partition families). Wire (target + test) only when a consumer needs a
+core/periphery ranking; until then run by hand:
+
+    python3 helpers/graph/hyper_core_periphery.py            # dry-run
+    python3 helpers/graph/hyper_core_periphery.py --apply    # metric core_periphery
+"""
 
 from __future__ import annotations
 
@@ -50,15 +65,20 @@ def fit_core_periphery(incidence, seed=42, n_iter=1000, greedy_start=False):
     Hypergraph, core_periphery = _require_hgx()
     hg = Hypergraph(edge_list=[tuple(members) for members in incidence.values()])
     scores = core_periphery(hg, greedy_start=greedy_start, N_ITER=n_iter, seed=seed)
-    return {node: {"coreness": round(float(score), 6), "seed": seed, "n_iter": n_iter} for node, score in scores.items()}
+    return {
+        node: {"coreness": round(float(score), 6), "seed": seed, "n_iter": n_iter}
+        for node, score in scores.items()
+    }
 
 
 def _report(memberships):
     lines = ["top-10 coreness:"]
-    for node, payload in sorted(memberships.items(), key=lambda kv: -kv[1]["coreness"])[:10]:
-        lines.append("  %.4f  %s" % (payload["coreness"], node))
+    for node, payload in sorted(memberships.items(), key=lambda kv: (-kv[1]["coreness"], kv[0]))[
+        :10
+    ]:
+        lines.append(f"  {payload['coreness']:.4f}  {node}")
     n_core = sum(1 for v in memberships.values() if v["coreness"] >= 0.5)
-    lines.append("nodes with coreness>=0.5: %d / %d" % (n_core, len(memberships)))
+    lines.append(f"nodes with coreness>=0.5: {n_core} / {len(memberships)}")
     return lines
 
 
@@ -76,20 +96,23 @@ def _cli(argv=None):
     raw = ha.incidence_dict(ha.load_incidence_arrow(sources))
     kept, giants, singles = _exclude_degenerate(raw, allow_giant=args.allow_giant)
     if giants:
-        print("WARNING: excluded %d giant hyperedge(s)" % len(giants), file=sys.stderr)
+        print(f"WARNING: excluded {len(giants)} giant hyperedge(s)", file=sys.stderr)
     if not kept:
         print("SKIP: no hyperedges left")
         return 0
-    print("incidence: %d hyperedges, %d kept" % (len(raw), len(kept)))
+    print(f"incidence: {len(raw)} hyperedges, {len(kept)} kept")
     t0 = time.perf_counter()
-    memberships = fit_core_periphery(kept, seed=args.seed, n_iter=args.n_iter, greedy_start=args.greedy_start)
-    print("fit: %d nodes in %.2fs" % (len(memberships), time.perf_counter() - t0))
+    memberships = fit_core_periphery(
+        kept, seed=args.seed, n_iter=args.n_iter, greedy_start=args.greedy_start
+    )
+    print(f"fit: {len(memberships)} nodes in {time.perf_counter() - t0:.2f}s")
     for line in _report(memberships):
         print(line)
     if args.apply:
         from helpers.graph.algorithms import write_analytics
+
         n = write_analytics(METRIC, memberships, replace_population=True)
-        print("APPLY: wrote %d rows (metric %s)" % (n, METRIC))
+        print(f"APPLY: wrote {n} rows (metric {METRIC})")
     else:
         print("DRY-RUN (use --apply to persist)")
     return 0

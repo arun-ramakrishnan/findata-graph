@@ -129,6 +129,16 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`harvest_promotions_and_census_writeup.md`](graph/harvest_promotions_and_census_writeup.md) —
+  the 2026-11-20 estate-hunt harvest (#550): U5 SQL motif census
+  **REJECTED** (1,258,775 triples at k≤40; 17.0% mult≥2 — edition panel
+  duplication + partition definitional zeros; reopen = deduplicated-panel
+  QA); S5 frontend/desktop test gate wired, S2a spectral ARI≈0 pin +
+  `hyper-spectral-check` guard (+ undeclared-scikit-learn prune found and
+  re-declared in the `lens` extra), S2b wrapper-trio dispositions, S2c
+  `hyper-predict-bank` target + prereg realized (0 scoreable events),
+  S2d `allow_giant` removed + U6 confirmatory (null-level, stays gated),
+  S4 32/32 coverage dispositions; S3 MCP server deferred — completed.md #550
 - [`hgx_unlock_lanes_and_emeans.md`](graph/hgx_unlock_lanes_and_emeans.md) —
   the 2026-11-20 HGX unlock arc (#549): `hypergraphx[ml]` (sklearn 1.9.1)
   + faiss-cpu 1.16.0 installed; community lanes `hyper_hysc.py` /

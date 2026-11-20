@@ -581,7 +581,6 @@ parity) unblocks S2 (funnel routing) and S3 (rewrite flows) → S4
   rc=0 (3 advisory warnings, non-blocking). Operator owns git/stg — all
   edits in the `db_swap` patch.
 
-
 - **2026-11-20 — S3 EXECUTED: unified cascade rewrite flows wired into production.**
   Operator approved design (m05457): Option A — one unified `swap_rewrite_flows.py`
   module, reuse the S2 `ResearchEngine` selector for the destructive-write

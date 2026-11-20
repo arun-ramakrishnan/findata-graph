@@ -158,6 +158,13 @@ tui = [
 # no longer exists in 1.16.0).
 lens = [
     "faiss-cpu>=1.16.0",
+    # scikit-learn: KMeans fallback + adjusted_rand_score for the hypergraph
+    # community/spectral lanes (hyper_spectral_cluster, HySC, HypergraphMT —
+    # the hypergraphx[ml] surface). Installed into .venv by #549
+    # (hgx_unlock_lanes_and_emeans, 2026-11-20) but left undeclared, so the
+    # next uv sync pruned it and the lanes broke; declared here so the extra
+    # is self-healing (harvest_promotions_and_census_writeup S2a).
+    "scikit-learn",
 ]
 
 mojo = [

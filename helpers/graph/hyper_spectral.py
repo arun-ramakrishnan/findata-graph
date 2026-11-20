@@ -205,12 +205,14 @@ def rw_density_report(incidence: dict[str, list[str]], *, steps: int = 100) -> d
     l2 = [float(np.linalg.norm(np.atleast_1d(step))) for step in evolution]
     final_max = float(np.max(np.atleast_1d(evolution[-1])))
     out = dict(comp)
-    out.update({
-        "rw_steps": steps,
-        "rw_final_max_density": final_max,
-        "rw_l2_first": l2[0] if l2 else None,
-        "rw_l2_last": l2[-1] if l2 else None,
-    })
+    out.update(
+        {
+            "rw_steps": steps,
+            "rw_final_max_density": final_max,
+            "rw_l2_first": l2[0] if l2 else None,
+            "rw_l2_last": l2[-1] if l2 else None,
+        }
+    )
     return out
 
 

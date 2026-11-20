@@ -4,9 +4,17 @@
 HypergraphMT is a mixed-membership probabilistic model. Default realizations=1
 to keep runtime ~10-20s; full quality needs n_realizations>=10 (~100s+).
 
+Standing (2026-11-20, harvest_promotions_and_census_writeup S2b):
+RECORDED PROBE, unwired by design — no make target, no test, zero
+importers outside doc/. The soft-membership matrix (u — one weight per
+block per node) is the only graded-membership seat beyond MMSBM's
+memberships; smoke (#549, sector, K=4, 1 realization): 1225 nodes in
+13.3 s, 4 blocks (919/244/49/13). Wire (target + test) only when a
+consumer needs mixed memberships at realizations>=10 quality.
+
 Usage:
     python3 helpers/graph/hyper_hypergraphmt.py            # dry-run
-    python3 helpers/graph/hyper_hypergraphmt.py --apply   # persist
+    python3 helpers/graph/hyper_hypergraphmt.py --apply    # metric hypergraphmt_community
 """
 
 from __future__ import annotations
@@ -79,9 +87,9 @@ def _report(memberships):
     blocks = {}
     for entity, payload in memberships.items():
         blocks.setdefault(payload["block"], []).append(entity)
-    lines = ["blocks: %d" % len(blocks)]
+    lines = [f"blocks: {len(blocks)}"]
     for b in sorted(blocks, key=lambda x: -len(blocks[x])):
-        lines.append("  block %2d: %4d nodes" % (b, len(blocks[b])))
+        lines.append(f"  block {b:2d}: {len(blocks[b]):4d} nodes")
     return lines
 
 
@@ -99,20 +107,21 @@ def _cli(argv=None):
     raw = ha.incidence_dict(ha.load_incidence_arrow(sources))
     kept, giants, singles = _exclude_degenerate(raw, allow_giant=args.allow_giant)
     if giants:
-        print("WARNING: excluded %d giant hyperedge(s)" % len(giants), file=sys.stderr)
+        print(f"WARNING: excluded {len(giants)} giant hyperedge(s)", file=sys.stderr)
     if not kept:
         print("SKIP: no hyperedges left")
         return 0
-    print("incidence: %d hyperedges, %d kept" % (len(raw), len(kept)))
+    print(f"incidence: {len(raw)} hyperedges, {len(kept)} kept")
     t0 = time.perf_counter()
     memberships = fit_hypergraphmt(kept, k=args.k, seed=args.seed, realizations=args.realizations)
-    print("fit: %d nodes in %.2fs" % (len(memberships), time.perf_counter() - t0))
+    print(f"fit: {len(memberships)} nodes in {time.perf_counter() - t0:.2f}s")
     for line in _report(memberships):
         print(line)
     if args.apply:
         from helpers.graph.algorithms import write_analytics
+
         n = write_analytics(METRIC, memberships, replace_population=True)
-        print("APPLY: wrote %d rows (metric %s)" % (n, METRIC))
+        print(f"APPLY: wrote {n} rows (metric {METRIC})")
     else:
         print("DRY-RUN (use --apply to persist)")
     return 0

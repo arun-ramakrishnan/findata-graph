@@ -29,13 +29,12 @@ from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E40
 
 
 # --------------------------------------------------------------------------- #
-# Onager availability gate (duckdb 2.0 park — completed.md #427)              #
-#                                                                             #
-# The onager community extension has no v2.0.0 distribution yet (INSTALL       #
-# hits HTTP 404), so any test that materialises graph algorithms through      #
-# it fails with `Extension ... not found`. Probe once per session and skip    #
-# the dependent modules; when the 2.0 extension lands the probe flips and     #
-# the same tests reactivate without further edits.                            #
+# Onager availability gate (originally the duckdb 2.0 park — completed.md #427;
+# distribution landed 2026-11-20, vendored build retired). Probe once per
+# session and skip the extension-native modules when onager is not installed
+# locally (``INSTALL onager FROM community;``). The fallback lanes serve every
+# consumer surface, so only extension-native suites stay gated; ONAGER_GATE=off
+# re-enables the rest to prove the fallbacks answer.
 # --------------------------------------------------------------------------- #
 def _onager_available() -> bool:
     try:
@@ -45,10 +44,8 @@ def _onager_available() -> bool:
 
         con = duckdb.connect(":memory:", **connect_kwargs())
         try:
-            # Same resolution the engine uses: distribution LOAD first,
-            # then the vendored build (vendor/onager/ -> models/onager/bin/).
-            # The old INSTALL+LOAD probe kept the onager modules skipped
-            # even with a loadable vendored artifact on disk.
+            # Same resolution the engine uses: signed distribution LOAD
+            # (vendored build retired 2026-11-20).
             _load_onager(con)
             return True
         finally:
@@ -761,7 +758,7 @@ def pytest_collection_modifyitems(config, items):
             if rel in ONAGER_MODULES or item.get_closest_marker("onager"):
                 item.add_marker(
                     pytest.mark.skip(
-                        reason="onager extension has no duckdb-2.0 distribution (completed.md #427)"
+                        reason="onager signed distribution not installed (INSTALL onager FROM community;)"
                     )
                 )
     target = _test_metadata_target(config)

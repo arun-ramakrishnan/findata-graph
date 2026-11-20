@@ -670,8 +670,8 @@ def _onager_central(fn, con, edges, **kw):
     DB path (``edges is None``): apply the index-noise exclusion. Synthetic
     ``edges=`` lists pass through untouched (they define their own graph).
 
-    Engine order (onager_vendored_source_build): the vendored extension
-    wins per call via :func:`_extension_first`; lane-served families stay
+    Engine order: the signed onager distribution wins per call via
+    :func:`_extension_first` when installed; lane-served families stay
     on ``fn`` outright.
     """
     if fn.__name__ in _LANE_SERVED_FAMILIES:

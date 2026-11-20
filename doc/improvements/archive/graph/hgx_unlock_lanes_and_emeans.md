@@ -52,8 +52,8 @@ optional-dep gaps.
   (N,K) one-hot u; metric hysc_community.
 - Smoke (sector, K=4): blocks 919/244/49/13 in 3.1s.
 
-All lanes follow the hyper_communities.py template: lazy _require_hgx,
-_exclude_degenerate guard (max_frac=0.25), DEFAULT_SOURCES=
+All lanes follow the hyper_communities.py template: lazy `_require_hgx`,
+`_exclude_degenerate` guard (max_frac=0.25), DEFAULT_SOURCES=
 sector,theme,industry, dry-run default, --apply persists via
 helpers.graph.algorithms.write_analytics.
 

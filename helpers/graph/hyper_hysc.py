@@ -1,5 +1,19 @@
 #!/usr/bin/env python3
-"""HySC (hypergraph spectral clustering) community lane."""
+"""HySC (hypergraph spectral clustering) community lane (HGX unlock-shelf).
+
+Standing (2026-11-20, harvest_promotions_and_census_writeup S2b):
+RECORDED PROBE, unwired by design — no make target, no test, zero
+importers outside doc/. DUPLICATE-SEAT note: on the #549 sector smoke
+(K=4) its blocks (919/244/49/13, 3.1 s) mirror HypergraphMT's and the
+wired MMSBM incumbent (hyper_communities via make recompute-hyper) — a
+third overlapping-community seat with no divergent verdict on record.
+If a consumer appears, prefer folding the invocation under
+hyper_communities over keeping a standalone lane; retire if still zero
+consumers at the next shelf audit.
+
+    python3 helpers/graph/hyper_hysc.py            # dry-run
+    python3 helpers/graph/hyper_hysc.py --apply    # metric hysc_community
+"""
 
 from __future__ import annotations
 
@@ -76,12 +90,12 @@ def _block_report(memberships, incidence):
     blocks = {}
     for entity, payload in memberships.items():
         blocks.setdefault(int(payload["block"]), []).append(entity)
-    lines = ["blocks: %d (K=%d)" % (len(blocks), next(iter(memberships.values()))["k"])]
+    lines = [f"blocks: {len(blocks)} (K={next(iter(memberships.values()))['k']})"]
     for b in sorted(blocks, key=lambda x: (-len(blocks[x]), x)):
         members_b = blocks[b]
         cats = Counter(c for m in members_b for c in label_of.get(m, [])).most_common(3)
-        cat_txt = ", ".join("%s (%d)" % (c, n) for c, n in cats)
-        lines.append("  block %2d: %4d companies | %s" % (b, len(members_b), cat_txt))
+        cat_txt = ", ".join(f"{c} ({n})" for c, n in cats)
+        lines.append(f"  block {b:2d}: {len(members_b):4d} companies | {cat_txt}")
     return lines
 
 
@@ -97,30 +111,38 @@ def _cli(argv=None):
     sources = [s.strip() for s in args.sources.split(",") if s.strip()]
     n_store = ha.store_rowcount(sources)
     if not n_store:
-        print("[hyper-hysc] incidence store empty for sources (%s) - skipping" % ", ".join(sources))
+        print(f"[hyper-hysc] incidence store empty for sources ({', '.join(sources)}) - skipping")
         return 0
     raw = ha.incidence_dict(ha.load_incidence_arrow(sources))
     kept, giants, singles = _exclude_degenerate(raw, allow_giant=args.allow_giant)
     if giants:
-        print("WARNING: excluded %d giant hyperedge(s): %s" % (len(giants), ", ".join(sorted(giants)[:5])), file=sys.stderr)
+        print(
+            f"WARNING: excluded {len(giants)} giant hyperedge(s): {', '.join(sorted(giants)[:5])}",
+            file=sys.stderr,
+        )
     if singles:
-        print("NOTE: dropped %d singleton hyperedge(s)" % len(singles), file=sys.stderr)
+        print(f"NOTE: dropped {len(singles)} singleton hyperedge(s)", file=sys.stderr)
     if not kept:
         print("SKIP: no hyperedges left after degeneracy guard")
         return 0
     n_members = sum(len(v) for v in kept.values())
-    print("incidence: %d hyperedges loaded, %d kept (%d memberships over %d entities; sources: %s)" % (len(raw), len(kept), n_members, len({m for v in kept.values() for m in v}), ", ".join(sources)))
+    print(
+        f"incidence: {len(raw)} hyperedges loaded, {len(kept)} kept "
+        f"({n_members} memberships over {len({m for v in kept.values() for m in v})} entities; "
+        f"sources: {', '.join(sources)})"
+    )
 
     t0 = time.perf_counter()
     memberships = fit_hysc(kept, k=args.k, seed=args.seed)
-    print("fit: %d nodes in %.2fs" % (len(memberships), time.perf_counter() - t0))
+    print(f"fit: {len(memberships)} nodes in {time.perf_counter() - t0:.2f}s")
     for line in _block_report(memberships, kept):
         print(line)
 
     if args.apply:
         from helpers.graph.algorithms import write_analytics
+
         n = write_analytics(METRIC, memberships, replace_population=True)
-        print("APPLY: wrote %d rows to graph_analytics (metric %s)" % (n, METRIC))
+        print(f"APPLY: wrote {n} rows to graph_analytics (metric {METRIC})")
     else:
         print("DRY-RUN (use --apply to persist to graph_analytics)")
     return 0

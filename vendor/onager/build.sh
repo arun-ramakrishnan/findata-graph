@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# Build the onager DuckDB extension against DuckDB v2.0.0 (vendor/onager —
-# onager_vendored_source_build).
+# RETIRED 2026-11-20 — SUPERSEDED BY UPSTREAM.
+# The onager DuckDB extension now loads from the signed community-repo
+# distribution for duckdb 2.0.1: `INSTALL onager FROM community; LOAD onager;`.
+# The locally-built artifact below was stamped for 2.0.0 and does NOT load on
+# 2.0.1. Kept for provenance only — do not run (make onager-build is a no-op).
+# See vendor/onager/PROVENANCE.md.
+#
+# Original header (historical): build the onager DuckDB extension against
+# DuckDB v2.0.0 (vendor/onager — onager_vendored_source_build).
 #
 # Why vendored: install speed/reproducibility, NOT availability — the
 # community repo DOES serve a v0.5.0/linux_amd64 artifact for duckdb 2.0.0

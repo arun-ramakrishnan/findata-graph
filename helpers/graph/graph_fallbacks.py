@@ -96,11 +96,10 @@ def onager_available() -> bool:
     skip a doomed onager attempt entirely (the extension gap is a
     distribution fact, not a per-call accident).
 
-    Resolves through ``onager._load_onager`` (2026-10-24): distribution
-    first, then the vendored build (``vendor/onager/`` ->
-    ``models/onager/bin/``) — the bare ``LOAD onager`` probe predates the
-    vendored lane and kept the whole dispatch family on fallbacks even
-    with a loadable artifact on disk.
+    Resolves through ``onager._load_onager``: the signed distribution
+    ``LOAD onager`` (INSTALL onager FROM community). The vendored build was
+    retired 2026-11-20; a con that cannot load the distribution degrades
+    to the fallbacks.
     """
     global _AVAILABLE
     if _AVAILABLE is None:

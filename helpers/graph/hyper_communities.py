@@ -181,7 +181,6 @@ def sweep_k(
     ks: list[int],
     seed: int,
     n_iter: int,
-    allow_giant: bool = False,
 ) -> list[dict[str, Any]]:
     """Fit each K and report log-likelihood + effective blocks (S6).
 
@@ -191,7 +190,10 @@ def sweep_k(
     column (lower = better): BIC = -2*loglik + p*ln(N), p = N(K-1) + K for
     the assortative model — pick the K at the BIC minimum, using
     effective_blocks (dead blocks) and adjacent-K gains as tiebreakers.
-    Report-only: the caller persists a single chosen `--k` fit.
+    Report-only: the caller persists a single chosen `--k` fit. The caller
+    also owns degeneracy filtering (`_exclude_degenerate` runs before the
+    incidence reaches here — harvest_promotions S2d removed the dead
+    `allow_giant` parameter this signature used to carry, unread).
     """
     Hypergraph, HyMMSBM = _require_hgx()
     hg = Hypergraph(edge_list=[tuple(m) for m in incidence.values()])
@@ -323,13 +325,7 @@ def _cli(argv: list[str] | None = None) -> int:
 
     if args.sweep:
         ks = [int(x) for x in args.sweep.split(",") if x.strip()]
-        rows = sweep_k(
-            kept,
-            ks=ks,
-            seed=args.seed,
-            n_iter=args.n_iter,
-            allow_giant=args.allow_giant,
-        )
+        rows = sweep_k(kept, ks=ks, seed=args.seed, n_iter=args.n_iter)
         print(f"{'K':>4} {'log_likelihood':>16} {'bic':>12} {'effective_blocks':>16} {'fit_s':>7}")
         for r in rows:
             print(

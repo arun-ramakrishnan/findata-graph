@@ -3,8 +3,9 @@
 
 ``helpers/graph/graph_fallbacks.py`` must reproduce ``helpers/graph/onager.py``'s
 documented semantics using in-tree engines (igraph / numpy / pure Python)
-because the onager extension has no duckdb-2.0 distribution
-(completed.md #427). Two oracles:
+because the onager extension's duckdb-2.0 distribution was unavailable when
+these lanes were built (completed.md #427; signed 2.0.1 distribution landed
+2026-11-20 and the vendored build was retired).
 
 * the hand-worked vectors that onager's own docstrings pin (5-node star,
   P5, C6) — these are the contract, not an approximation;
@@ -19,7 +20,6 @@ from __future__ import annotations
 
 import itertools
 import math
-import os
 import random
 
 import duckdb
@@ -372,18 +372,17 @@ def test_math_import_contract():
 
 
 # --------------------------------------------------------------------------- #
-# vendored-extension resolution (2026-10-24, onager_vendored_source_build)
+# extension resolution (signed distribution; vendored build retired 2026-11-20)
 # --------------------------------------------------------------------------- #
-class TestVendoredResolution:
-    """``_load_onager`` resolves distribution-first, vendored-second; the
-    failure paths are deterministic regardless of whether the artifact is
-    built, the success path is the LOAD canary for a stale-ABI trip.
+class TestResolution:
+    """``_load_onager`` now loads only the signed upstream distribution
+    (``INSTALL onager FROM community;``). The vendored build was retired
+    2026-11-20 once the 2.0.1 artifact arrived; resolution is a single
+    ``LOAD onager`` with a typed ``OnagerUnavailable`` on failure.
 
-    The degradation tests must neutralise the DISTRIBUTION arm: a trusted
-    copy under ~/.duckdb/extensions (2026-10-24: upstream dist artifact,
-    community-repo install) makes bare ``LOAD onager`` succeed, so each
-    failure-path test runs against an empty fake HOME where the
-    distribution arm 404s and the vendored arm decides."""
+    The degradation test neutralises the distribution arm with an empty
+    fake HOME so the whole resolution degrades deterministically.
+    """
 
     @staticmethod
     def _empty_home(tmp_path, monkeypatch):
@@ -391,12 +390,9 @@ class TestVendoredResolution:
         home.mkdir()
         monkeypatch.setenv("HOME", str(home))
 
-    def test_flagless_con_degrades_on_untrusted_path(self, tmp_path, monkeypatch):
-        # allow_unsigned_extensions is a CONNECT-TIME config in duckdb 2.0 —
-        # a plain con must NOT load the vendored file (it is unsigned and,
-        # unlike a copy under the extensions dir, no install metadata
-        # blesses it). With no trusted distribution either, the whole
-        # resolution degrades to OnagerUnavailable.
+    def test_flagless_con_degrades_without_distribution(self, tmp_path, monkeypatch):
+        # With no signed distribution under HOME, bare ``LOAD onager``
+        # fails and the resolver degrades to OnagerUnavailable — never abort.
         self._empty_home(tmp_path, monkeypatch)
         con = duckdb.connect()
         try:
@@ -405,53 +401,37 @@ class TestVendoredResolution:
         finally:
             con.close()
 
-    def test_junk_vendored_file_degrades(self, tmp_path, monkeypatch):
-        junk = tmp_path / "not_an_extension.duckdb_extension"
-        junk.write_bytes(b"garbage")
-        self._empty_home(tmp_path, monkeypatch)
-        monkeypatch.setenv("ONAGER_VENDORED_EXTENSION", str(junk))
-        con = duckdb.connect(**on.connect_kwargs())
+    def test_distribution_load_canary(self):
+        """LOAD verdict for the signed distribution — the onager-available
+        gate. Skips clean while the extension is not installed; fails if an
+        installed artifact cannot LOAD."""
+        probe = duckdb.connect()
         try:
-            with pytest.raises(on.OnagerUnavailable):
-                on._load_onager(con)
-        finally:
-            con.close()
-
-    def test_missing_vendored_file_degrades(self, monkeypatch, tmp_path):
-        self._empty_home(tmp_path, monkeypatch)
-        monkeypatch.setenv("ONAGER_VENDORED_EXTENSION", str(tmp_path / "absent.duckdb_extension"))
-        con = duckdb.connect(**on.connect_kwargs())
-        try:
-            with pytest.raises(on.OnagerUnavailable):
-                on._load_onager(con)
-        finally:
-            con.close()
-
-    def test_vendored_load_canary(self):
-        """LOAD verdict for the vendored build — the PROVENANCE gate. Fails
-        on a stale artifact after a duckdb bump (rebuild via
-        `make onager-build`), skips clean while unbuilt."""
-        if not os.path.exists(on._VENDORED_EXTENSION):
-            pytest.skip("vendored onager not built (vendor/onager/build.sh)")
-        con = duckdb.connect(**on.connect_kwargs())
-        try:
-            on._load_onager(con)
-            row = con.execute(
-                "SELECT loaded, installed FROM duckdb_extensions() WHERE extension_name = 'onager'"
+            row = probe.execute(
+                "SELECT installed FROM duckdb_extensions() WHERE extension_name = 'onager'"
             ).fetchone()
-            assert row is not None  # the extension registers a catalog row on LOAD
-            (loaded, _installed) = row
-            # installed stays False for a path-LOAD (not in an extension
-            # repo); loaded is the verdict this canary exists for.
-            assert loaded
+            if row is None or not row[0]:
+                pytest.skip("onager not installed (INSTALL onager FROM community;)")
+            on._load_onager(probe)
+            loaded = probe.execute(
+                "SELECT loaded FROM duckdb_extensions() WHERE extension_name = 'onager'"
+            ).fetchone()
+            assert loaded is not None and loaded[0]
         finally:
-            con.close()
+            probe.close()
 
-    def test_probe_sees_vendored_artifact(self, monkeypatch):
-        """The dispatch gate routes through the same resolver — with the
-        artifact present it must report available (else the whole family
-        silently stays on fallbacks)."""
-        if not os.path.exists(on._VENDORED_EXTENSION):
-            pytest.skip("vendored onager not built (vendor/onager/build.sh)")
+    def test_probe_sees_distribution(self, monkeypatch):
+        """The dispatch gate routes through the same resolver — with a
+        loadable signed distribution it must report available (else the
+        whole family silently stays on fallbacks)."""
+        probe = duckdb.connect()
+        try:
+            row = probe.execute(
+                "SELECT installed FROM duckdb_extensions() WHERE extension_name = 'onager'"
+            ).fetchone()
+            if row is None or not row[0]:
+                pytest.skip("onager not installed (INSTALL onager FROM community;)")
+        finally:
+            probe.close()
         monkeypatch.setattr(fb, "_AVAILABLE", None)  # bypass the process cache
         assert fb.onager_available() is True

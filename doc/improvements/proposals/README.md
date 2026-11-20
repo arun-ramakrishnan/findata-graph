@@ -55,6 +55,22 @@ entry number and stale DONE pointers):
   retro_resolution_worklist (one-shot curation, never regenerate), and the
   country (235 → 19,141) / nic (journal source gone) / counterparty
   worklists regenerated same-day; no eval-gate bullet — data files only).
+- *(archived 2026-11-21)* — `harvest_promotions_and_census_writeup` (graph/,
+  filed 2026-11-20 + executed 2026-11-20/21, completed.md #550 — records
+  the 2026-11-20 estate hunt: the U5 SQL-native 3-node motif census
+  **REJECTED** (1,258,775 distinct triples at k≤40; cross-edge mult≥2 only
+  17.0% — edition temporal-panel duplication (77.1% within-family) plus
+  partition-family definitional zeros; #451 NO-GO cause corrected, refined
+  reopen trigger = motif/overlap QA on a (period, filer)-deduplicated
+  panel); slices landed: S5 frontend/desktop test gate (real `test`
+  script + `desktop-contract` target), S2a spectral ARI≈0 pin + `--max-ari`
+  guard + `hyper-spectral-check` (+ the undeclared-scikit-learn prune
+  side-find re-declared in the `lens` extra), S2b wrapper-trio Standing
+  dispositions, S2c hyper-predict bank target + tests + prereg realized
+  (0 scoreable events — all deals predate snapshot generations), S2d
+  `allow_giant` removed + U6 confirmatory (anchors reproduce, EM-collapse
+  doesn't — null-level, stays gated), S4 all 32 stem-unmentioned modules
+  dispositioned; S3 read-only MCP server DEFERRED).
 - `duckdb_research_swap_execution` — LIVE, filed 2026-11-19
   (`database/duckdb_research_swap_execution.md`); unparked execution of the
   canonical `research.db` SQLite→DuckDB swap from the de-risked readiness

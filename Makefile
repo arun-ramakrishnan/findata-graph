@@ -57,7 +57,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export TMPDIR ?= $(shell test -d /mnt/data/tmp && { mkdir -p /mnt/data/tmp/findata; echo /mnt/data/tmp/findata; } || echo /tmp)
 
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-matching graph-mst graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui signal-sweep signal-sweep-smoke tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp rust-clippy rust-format rust-install rust-test rust-deny frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health hyper-star-centrality csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh app-server schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay cosupply-score answerability-probe
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes gate-fresh graph-smoke graph-stats graph-algos graph-matching graph-mst graph-rebuild graph-rebuild-bench update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui signal-sweep signal-sweep-smoke tier-nudge tier-watch derive-relations derive-co-mentions derive-org-membership derive-event-participants derive-merger-hyperedges dup-census person-census derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-relational-insights derive-all refresh-indices refresh-vigil refresh-shp rust-clippy rust-format rust-install rust-test rust-deny frontend frontend-check desktop-contract fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-parity mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory ocr-version-check onager-build secret-scan cargo-audit script-search-rebuild memory-search-rebuild triage-relations teleocr-server embgemma-server granite-server llamacpp-build llamacpp-health quack-start quack-stop quack-status quack-restart quack-health hyper-star-centrality hyper-spectral-check hyper-predict-bank csr csr-check csr-rebuild convo-search-rebuild convo-search-check analytics-parquet analytics-fresh app-server schema-check schema-dump bili-status bili-monitor bili-stop-monitor bili-report bili-snap bili-watch-event bili-thresh-replay cosupply-score answerability-probe
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -102,6 +102,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
 > @echo "  derive-themes-rebuild    derive-themes + graph-rebuild — the paired run themes require (writes edges, then rebuilds the DuckDB cache to match)"
+> @echo "  desktop-contract          Desktop IPC contract gate — fixtures.js payloads vs valibot wire schemas (desktop/Makefile contract; needs npm)"
 > @echo "  dup-census               Entity-name dup census (entity_name_dedup): --check gate vs baseline, --plan writes the merge plan"
 > @echo "  embed-gc                 Evict dead embed-cache rows (trial/spike leftovers) — report-only, exit 1 when dead rows exist; APPLY=1 deletes+VACUUMs"
 > @echo "  embgemma-server          Start the EmbeddingGemma-2 llama-server (Q8_0 from models/) on 127.0.0.1:8732 — Ctrl-C to stop; gemma_embedder only ever assumes it is running (D3), never spawns it"
@@ -121,6 +122,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  graph-smoke              Quick smoke test of the graph query layer (sector-of + neighbors)"
 > @echo "  graph-stats              Print a one-shot summary of the graph state (entities, edges, sectors, hygiene)"
 > @echo "  hif-export               Export the hypergraph in HIF to snapshots/hif/ (rides make snapshot; SOURCES=... to override)"
+> @echo "  hyper-predict-bank       D10 link-prediction eval bank — recall@k per family per lane (temporal split + retrospective holdout; report-only)"
+> @echo "  hyper-spectral-check     QA pin — spectral communities vs sector taxonomy stay in the no-signal band on the live store (harvest_promotions S2a; --max-ari 0.15 guard)"
 > @echo "  hyper-star-centrality    OPT-IN s-walk centralities over the standing star families (index/subsidiary/supply; k≥3 portfolios only; star_hyperedge_consumer_wiring S3)"
 > @echo "  install-dev              Install dev dependencies (uv sync; prunes undeclared packages)"
 > @echo "  integration              Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends outputs/integration_report.md)"
@@ -142,7 +145,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  ocr-version-check        Assert the OCR binary matches the pinned version (helpers/misc/ocr_pin.py; advisory)"
-> @echo "  onager-build             Build the onager DuckDB extension against duckdb v2.0.0 into models/onager/bin (vendor/onager recipe: pinned CogitatorTech/onager v0.5.0 — vendored for install speed/reproducibility; the community repo DOES serve a 2.0.0 artifact, see vendor/onager/PROVENANCE.md)"
+> @echo "  onager-build             RETIRED 2026-11-20 — onager loads from the signed upstream 2.0.1 distribution (INSTALL onager FROM community;); the vendored build is superseded (see vendor/onager/PROVENANCE.md). Target kept as a no-op guide."
 > @echo "  parity                   Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md"
 > @echo "  person-census            Person-name dup census (person_name_dedup): --check gate vs baseline, --plan writes the merge plan"
@@ -255,8 +258,8 @@ perf:           ## Run wall-clock perf benchmarks, print timing table, and appen
 ocr-version-check: ## Assert the OCR binary matches the pinned version (helpers/misc/ocr_pin.py; advisory)
 > @.venv/bin/python3 helpers/misc/ocr_pin.py
 
-onager-build:  ## Build the onager DuckDB extension against duckdb v2.0.0 into models/onager/bin (vendor/onager recipe: pinned CogitatorTech/onager v0.5.0, the 2.0.0 port — vendored for install speed/reproducibility, NOT availability; the community repo serves a 2.0.0 artifact — see PROVENANCE.md 'Why vendored'; LOAD verdict goes to vendor/onager/PROVENANCE.md)
-> @bash vendor/onager/build.sh
+onager-build:  ## RETIRED 2026-11-20 — onager now loads from the signed upstream 2.0.1 distribution (INSTALL onager FROM community;). Vendored build superseded; no-op with a notice (see vendor/onager/PROVENANCE.md)
+> @echo "onager-build: RETIRED — onager is superseded by the signed community distribution. Run: INSTALL onager FROM community; LOAD onager; (see vendor/onager/PROVENANCE.md)"
 
 cover:          ## Run all tests with coverage over helpers/ (branch + missing-line report)
 > pytest --cov=helpers --cov-branch --cov-report=term-missing --cov-report=html
@@ -730,6 +733,14 @@ hyper-star-centrality: ## OPT-IN s-walk centralities over the standing star fami
 > python3 helpers/graph/hyper_centralities.py --apply --sources index,subsidiary,supply
 > @echo "✓ star-family s-walk centralities refreshed (ho_pagerank, s_betweenness, s_closeness over index/subsidiary/supply)"
 
+hyper-spectral-check: ## QA pin — spectral communities vs sector taxonomy stay in the no-signal band on the live store (harvest_promotions S2a; exit 1 if structure appears; verdict 2026-11-20: max ARI 0.0418)
+> python3 helpers/graph/hyper_spectral_cluster.py --max-ari 0.15
+> @echo "✓ spectral ARI vs sector within no-signal band (guard ≤0.15; measured max 0.0418 @ order 101, 2026-11-20)"
+
+hyper-predict-bank: ## D10 link-prediction eval bank — recall@k per family per lane, temporal split + retrospective holdout (report-only, no store writes; harvest_promotions S2c)
+> python3 helpers/bench/hyper_predict_bank.py
+> @echo "✓ hyper_predict bank run complete (recall@k tables above; report-only)"
+
 derive-co-mentions: ## Stage newsletter co-mention edition sets (S5: dyads retired; feeds the edition hyperedge family) + cosupply prereg score run
 > python3 helpers/graph/derive_co_mentions.py --newsletter The_Chatter --apply
 > @echo "✓ co_mention_editions refreshed"
@@ -838,9 +849,13 @@ frontend: ## Build the TypeScript frontend bundle into static/findata.bundle.js 
 frontend-check: ## Type-check + prettier + guard behaviour/regeneration checks (fast, needs Bun)
 > cd frontend && bun x tsc --noEmit
 > cd frontend && bun x prettier --check src types
-> cd frontend && bun test tests
+> cd frontend && bun run test
 > .venv/bin/python3 helpers/misc/gen_api_guards.py --check
 > @echo "✓ frontend type-check + prettier + guard behaviour + regeneration passed (strict)"
+
+desktop-contract: ## Desktop IPC contract gate — fixtures.js payloads vs valibot wire schemas (delegates to desktop/Makefile contract; needs npm)
+> $(MAKE) -C desktop --no-print-directory contract
+> @echo "✓ desktop IPC contract suite passed (node --test via desktop/Makefile contract)"
 
 fold-identifiers: ## Fold exchange ISIN/CIK values into the entity identifier registry
 > python3 helpers/maintenance/fold_identifiers.py --apply

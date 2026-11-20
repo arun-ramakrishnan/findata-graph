@@ -16516,3 +16516,86 @@ proposal, single-day arc).
   `search-fresh` converged. Proposal:
   `archive/graph/hgx_unlock_lanes_and_emeans.md`.
 
+## 550. Harvest the 2026-11-20 estate hunt — census record + gated probe promotions (S5, S2a–S2d, S4)
+
+Filed 2026-11-20; executed 2026-11-20/21 (`harvest_promotions_and_census_writeup`
+proposal, archived `status: deferred` — S3 MCP server stays deferred).
+
+- **Problem**: the estate hunt's findings lived only in session chat;
+  the U5 SQL motif census was unmeasured; five hypergraph probes sat
+  unwired/untested; the frontend test gate ran `bun test tests` against
+  a package.json with no test script.
+- **Census verdict REJECTED (S1, the record)**: 1,258,775 distinct
+  3-node motifs at k≤40 (5.95 s GROUP BY); cross-edge mult≥2 only
+  17.0% — definitional zeros in partition families, temporal-panel
+  duplication in edition (77.1%); refined reopen trigger = a consumer
+  needing motif QA on a (period, filer)-deduplicated panel. #451 NO-GO
+  cause corrected: not the 24% visibility bug — full-visibility
+  measurement confirms the thin signal.
+- **S5**: `frontend/package.json` gained `test: bun test tests`;
+  `frontend-check` runs `bun run test` (single source of truth); new
+  root target `desktop-contract` delegates to `desktop/Makefile
+  contract` (npm, 14 node:test cases). Both green.
+- **S2a**: `tests/test_hyper_spectral_cluster.py` pins the ARI≈0
+  verdict hermetically (80-company grid: aligned order >0.5, crossing
+  order exact at 1.0 with sector ARI −0.06, mixed <0.1); CLI gained
+  `--max-ari`; target `hyper-spectral-check` (guard 0.15) reproduces
+  the live verdict exactly — max 0.0418 @ order 101. Side-find:
+  scikit-learn had been PRUNED from `.venv` (#549 installed it
+  undeclared; a later `uv sync` removed it, breaking the
+  spectral/HySC/HypergraphMT lanes) — re-declared in the pyproject
+  `lens` extra, reinstalled 1.9.1, THIRD_PARTY row added.
+- **S2b**: wrapper trio (core_periphery/hysc/hypergraphmt) carries
+  Standing dispositions — RECORDED PROBE, trigger-gated; hysc has the
+  duplicate-seat note (fold under hyper_communities before wiring).
+- **S2c**: `tests/test_hyper_predict.py` (9 hermetic) + target
+  `hyper-predict-bank` (two runs byte-identical, banked at
+  `bench_data/hyper_predict_bank/`): edition only family with nonzero
+  recall (jaccard @100 0.0098; partition families 0.0 by
+  construction); ALL temporal legs skipped — no prediction-grade
+  family carries `valid_from` yet. Linkpred prereg REALIZED: 0
+  scoreable events (max deal 2026-08-24 predates every snapshot
+  generation; 25 circular + 7 row-less; floor 0/10) — outcome-log row
+  appended.
+- **S2d**: dead `allow_giant` REMOVED from `sweep_k` (filtering is
+  `_exclude_degenerate`'s job upstream); U6 confirmatory
+  (`bench_data/u6_index_community/`): anchors reproduce (all-index
+  k=16 NMI 0.4519 vs 0.4542; broad-cap k=8 0.1067 vs 0.1100), the
+  EM-collapse-to-zero does NOT (k=12/16 → 0.109/0.131 at the
+  random-partition null) — conclusion confirmed, U6 stays gated,
+  mechanism drifted with store growth.
+- **S4**: all 32 stem-unmentioned helpers modules tested-or-
+  dispositioned (3 cleared by this arc's tests; 7 transitive with
+  verified import lines; rest operator-CLI/runtime-child/eval-
+  instrument dispositions) — table in the proposal's Execution
+  Results.
+- **S3 (MCP server): DEFERRED** by operator before execution — no code.
+- **Gate arc (2026-11-20/21)**: baseline qa 11/15 / advisory 17/27 /
+  perf contended-refused; fix loop: 17 pytest failures (root cause =
+  dead `is None` absence branch in `app.py:_sqlite_edge_union_sql`
+  after db_swap's probe refactor — minimal fixtures hit the
+  hyper_incidences UNION), coverage-ledger re-reviews for
+  /api/resolve + /api/graph/metrics (bound-parameter, no new input
+  paths), schema-dump ×2, ruff-format footprint (10 files of db_swap
+  debt), RUSTSEC-2026-0543 ignore (chrono transitive via duckdb→arrow,
+  no safe upgrade), served-store skip for the graph-disk live test,
+  memory-search rebuild, C901 split (`_decode_blob` out of
+  `_decode_embedding`); perf re-run 35/35 benches. Incident resolved:
+  the 22:42 maint OOM was NOT a stamp-centrality regression (solo
+  re-run 70 s / 488 MiB peak on duckdb 2.0.1 + signed onager; kernel
+  victim was `llama-server`, adj=200) — it exposed the maint
+  skip-masking defect (served-store 0.00 s steps report ✓ OK in a
+  10/10 PASS; 30 of 51 recorded runs skipped the stamp) — filed in
+  pending.md.
+- **Verification**: targeted only (battery once, fixes validated by
+  node-id): 130 static/license/lint/schema tests + 5 cloud/stats
+  contract + 3 spectral pins + 9 hyper_predict + 2 fuzz-solo +
+  13 arc tests green; md-lint clean; graph-algos/suggest-relations/
+  rust-deny/license-check legs re-run green; snapshot-check green
+  (generation 1145755 = source). Gates trailer: make qa 12/15 (4 red
+  legs fixed post-baseline, targeted), make advisory 22/27
+  (convo-fresh-check chronic-red parked, gate-timing-watch 1 FIRE
+  load-confounded, lint-audit 92 standing debt parked for operator
+  call), make perf 33/35 benches (2 OVER_BUDGET psi-confounded,
+  snapshot_check preflight healed post-archival). Proposal:
+  `archive/graph/harvest_promotions_and_census_writeup.md`.
