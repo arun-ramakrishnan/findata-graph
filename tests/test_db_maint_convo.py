@@ -25,6 +25,7 @@ duckdb = pytest.importorskip("duckdb")
 from helpers.core.zstd_io import decompress_file  # noqa: E402
 from helpers.maintenance import harvest_conversations as hc  # noqa: E402
 from helpers.maintenance import rebuild_convo_search as rcs  # noqa: E402
+from helpers.maintenance import db_maint as dm  # noqa: E402
 from helpers.maintenance.db_maint import DBMaintainer  # noqa: E402
 
 
@@ -330,3 +331,51 @@ def test_backup_bili_index_skips_when_proxy_absent(tmp_path, monkeypatch):
     m = _maintainer(tmp_path)
     assert m._backup_bili_index() == 0
     assert not (tmp_path / "db-backup/bili_index_backup.db.zst").exists()
+
+
+def test_backup_bili_index_falls_back_to_online_backup_when_vacuum_into_fails(
+    tmp_path, monkeypatch
+):
+    """A malformed/odious source must still yield a recovery copy: if the
+    VACUUM INTO rung fails, the leg falls back to the online backup API
+    instead of silently skipping (2026-11-20 corruption incident regression
+    guard)."""
+    idx = _fake_proxy_index(tmp_path)
+    monkeypatch.setattr(hc, "bili_index_path", lambda: idx)
+
+    class _EvilConn:
+        """Delegates to a real read-only conn but refuses VACUUM INTO."""
+
+        def __init__(self, inner):
+            self._inner = inner
+
+        def execute(self, sql, params=()):
+            if sql.lstrip().upper().startswith("VACUUM INTO"):
+                raise sqlite3.DatabaseError("database disk image is malformed")
+            return self._inner.execute(sql, params)
+
+        def backup(self, target, **kw):
+            return self._inner.backup(target, **kw)
+
+        def close(self):
+            return self._inner.close()
+
+    real_connect = dm.connect
+
+    def evil_connect(path, **kw):
+        return _EvilConn(real_connect(path, **kw))
+
+    monkeypatch.setattr(dm, "connect", evil_connect)
+    m = _maintainer(tmp_path)
+    size = m._backup_bili_index()
+    out = tmp_path / "db-backup/bili_index_backup.db.zst"
+    assert out.exists()
+    assert size == out.stat().st_size > 0
+    restored = tmp_path / "restored.db"
+    decompress_file(out, restored)
+    con = sqlite3.connect(restored)
+    try:
+        assert con.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] == 1
+        assert con.execute("SELECT namespace FROM sessions").fetchone()[0] == "proxy"
+    finally:
+        con.close()

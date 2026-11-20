@@ -1127,11 +1127,29 @@ Open items below keep their revisit triggers inline; executed work is compressed
   (`~/.local/share/opencode/opencode.db`, `~/.dsh/sessions`,
   `~/.prime/agent/sessions`, `~/.zcode/cli/rollout`) — only the repo-side
   harvested corpus tar (`convo_corpus_backup.tar.zst`) is backed up; that
-  corpus keeps compression summaries, not the raw proxy messages. OPEN for
-  the operator: the proxy's storage remedy (`storage.jsonWriter=on` or
-  `storage.unified=full`) is not set on this host — `index.db` stays the only
-  copy, and the `bili` CLI (`ls`/`rm`/`archive`/`restore`/`gc`) requires the
-  unified store to be enabled. Docs: bili_convo_lane.md §15,
+  corpus keeps compression summaries, not the raw proxy messages. UPDATE
+  2026-11-20: (a) unified FULL mode confirmed ACTIVE — v0.1.216, both live
+  lanes log "unified FULL mode ENABLED" (opencode :18787, dsh :18788) and
+  the `bili` CLI (`ls`/`rm`/`archive`/`restore`/`gc`) operates again;
+  only `storage.jsonWriter=on` remains unset, so `index.db` is still the
+  single live copy (dual-write off) — mitigated by the refreshed
+  `db-backup/bili_index_backup.db.zst` + the hardened leg below. (b)
+  CORRUPTION INCIDENT same day: `integrity_check` on `index.db` (989.9 MB)
+  found Tree 3 page 240081 bad ptr-map entry (key=241595 expected=(3,240081)
+  got=(5,125224)) + 65 never-used pages; `bili` CLI refused ("database disk
+  image is malformed", owner policy: no degradation) and `VACUUM INTO`
+  failed. RECOVERED via `sqlite3 .recover` salvage swap — 190,078 messages
+  / 194 sessions preserved, `integrity_check`=ok, node:sqlite opens it;
+  forensic copies at `/mnt/data/tmp/index_db_corrupt_forensic/`; backup
+  refreshed (17:32Z). Root cause NOT established: sharing one `index.db`
+  across live proxy instances is billion-context's SUPPORTED topology
+  (managed by the tool itself, #5082/#3923) — this is not an
+  operator-managed lane split, and no operator-side change is implied.
+  (c) db_maint `_backup_bili_index` HARDENED:
+  VACUUM INTO → online-backup API → CLI `.recover` salvage ladder with a
+  `PRAGMA quick_check` verdict on the artifact (non-ok ships but logs
+  FORENSIC-ONLY), so a malformed source can never again silently skip the
+  leg. Docs: bili_convo_lane.md §15,
   timeshift_snapshot_lane.md §2.6, procedures/maintenance.md restore row.
 - **bili tier_watch `log_age` negative — verdict-clock tz mismatch — FIXED
   2026-10-30** (helpers/analytics/bili_tier_watch.py:616-627): `age`

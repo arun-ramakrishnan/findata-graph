@@ -72,6 +72,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -722,10 +723,24 @@ class DBMaintainer:
 
         The source is opened READ-ONLY: the live proxy owns that file, and a
         read-write open would take a write lock on the very store the tools
-        must never disturb. ``VACUUM INTO`` yields a consistent snapshot of a
-        live WAL database (one read transaction; the proxy's writer is not
-        blocked) and compacts the copy; if the SQLite build refuses it, the
-        online backup API is the fallback (also read-only at the source).
+        must never disturb. Three rungs, tried in order (2026-11-20
+        hardening after a malformed ``index.db`` refused the first rung):
+
+        1. ``VACUUM INTO`` — a consistent snapshot of a live WAL database
+           (one read transaction; the proxy's writer is not blocked) and a
+           clean, compacted copy.
+        2. online backup API (``Connection.backup``) — page-copy fallback;
+           works when logical corruption blocks ``VACUUM INTO``. The result
+           is structurally identical to the source, INCLUDING any latent
+           corruption, so it is forensic-grade rather than a clean restore
+           point.
+        3. CLI salvage (``sqlite3 <src> .recover``) — rebuilds a clean DB
+           from every reachable row when both SQLite-side paths fail
+           (requires the sqlite3 CLI on PATH).
+
+        The produced artifact is ``PRAGMA quick_check``-ed before
+        compression; a non-ok verdict ships the copy anyway (something
+        recoverable beats nothing) but logs it as FORENSIC-ONLY.
         """
         from helpers.core.zstd_io import compress_file, zst_path
         from helpers.maintenance.harvest_conversations import bili_index_path
@@ -752,18 +767,62 @@ class DBMaintainer:
             try:
                 try:
                     con.execute("VACUUM INTO ?", (str(staging),))
+                    rung = "snapshot"
                 except sqlite3.Error:
-                    # Older SQLite builds lack VACUUM INTO; the online backup
-                    # API gives the same read-only-at-the-source snapshot.
-                    bconn = sqlite3.connect(str(staging))
+                    # Older SQLite builds lack VACUUM INTO, and a malformed
+                    # source refuses it too — the online backup API is the
+                    # next rung (page-copy; read-only at the source).
                     try:
-                        con.backup(bconn)
-                    finally:
-                        bconn.close()
+                        bconn = sqlite3.connect(str(staging))
+                        try:
+                            con.backup(bconn)
+                        finally:
+                            bconn.close()
+                        rung = "online-backup (forensic)"
+                    except sqlite3.Error:
+                        # Last rung: salvage every reachable row via the CLI
+                        # .recover (clean rebuild; requires the CLI).
+                        if shutil.which("sqlite3") is None:
+                            raise
+                        dump = staging.with_suffix(".sql")
+                        try:
+                            with dump.open("wb") as fh:
+                                subprocess.run(
+                                    ["sqlite3", str(src), ".recover"],
+                                    check=True,
+                                    stdout=fh,
+                                    stderr=subprocess.PIPE,
+                                )
+                            with dump.open("rb") as fh:
+                                subprocess.run(
+                                    ["sqlite3", str(staging)],
+                                    check=True,
+                                    stdin=fh,
+                                    stderr=subprocess.PIPE,
+                                )
+                        finally:
+                            dump.unlink(missing_ok=True)
+                        rung = "salvage (.recover)"
             finally:
                 con.close()
+            try:
+                chk = sqlite3.connect(str(staging)).execute("PRAGMA quick_check").fetchone()[0]
+            except sqlite3.Error as e:
+                chk = f"unreadable ({type(e).__name__}: {e})"
+            if chk != "ok":
+                self._log(
+                    logging.WARNING,
+                    f"bili proxy index backed up to {zst_path(dst)} "
+                    f"[{rung}; quick_check={chk!r}] — FORENSIC-ONLY copy "
+                    f"(source malformed)",
+                )
+            else:
+                self._log(
+                    logging.INFO,
+                    f"bili proxy index backed up to {zst_path(dst)} [{rung}]",
+                )
             size = compress_file(staging, zst_path(dst))
-        except (sqlite3.Error, OSError) as e:
+        except (sqlite3.Error, OSError, subprocess.CalledProcessError) as e:
             self._log(
                 logging.WARNING,
                 f"bili proxy index backup skipped ({type(e).__name__}: {e})",
