@@ -132,7 +132,12 @@ new supervision infra for two models that never co-schedule.
    `PROVENANCE.md` carries the new sha256 set; the archived bench_data
    binaries remain as historical provenance.
 3. Dual-load proof with ONE binary: embgemma bank gate green on live
-   (intent ≥ 0.94, ident 1.000) AND teleocr control digit recall 100%.
+   (intent ≥ floor, ident 1.000) AND teleocr control digit recall 100%.
+   Floor follows the live re-baseline ladder — 0.94 at the 548-row
+   corpus, 0.93 at 705 rows (2026-10-25), 0.92 at 840 rows (2026-11-20,
+   b12564 pin; A/B vs b12004 reproduced the measured 0.923 exactly, so
+   corpus drift not the binary — vendor/llamacpp/PROVENANCE.md and the
+   helpers/bench/script_eval_bank.py docstring carry the history).
 4. Health: stop the gemma server, run a stamped-index rebuild
    `--check` — loud warning, non-zero exit; restart, warning gone.
    Targeted suites green (`script_search`, `local_embedder`, shared-vector)

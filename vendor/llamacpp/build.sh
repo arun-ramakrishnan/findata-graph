@@ -24,7 +24,7 @@
 # to this script's repo).
 set -euo pipefail
 
-PINNED_COMMIT=3c809f44383bcebc318b8cddd8c6d11aaa861e9b  # 2026-10-30 (b12004), has gemma-embedding2
+PINNED_COMMIT=ea84d7090302e8cb9fa1e49d34c08fde5e5c2c55  # 2026-11-20 (b12564); qwen2vl head_dim patch still required (verified)
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PATCH="$HERE/patches/qwen2vl_head_dim.patch"
 SRC_DIR="${LLAMACPP_SRC_DIR:-"$HERE/../../models/llamacpp/src/llama.cpp"}"
