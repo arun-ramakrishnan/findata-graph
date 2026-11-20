@@ -476,6 +476,7 @@ def _trail_stats_mojo_batch(
     src_idx = [index[s] for s in src_labels]
     env = dict(os.environ)
     env["PATH"] = f"{_PROJECT_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
+    _t0 = time.perf_counter()
     try:
         proc = _subprocess.run(  # noqa: S603 — first-party binary at a constant path, fixed numeric argv
             [
@@ -512,16 +513,16 @@ def _trail_stats_mojo_batch(
         print(f"mojo batch trail lane unavailable ({exc}); falling back", file=sys.stderr)
         return None
 
-    # The batched call costs one wall; amortize it across sources. Wall is
-    # recomputed here only as a stable estimate (timing is done by callers
-    # around trail_source_stats_parallel); report 0.0 so the amortized
-    # share does not double-count. The Rust lane does the same shape.
+    # The batched call costs one wall; amortize it across sources so the
+    # Mojo lane reports a meaningful per-source ms_source_median instead of
+    # 0.0 (loose end #1). Mirrors the Rust kernel lane shape.
+    ms_each = (time.perf_counter() - _t0) * 1000.0 / len(src_idx)
     out_rows: list[dict] = []
     for i in src_idx:
         reach, hist = per_src[i]
         out_rows.append(
             {
-                "ms": 0.0,
+                "ms": round(ms_each, 2),
                 "reachable": reach,
                 "hop_histogram": hist,
                 "limit": int(limit),

@@ -589,7 +589,12 @@ Open items below keep their revisit triggers inline; executed work is compressed
   2026-11-05 `uv pip install --dry-run 'hypergraphx[ml]'` = 5 packages,
   incl. scikit-learn 1.9.1; hy_sc/model.py imports sklearn.cluster.KMeans
   with a `KMeans = None` fallback; hypergraph_mt/model.py has no sklearn
-  import), hyperlink_communities blocked on
+  import). **UNBLOCKED + WIRED 2026-11-20 (#549,
+  `archive/graph/hgx_unlock_lanes_and_emeans.md`):** sklearn 1.9.1 +
+  faiss-cpu 1.16.0 installed; community lanes `hyper_hysc.py`,
+  `hyper_core_periphery.py` (sector smoke 14.8 s @1225 nodes), and
+  `hyper_hypergraphmt.py` (opt-in slow) landed, dry-run default.
+  hyperlink_communities blocked on
   an upstream pickle bug ("Failed to load pickle 'None.hlcd'" — exception-type
   mismatch: readwrite/io_pickle.load_pickle wraps any failure as
   ReadwriteError, never FileNotFoundError, so the caller's `except
@@ -632,14 +637,21 @@ Open items below keep their revisit triggers inline; executed work is compressed
      and flags editions as the family where dyadic/lower-order
      explanations partially suffice. Re-run per-family on major store
      growth; no production lane justified (one query, no recurring
-     consumer).
+     consumer). **ADOPTED 2026-11-20 (#549):** the representative-layer
+     mechanism now feeds the spectral consumer default
+     (`hyper_spectral_cluster.py --orders reducible`, computed live per
+     family; sizes→orders via size, else size−1).
   3. **Multi-order Laplacian** (`compute_multiorder_laplacian`,
      `are_commuting`) — WIRED 2026-11-02 (#472):
      `helpers/graph/hyper_spectral.py --lane spectral` (nnz/tolerance
      commutativity check — HGX are_commuting is broken on this scipy —
-     plus opt-in --spectra algebraic connectivity). The instrument
-     exists; the named QA consumer (entity clustering) is still to be
-     asked for.
+     plus opt-in --spectra algebraic connectivity). **Consumer LANDED
+     2026-11-20 (#549):** `hyper_spectral_cluster.py` (top-m eigenvectors
+     per order → e-means/k-means; ARI vs sector taxonomy as QA target;
+     `--orders reducible` default per item 2 above; persists
+     `spectral_community_order<N>`). ARI ≈ 0 at every representative
+     order (max 0.0418 at order 101) — the named entity-clustering ask
+     remains open.
   4. **s-walk shortest paths** (`calc_HO_shortest_paths` et al.) —
      still gated: first UI/API path-explanation ask that traverses
      hyperedges. Directed B/F-hyperpath (Gallo) remains out of HGX;

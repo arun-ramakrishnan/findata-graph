@@ -156,6 +156,33 @@ def spectral_multiorder(
     return out
 
 
+def component_annotation(incidence: dict[str, list[str]]) -> dict[str, Any]:
+    """Per-family component annotation (loose end #4).
+
+    Component structure precedes any diffusion reading: the 2026-11-02
+    re-probe showed industry/sub_sector/org_membership at 6%/5%/15% LC
+    coverage, so a random-walk density there is dominated by fragmentation
+    before any dynamics. Exposed as its own primitive so families can be
+    screened (and RW density skipped where meaningless) without paying
+    for the random walk.
+    """
+    Hypergraph, _LMO, _RWD = _require_hgx()
+    kept_sets = {k: set(v) for k, v in incidence.items()}
+    hg_full = Hypergraph(edge_list=[tuple(m) for m in kept_sets.values()])
+    comps = sorted((sorted(c) for c in hg_full.connected_components()), key=len, reverse=True)
+    sizes = [len(c) for c in comps]
+    total = hg_full.num_nodes()
+    lc = sizes[0] if sizes else 0
+    return {
+        "n_components": len(comps),
+        "component_sizes": sizes[:10],
+        "lc_nodes": lc,
+        "total_nodes": total,
+        "lc_fraction": (lc / total) if total else 0.0,
+        "single_component": len(comps) == 1,
+    }
+
+
 def rw_density_report(incidence: dict[str, list[str]], *, steps: int = 100) -> dict[str, Any]:
     """Lane 5: component annotation first, then RW density on the LC.
 
@@ -165,10 +192,9 @@ def rw_density_report(incidence: dict[str, list[str]], *, steps: int = 100) -> d
     before any dynamics.
     """
     Hypergraph, _LMO, random_walk_density = _require_hgx()
+    comp = component_annotation(incidence)
     kept_sets = {k: set(v) for k, v in incidence.items()}
     hg_full = Hypergraph(edge_list=[tuple(m) for m in kept_sets.values()])
-    comps = sorted((sorted(c) for c in hg_full.connected_components()), key=len, reverse=True)
-    sizes = [len(c) for c in comps]
     hg_lc = hg_full.subhypergraph_largest_component()
     n = hg_lc.num_nodes()
     s0 = np.full(n, 1.0 / n)
@@ -178,18 +204,14 @@ def rw_density_report(incidence: dict[str, list[str]], *, steps: int = 100) -> d
         evolution = random_walk_density(hg_lc, s0, steps)
     l2 = [float(np.linalg.norm(np.atleast_1d(step))) for step in evolution]
     final_max = float(np.max(np.atleast_1d(evolution[-1])))
-    return {
-        "n_components": len(comps),
-        "component_sizes": sizes[:10],
-        "lc_nodes": sizes[0] if sizes else 0,
-        "total_nodes": hg_full.num_nodes(),
-        "lc_fraction": (sizes[0] / hg_full.num_nodes()) if hg_full.num_nodes() else 0.0,
-        "single_component": len(comps) == 1,
+    out = dict(comp)
+    out.update({
         "rw_steps": steps,
         "rw_final_max_density": final_max,
         "rw_l2_first": l2[0] if l2 else None,
         "rw_l2_last": l2[-1] if l2 else None,
-    }
+    })
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -201,7 +223,7 @@ def main(argv: list[str] | None = None) -> int:
         default=",".join(DEFAULT_FAMILIES),
         help=f"comma-separated edge-type families (default: {','.join(DEFAULT_FAMILIES)})",
     )
-    ap.add_argument("--lane", choices=("spectral", "rw", "both"), default="both")
+    ap.add_argument("--lane", choices=("spectral", "rw", "components", "both"), default="both")
     ap.add_argument("--max-k", type=int, default=60, help="order cap (probe protocol: <=60)")
     ap.add_argument("--k2-cap", type=int, default=300, help="k>=2 edge cap per family")
     ap.add_argument(
@@ -231,6 +253,14 @@ def main(argv: list[str] | None = None) -> int:
             if args.spectra and "algebraic_connectivity" in rep:
                 for o, v in rep["algebraic_connectivity"].items():
                     print(f"   spectral: order {o:3d} lambda_2 = {v:.6g}")
+        if args.lane == "components":
+            rep = component_annotation(kept)
+            tag = "single component" if rep["single_component"] else "FRAGMENTED"
+            print(
+                f"   components: {tag} — {rep['n_components']} components; "
+                f"LC {rep['lc_nodes']}/{rep['total_nodes']} ({rep['lc_fraction']:.1%})"
+            )
+            print(f"   components: sizes {rep['component_sizes']}")
         if args.lane in ("rw", "both"):
             rep = rw_density_report(kept, steps=args.steps)
             tag = "single component" if rep["single_component"] else "FRAGMENTED"

@@ -129,6 +129,17 @@ commit, referenced by nothing). Entry numbers point at
 - [`security_route_skeleton.md`](security/security_route_skeleton.md) — Route skeleton — `ast`-derived inventory of `app.py`'s 38 routes published to `doc/security/routes.json` and checked by `static_checks.py`; the emitted advisory is shape agreement, explicitly not a security verdict — completed.md #311
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`hgx_unlock_lanes_and_emeans.md`](graph/hgx_unlock_lanes_and_emeans.md) —
+  the 2026-11-20 HGX unlock arc (#549): `hypergraphx[ml]` (sklearn 1.9.1)
+  + faiss-cpu 1.16.0 installed; community lanes `hyper_hysc.py` /
+  `hyper_core_periphery.py` / `hyper_hypergraphmt.py` (template =
+  hyper_communities.py, dry-run default); multi-order spectral consumer
+  `hyper_spectral_cluster.py` closes #8 (e-means default when faiss
+  importable, ARI vs sector QA target ≈ 0); reducibility representative
+  layers adopted as the consumer's `--orders reducible` default (eta
+  0.0582 live on sector/theme/industry → 6 orders vs ~101);
+  hyperlink_communities stays upstream-blocked (pickle None.hlcd),
+  motifs census NO-GO, s-walk repo-native — completed.md #549
 - [`mnc_arm_lane.md`](graph/mnc_arm_lane.md) —
   curated `mnc:<parent>` lens for foreign-multinational arms keyed on
   disclosure filers (mnc_dyad_pass 29 symbols → 25 matched / 1,919

@@ -16465,3 +16465,54 @@ question set) per the proposal's §4 house rule.
   `test_gate_query` / `test_gate_retain` / `test_report_append_convention`;
   ruff + static_checks rc 0; `gate_query refresh --check` clean.
   Proposal: `archive/tooling/gate_artifact_sidecar_zstd.md`.
+## 549. HGX unlock shelf — community lanes + multi-order spectral consumer + e-means wiring
+
+Filed 2026-11-20; executed 2026-11-20 (`hgx_unlock_lanes_and_emeans`
+proposal, single-day arc).
+
+- **Problem** (pending.md HGX unlock shelf, intro lane 6): the
+  community-lane families were measured-or-blocked — core-periphery
+  measured but expensive (49.7 s @771 nodes), HySC/HypergraphMT blocked
+  on the missing `hypergraphx[ml]` extra (sklearn absent from `.venv`),
+  hyperlink_communities blocked upstream (pickle `None.hlcd`
+  ReadwriteError — exception-type mismatch in `readwrite/io_pickle`), and
+  the multi-order Laplacian instrument (#472) had no consumer.
+- **Unblocked:** `uv pip install 'hypergraphx[ml]'` (scikit-learn 1.9.1)
+  and `faiss-cpu>=1.16.0` (already declared in the pyproject `lens`
+  extra) → `faiss.contrib.e_means.NumpyEmeans` available to graph lanes.
+- **Lanes landed** (`helpers/graph/`, template = `hyper_communities.py`:
+  lazy `_require_hgx`, `_exclude_degenerate` max_frac=0.25 guard,
+  DEFAULT_SOURCES=sector,theme,industry, dry-run default, `--apply`
+  persists via `write_analytics`; ruff clean):
+  `hyper_hysc.py` (HySC(seed).fit → one-hot u, metric
+  `hysc_community`; smoke sector K=4: blocks 919/244/49/13, 3.1 s),
+  `hyper_core_periphery.py` (coreness ∈[0,1], metric
+  `core_periphery`; smoke sector n_iter=50: 14.8 s, 781/1225 ≥0.5),
+  `hyper_hypergraphmt.py` (opt-in slow — default 1 realization ~13 s,
+  full quality ≥10 ~100 s+; metric `hypergraphmt_community`; smoke
+  sector K=4 mirrors the HySC blocks).
+- **Spectral consumer (#8 closed):** `hyper_spectral_cluster.py` — per
+  order, top-m eigenvectors (scipy `eigh`), L2-normalize,
+  e-means/k-means; ARI vs the hand-authored sector taxonomy is the QA
+  target; persists `spectral_community_order<N>`. Smoke order 3 m=4
+  k=8: e-means 0.61 s (k-means 2.6 s), ARI ≈ 0.
+- **Reducibility adoption (#6 → #8):** `--orders` defaults to
+  `reducible` — the entropy-representative layer set computed LIVE per
+  loaded family (`reducibility(hg, greedy, count)`, 0.15 s; layer sizes
+  mapped to laplacian orders via size, else size−1); `all` and comma
+  lists still accepted. Smoke sector/theme/industry: eta=0.0582, sizes
+  [8, 25, 26, 47, 86, 102] → orders [8, 25, 26, 47, 86, 101], ~6.5 s
+  total vs ~101 orders; ARI vs sector stays ≈ 0 (max 0.0418 at order
+  101, the mostly-isolated max layer) — the spectral lane is a QA
+  instrument, not a taxonomy rediscovery.
+- **One-shot recorded:** all-sources reducibility eta=0.1419,
+  representative layers (7, 26, 27, 30, 102); `layer_reducibility`
+  1.0 for sizes ≥ 7 except 6→0.20, 5→0.24, 4→0.10, 3→0.06, 2→0.08;
+  re-run policy: on >2× store growth.
+- **Parked (operator):** hyperlink_communities (upstream pickle bug),
+  motifs census (NO-GO visibility defect), s-walk (repo-native
+  bipartite BFS, `hyper_trails.py`).
+- **Verification:** every smoke run above green in dry-run; ruff clean;
+  `search-fresh` converged. Proposal:
+  `archive/graph/hgx_unlock_lanes_and_emeans.md`.
+

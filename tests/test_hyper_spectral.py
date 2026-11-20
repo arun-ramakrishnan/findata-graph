@@ -16,6 +16,7 @@ if str(_REPO) not in sys.path:
 
 from helpers.graph.hyper_spectral import (  # noqa: E402
     commute_nnz,
+    component_annotation,
     rw_density_report,
     spectral_multiorder,
 )
@@ -71,3 +72,22 @@ def test_rw_fragmented_components_annotated():
     assert rep["n_components"] == 2
     assert rep["lc_fraction"] == 0.5
     assert rep["component_sizes"][0] == 2
+
+
+def test_component_annotation_single():
+    rep = component_annotation(CHAIN)
+    assert rep["n_components"] == 1
+    assert rep["single_component"] is True
+    assert rep["lc_fraction"] == 1.0
+    assert rep["total_nodes"] == 5
+    assert rep["component_sizes"] == [5]
+
+
+def test_component_annotation_fragmented():
+    inc = {"e1": ["a", "b"], "e2": ["c", "d"]}
+    rep = component_annotation(inc)
+    assert rep["n_components"] == 2
+    assert rep["single_component"] is False
+    assert rep["lc_fraction"] == 0.5
+    assert rep["component_sizes"] == [2, 2]
+    assert "rw_steps" not in rep

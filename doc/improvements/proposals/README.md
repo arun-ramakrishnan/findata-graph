@@ -38,6 +38,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(archived 2026-11-20)* — `hgx_unlock_lanes_and_emeans` (graph/, filed +
+  executed 2026-11-20, completed.md #549 — HGX unlock: `hypergraphx[ml]`
+  (sklearn 1.9.1) + faiss-cpu 1.16.0 installed; HySC / core-periphery /
+  HypergraphMT community lanes; multi-order spectral consumer
+  `hyper_spectral_cluster.py` (#8) with e-means default; reducibility
+  representative layers adopted as the `--orders reducible` default (#6);
+  hyperlink_communities parked upstream (pickle None.hlcd), motifs census
+  NO-GO, s-walk repo-native).
 - *(archived 2026-11-20)* — `findata_misc_json_git_inclusion` (tooling/, filed
   + executed 2026-11-20, completed.md #547 — writes down the inclusion
   criterion for `findata/Misc/*.json` operator surfaces (track iff runtime
