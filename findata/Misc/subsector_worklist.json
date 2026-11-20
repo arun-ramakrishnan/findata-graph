@@ -1,0 +1,38 @@
+{
+ "unmapped": [
+  {
+   "label": "Banks - Regional",
+   "members": 39,
+   "suggestion": "new sub_sector Banks, or Private_Sector/Public_Sector per company"
+  },
+  {
+   "label": "Packaging & Containers",
+   "members": 13,
+   "suggestion": "no canonical target \u2014 taxonomy decision"
+  },
+  {
+   "label": "Capital Markets",
+   "members": 12,
+   "suggestion": "new sub_sector Capital_Markets"
+  },
+  {
+   "label": "Metal Fabrication",
+   "members": 12,
+   "suggestion": "no canonical target \u2014 taxonomy decision"
+  },
+  {
+   "label": "Semiconductors",
+   "members": 7,
+   "suggestion": "new sub_sector Semiconductors"
+  },
+  {
+   "label": "Utilities - Renewable",
+   "members": 5,
+   "suggestion": "Solar/Wind split per company"
+  }
+ ],
+ "count": 6,
+ "parked": 0,
+ "unmapped_authored": [],
+ "hint": "mapped labels live in derive_hyperedges.SUB_SECTOR_ALIASES; new sub_sector nodes are an operator taxonomy decision; authored company-level overrides ride the `subsector:` note field (D7)"
+}

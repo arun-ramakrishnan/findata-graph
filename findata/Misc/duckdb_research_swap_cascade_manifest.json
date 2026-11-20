@@ -1,0 +1,331 @@
+[
+  {
+    "owning_table": "co_mention_editions",
+    "owning_columns": [
+      "entity_name"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "rename_entity"
+  },
+  {
+    "owning_table": "company_metrics",
+    "owning_columns": [
+      "agent_id"
+    ],
+    "referenced_table": "provenance_agents",
+    "referenced_columns": [
+      "agent_id"
+    ],
+    "actions": [
+      "DELETE SET NULL",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "store_sweep"
+  },
+  {
+    "owning_table": "company_metrics",
+    "owning_columns": [
+      "entity"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "name_dedup"
+  },
+  {
+    "owning_table": "entity_identifiers",
+    "owning_columns": [
+      "entity_name"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "rename_entity"
+  },
+  {
+    "owning_table": "entity_tags",
+    "owning_columns": [
+      "entity_name"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "rename_entity"
+  },
+  {
+    "owning_table": "event_participants",
+    "owning_columns": [
+      "participant"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "name_dedup"
+  },
+  {
+    "owning_table": "event_participants",
+    "owning_columns": [
+      "event_id"
+    ],
+    "referenced_table": "events",
+    "referenced_columns": [
+      "id"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "drop_event"
+  },
+  {
+    "owning_table": "events",
+    "owning_columns": [
+      "agent_id"
+    ],
+    "referenced_table": "provenance_agents",
+    "referenced_columns": [
+      "agent_id"
+    ],
+    "actions": [
+      "DELETE SET NULL",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "store_sweep"
+  },
+  {
+    "owning_table": "events",
+    "owning_columns": [
+      "counterparty_entity"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE SET NULL",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "name_dedup"
+  },
+  {
+    "owning_table": "events",
+    "owning_columns": [
+      "entity"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "name_dedup"
+  },
+  {
+    "owning_table": "graph_analytics",
+    "owning_columns": [
+      "entity_name"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "rename_entity"
+  },
+  {
+    "owning_table": "graph_analytics_contract",
+    "owning_columns": [
+      "entity_name"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "rename_entity"
+  },
+  {
+    "owning_table": "graph_edges",
+    "owning_columns": [
+      "agent_id"
+    ],
+    "referenced_table": "provenance_agents",
+    "referenced_columns": [
+      "agent_id"
+    ],
+    "actions": [
+      "DELETE SET NULL",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "store_sweep"
+  },
+  {
+    "owning_table": "graph_edges",
+    "owning_columns": [
+      "target"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "migrate_to_graph_edges"
+  },
+  {
+    "owning_table": "graph_edges",
+    "owning_columns": [
+      "source"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "migrate_to_graph_edges"
+  },
+  {
+    "owning_table": "hyper_edges",
+    "owning_columns": [
+      "agent_id"
+    ],
+    "referenced_table": "provenance_agents",
+    "referenced_columns": [
+      "agent_id"
+    ],
+    "actions": [
+      "DELETE SET NULL",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "store_sweep"
+  },
+  {
+    "owning_table": "hyper_incidences",
+    "owning_columns": [
+      "entity_name"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "migrate_to_graph_edges"
+  },
+  {
+    "owning_table": "hyper_incidences",
+    "owning_columns": [
+      "edge_id"
+    ],
+    "referenced_table": "hyper_edges",
+    "referenced_columns": [
+      "id"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "migrate_to_graph_edges"
+  },
+  {
+    "owning_table": "ppr_results",
+    "owning_columns": [
+      "entity"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE"
+    ],
+    "rewrite_flow_owner": "drop_entity"
+  },
+  {
+    "owning_table": "quotes",
+    "owning_columns": [
+      "agent_id"
+    ],
+    "referenced_table": "provenance_agents",
+    "referenced_columns": [
+      "agent_id"
+    ],
+    "actions": [
+      "DELETE SET NULL",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "store_sweep"
+  },
+  {
+    "owning_table": "quotes",
+    "owning_columns": [
+      "entity"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE CASCADE",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "name_dedup"
+  },
+  {
+    "owning_table": "speaker_identity",
+    "owning_columns": [
+      "person_name"
+    ],
+    "referenced_table": "entities",
+    "referenced_columns": [
+      "name"
+    ],
+    "actions": [
+      "DELETE SET NULL",
+      "UPDATE CASCADE"
+    ],
+    "rewrite_flow_owner": "rename_entity"
+  }
+]

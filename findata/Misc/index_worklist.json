@@ -1,0 +1,437 @@
+{
+  "constituents": [
+    {
+      "company_name": "ABS Marine Services Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Services",
+      "isin": "INE0QRV01016",
+      "reason": "no_entity",
+      "symbol": "ABSMARINE"
+    },
+    {
+      "company_name": "Aeron Composite Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Capital Goods",
+      "isin": "INE0WL801011",
+      "reason": "no_entity",
+      "symbol": "AERON"
+    },
+    {
+      "company_name": "Avience Biomedicals Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Healthcare",
+      "isin": "INE0V9I01017",
+      "reason": "no_entity",
+      "symbol": "AVIENCE"
+    },
+    {
+      "company_name": "Basilic Fly Studio Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Media Entertainment & Publication",
+      "isin": "INE0OCC01013",
+      "reason": "no_entity",
+      "symbol": "BASILIC"
+    },
+    {
+      "company_name": "Bio Medica Laboratories Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Healthcare",
+      "isin": "INE1BKA01015",
+      "reason": "no_entity",
+      "symbol": "BMLL"
+    },
+    {
+      "company_name": "Brace Port Logistics Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Services",
+      "isin": "INE0R4Z01018",
+      "reason": "no_entity",
+      "symbol": "BRACEPORT"
+    },
+    {
+      "company_name": "Clay Craft India Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Consumer Durables",
+      "isin": "INE1QGM01024",
+      "reason": "no_entity",
+      "symbol": "CLAYCRAFT"
+    },
+    {
+      "company_name": "Cyber Media Research & Services Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Media Entertainment & Publication",
+      "isin": "INE075Z01011",
+      "reason": "no_entity",
+      "symbol": "CMRSL"
+    },
+    {
+      "company_name": "Cash Ur Drive Marketing Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Media Entertainment & Publication",
+      "isin": "INE0WL201014",
+      "reason": "no_entity",
+      "symbol": "CUDML"
+    },
+    {
+      "company_name": "De Neers Tools Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Capital Goods",
+      "isin": "INE0JWV01011",
+      "reason": "no_entity",
+      "symbol": "DENEERS"
+    },
+    {
+      "company_name": "Dhara Rail Projects Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Services",
+      "isin": "INE2HJL01019",
+      "reason": "no_entity",
+      "symbol": "DHARARAIL"
+    },
+    {
+      "company_name": "Emerald Tyre Manufacturers Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Automobile and Auto Components",
+      "isin": "INE0RHD01013",
+      "reason": "no_entity",
+      "symbol": "ETML"
+    },
+    {
+      "company_name": "GenXAI Analytics Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Information Technology",
+      "isin": "INE1W0N01014",
+      "reason": "no_entity",
+      "symbol": "GENXAI"
+    },
+    {
+      "company_name": "Greenleaf Envirotech Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Utilities",
+      "isin": "INE0PLX01017",
+      "reason": "no_entity",
+      "symbol": "GREENLEAF"
+    },
+    {
+      "company_name": "Happy Steels Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Automobile and Auto Components",
+      "isin": "INE1GFG01011",
+      "reason": "no_entity",
+      "symbol": "HAPPY"
+    },
+    {
+      "company_name": "IC Electricals Company Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Capital Goods",
+      "isin": "INE0XE501015",
+      "reason": "no_entity",
+      "symbol": "ICELCO"
+    },
+    {
+      "company_name": "NFP Sampoorna Foods Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Fast Moving Consumer Goods",
+      "isin": "INE0T1501010",
+      "reason": "no_entity",
+      "symbol": "NFPSAMPOOR"
+    },
+    {
+      "company_name": "Prime Cable Industries Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Capital Goods",
+      "isin": "INE0CQA01020",
+      "reason": "no_entity",
+      "symbol": "PRIMECAB"
+    },
+    {
+      "company_name": "Purple United Sales Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Textiles",
+      "isin": "INE0P5R01014",
+      "reason": "no_entity",
+      "symbol": "PURPLEUTED"
+    },
+    {
+      "company_name": "Q-Line Biotech Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Healthcare",
+      "isin": "INE1G2W01011",
+      "reason": "no_entity",
+      "symbol": "QLINE"
+    },
+    {
+      "company_name": "RBM Infracon Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Oil Gas & Consumable Fuels",
+      "isin": "INE0NA301016",
+      "reason": "no_entity",
+      "symbol": "RBMINFRA"
+    },
+    {
+      "company_name": "RFBL Flexi Pack Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Capital Goods",
+      "isin": "INE0V2V01015",
+      "reason": "no_entity",
+      "symbol": "RFBL"
+    },
+    {
+      "company_name": "Rulka Electricals Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Services",
+      "isin": "INE0R7301013",
+      "reason": "no_entity",
+      "symbol": "RULKA"
+    },
+    {
+      "company_name": "Sacheerome Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Chemicals",
+      "isin": "INE1ARD01016",
+      "reason": "no_entity",
+      "symbol": "SACHEEROME"
+    },
+    {
+      "company_name": "Shreedhar Spinners Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Textiles",
+      "isin": "INE0K3301012",
+      "reason": "no_entity",
+      "symbol": "SHREEDHAR"
+    },
+    {
+      "company_name": "Shubhshree Biofuels Energy Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Capital Goods",
+      "isin": "INE0UL701015",
+      "reason": "no_entity",
+      "symbol": "SHUBHSHREE"
+    },
+    {
+      "company_name": "SKP Bearing Industries Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Capital Goods",
+      "isin": "INE0KZA01016",
+      "reason": "no_entity",
+      "symbol": "SKP"
+    },
+    {
+      "company_name": "Smarten Power Systems Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Capital Goods",
+      "isin": "INE14GK01016",
+      "reason": "no_entity",
+      "symbol": "SMARTEN"
+    },
+    {
+      "company_name": "Speb Adhesives Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Chemicals",
+      "isin": "INE1CW901027",
+      "reason": "no_entity",
+      "symbol": "SPEB"
+    },
+    {
+      "company_name": "Teamtech Formwork Solutions Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Construction Materials",
+      "isin": "INE2OL601013",
+      "reason": "no_entity",
+      "symbol": "TEAMTECH"
+    },
+    {
+      "company_name": "Trident Techlabs Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Information Technology",
+      "isin": "INE0QD201012",
+      "reason": "no_entity",
+      "symbol": "TECHLABS"
+    },
+    {
+      "company_name": "Teja Engineering Industries Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Oil Gas & Consumable Fuels",
+      "isin": "INE0R1301019",
+      "reason": "no_entity",
+      "symbol": "TEJA"
+    },
+    {
+      "company_name": "Utkal Speciality Industries India Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Forest Materials",
+      "isin": "INE1V1R01014",
+      "reason": "no_entity",
+      "symbol": "UTKAL"
+    },
+    {
+      "company_name": "Vinit Mobile Ltd.",
+      "index": "NIFTY SME EMERGE",
+      "industry": "Consumer Services",
+      "isin": "INE27V201011",
+      "reason": "no_entity",
+      "symbol": "VMOBILE"
+    },
+    {
+      "company_name": "Ennature Bio Pharma Ltd.",
+      "index": "NIFTY TOTAL MARKET",
+      "industry": "Healthcare",
+      "isin": "INE2WCT01016",
+      "reason": "no_entity",
+      "symbol": "ENNATURE"
+    },
+    {
+      "company_name": "BLS E-Services Ltd.",
+      "index": "Nifty 1000",
+      "industry": "Information Technology",
+      "isin": "INE0NLT01028",
+      "reason": "no_entity",
+      "symbol": "BLSE"
+    },
+    {
+      "company_name": "Ennature Bio Pharma Ltd.",
+      "index": "Nifty Microcap 250",
+      "industry": "Healthcare",
+      "isin": "INE2WCT01016",
+      "reason": "no_entity",
+      "symbol": "ENNATURE"
+    },
+    {
+      "company_name": "Ennature Bio Pharma Ltd.",
+      "index": "Nifty Smallcap 500",
+      "industry": "Healthcare",
+      "isin": "INE2WCT01016",
+      "reason": "no_entity",
+      "symbol": "ENNATURE"
+    }
+  ],
+  "count": 38,
+  "generated": "2026-11-14 05:55:22",
+  "unmapped_industries": {
+    "Media, Entertainment & Publication": [
+      "Aqylon Nexus",
+      "MPS",
+      "Nazara Technologies",
+      "Network18 Media & Investments",
+      "PVR INOX",
+      "Prime Focus",
+      "Saregama India",
+      "Sun TV Network",
+      "Tips Music",
+      "Zee Entertainment Enterprises"
+    ],
+    "Services": [
+      "ANI Integrated Services",
+      "Adani Ports and SEZ",
+      "Amiable Logistics (India)",
+      "Anlon Technology Solutions",
+      "Armour Security (India)",
+      "Arvind Port and Infra",
+      "Ashapura Logistics",
+      "Ashwini Container Movers",
+      "Awfis Space Solutions",
+      "BF Utilities",
+      "BlackBuck",
+      "Blue Pebble",
+      "Blue Water Logistics",
+      "Bombay Metrics Supply Chain",
+      "CMS Info Systems",
+      "Cadsys (India)",
+      "Central Mine Planning & Design Institute",
+      "Chamunda Electrical",
+      "Clear Secured Services",
+      "Committed Cargo Care",
+      "Container Corporation of India",
+      "Deccan Transcon Leasing",
+      "Delhivery",
+      "Diensten Tech",
+      "Dredging Corporation of India",
+      "Dynamic Services & Security",
+      "EFC (I)",
+      "EMA Partners India",
+      "Eleganz Interiors",
+      "Encompass Design India",
+      "Falcon Technoprojects India",
+      "Firstsource Solutions",
+      "FlySBS Aviation",
+      "GMR Airports",
+      "Great Eastern Shipping Co",
+      "Gujarat Pipavav Port",
+      "HP Telecom India",
+      "HRH Next Services",
+      "Happy Square Outsourcing Services",
+      "Hemisphere Properties India",
+      "Indiabulls",
+      "Infollion Research Services",
+      "Integrated Personnel Services",
+      "Interglobe Aviation",
+      "International Gemological Institute",
+      "Iware Supplychain Services",
+      "JSW Infrastructure",
+      "Jalan Transolutions (India)",
+      "Jayesh Logistics",
+      "KHFM Hospitality And Facility Management Services",
+      "Kandarp Digi Smart BPO",
+      "Kernex Microsystems India",
+      "Knowledge Marine and Engineering Works",
+      "Kontor Space",
+      "MMTC",
+      "MSTC",
+      "Mahindra Logistics",
+      "Manglam Infra & Engineering",
+      "Marc Technocrats",
+      "Marinetrans India",
+      "Moving Media Entertainment",
+      "Oneclick Logistics India",
+      "Phoenix Overseas",
+      "Plada Infotech Services",
+      "Positron Energy",
+      "Pranik Logistics",
+      "Premier Roadlines",
+      "Quess Corp",
+      "Quicktouch Technologies",
+      "RPSG Ventures",
+      "Rapid Fleet Management Services",
+      "Redington",
+      "Rockingdeals Circular Economy",
+      "S J Logistics (India)",
+      "Sadhav Shipping",
+      "Sanghvi Movers",
+      "Seamec",
+      "Service Care",
+      "Shadowfax Technologies",
+      "Shankara Buildpro",
+      "Shanthala FMCG Products",
+      "Sheel Biotech",
+      "Shipping Corporation of India",
+      "Shree OSFM E-Mobility",
+      "Shreeji Shipping Global",
+      "Spectrum Talent Management",
+      "Supreme Facility Management",
+      "TVS Supply Chain Solutions",
+      "Tejas Cargo India",
+      "Timescan Logistics (India)",
+      "Vision Infra Equipment Solutions",
+      "Voler Car",
+      "WeWork India Management",
+      "Wise Travel India",
+      "Zeal Aqua",
+      "eClerx Services"
+    ],
+    "Utilities": [
+      "Apex Ecotech",
+      "EMS",
+      "Effwa Infra & Research",
+      "Enviro Infra Engineers",
+      "Felix Industries",
+      "Hi-Green Carbon",
+      "Ion Exchange",
+      "Namo eWaste Management",
+      "Refex Industries",
+      "Sattva Engineering Construction",
+      "Urban Enviro Waste Management",
+      "VA Tech Wabag",
+      "Z-Tech (India)"
+    ]
+  }
+}

@@ -822,6 +822,21 @@ commit, referenced by nothing). Entry numbers point at
   switches/viol/proto + violation-banner removal, and a `fold@…`
   tier-watch heartbeat line distilling the ~8-line bili.log fold
   burst — completed.md #525
+- [`findata_misc_json_git_inclusion.md`](tooling/findata_misc_json_git_inclusion.md) —
+  git-tracking criteria for `findata/Misc/*.json` operator surfaces — the
+  criterion written down (track iff runtime input the code reads OR a
+  human-curation carrier; regenerable triage scratch stays ignored) + audit of
+  the seven whitelisted files: `duckdb_research_swap_cascade_manifest.json`
+  (runtime input, read by `swap_fk_integrity.py`/`swap_convert.py`),
+  `index_worklist.json`/`subsector_worklist.json` (producer docstrings declare
+  them git-tracked), `retro_resolution_worklist.json` (one-shot curation, no
+  generator — NEVER regenerate), `country_worklist.json` (stale 235 →
+  regenerated 19,141, parked journal empty), `nic_worklist.json` (regenerated;
+  old skipped:30 rode `outputs/nic_review/journal.jsonl`, since deleted —
+  loss accepted), `counterparty_worklist.json` (regenerated, 0 unresolved /
+  4 parked) — seven `!` exceptions at `.gitignore:57+` under the criterion
+  comment; no eval-gate bullet (data files, no query-visible semantics) —
+  completed.md #547
 - [`group_growth_gate.md`](tooling/group_growth_gate.md) —
   growth monitor promoted to blocking qa leg `group-growth-check`:
   `gate_check` fails on family-hit loss / removed merge flags / gone

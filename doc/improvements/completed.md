@@ -16402,3 +16402,33 @@ question set) per the proposal's §4 house rule.
   work continues — only the replace-Python goal retired (#437).
 - **Verification:** 190 + 71 + 49 tests green across touched suites; ruff
   clean; repo md-lint clean. Proposal: `archive/tooling/embed_preload_sidecar_lock_bfs.md`.
+
+
+## 547. Git-tracking criteria for the findata/Misc operator JSON surfaces — seven whitelisted
+
+- **The criterion, written down** (`archive/tooling/findata_misc_json_git_inclusion.md`):
+  track a `findata/Misc/*.json` surface iff it is runtime input the code reads
+  (a fresh clone would degrade a check) OR a human-curation carrier
+  (irreplaceable operator decisions); regenerable triage scratch stays ignored
+  (`quote_triage_*`, `_pending_*`, `_rename_queue_20261016.json`,
+  `speaker_supplement_draft.json`). Before this proposal the criterion existed
+  only as precedent in the `.gitignore` whitelist block.
+- **The seven whitelisted** (seven `!` exceptions after `.gitignore:56`, under
+  a comment naming the criterion): `duckdb_research_swap_cascade_manifest.json`
+  (runtime input — read by `swap_fk_integrity.py` + `swap_convert.py`);
+  `index_worklist.json` + `subsector_worklist.json` (producer docstrings
+  declare them git-tracked: `derive_indices.py:775-789`,
+  `derive_hyperedges.py:1111-1135`); `retro_resolution_worklist.json`
+  (one-shot curation, no generator exists — NEVER regenerate);
+  `country_worklist.json`, `nic_worklist.json`, `counterparty_worklist.json`
+  (staleness-audited + regenerated 2026-11-20: country 235 → 19,141 with the
+  parked journal empty; nic's old `skipped:30` rode
+  `outputs/nic_review/journal.jsonl`, since deleted — loss accepted;
+  counterparty drifted `Ghost CP Co` 1 → 0).
+- **Execution:** operator committed all seven (`country_worklist` ~19k
+  entries, expected-large); §2 scratch verified still ignored after the edit;
+  no eval-gate bullet — adding data files does not alter query-visible
+  semantics (rosters / crosswalks / hierarchies / extractor rules).
+- **Verification:** `git check-ignore` clean ×7, all tracked in `git ls-files`;
+  `static_checks` rc=0 (3 advisory); `make search-fresh` check rc=0.
+  Proposal: `archive/tooling/findata_misc_json_git_inclusion.md`.

@@ -1,0 +1,426 @@
+{
+ "generated": "2026-09-15",
+ "task": "D17 retro-pass: re-resolution of previously-uncertain newsletter mentions against the post-D14 universe (1,178 -> 6,197 companies)",
+ "tier_exact": [
+  {
+   "candidate": "Knowledge Marine & Engineering Works",
+   "target": "Knowledge Marine & Engineering Works",
+   "prior_guess": "Knowledge Marine and Engineering Works",
+   "is_stub": true
+  },
+  {
+   "candidate": "Tata Motors",
+   "target": "Tata Motors",
+   "prior_guess": "Tata Motors Passenger Vehicles",
+   "is_stub": true
+  },
+  {
+   "candidate": "Tempsens Instruments (India)",
+   "target": "Tempsens Instruments (India)",
+   "prior_guess": "MPS",
+   "is_stub": true
+  },
+  {
+   "candidate": "Apollo Micro Systems",
+   "target": "Apollo Micro Systems",
+   "prior_guess": "EMS",
+   "is_stub": false
+  }
+ ],
+ "tier_fuzzy_safe": [
+  {
+   "candidate": "Info Edge (India)",
+   "target": "Info Edge",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Titan Company",
+   "target": "Titan",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Torrent Pharma",
+   "target": "Torrent Pharmaceuticals",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Apollo Hospitals Enterprise",
+   "target": "Apollo Hospitals",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Narayana Hrudayalay",
+   "target": "Narayana Hrudayalaya",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Amara Raja Energy",
+   "target": "Amara Raja Batteries",
+   "method": "word_overlap",
+   "score": 0.667,
+   "is_stub": false
+  },
+  {
+   "candidate": "Colgate-Palmolive (India)",
+   "target": "Colgate Palmolive India",
+   "method": "word_overlap",
+   "score": 0.667,
+   "is_stub": false
+  },
+  {
+   "candidate": "Max Health",
+   "target": "Max Healthcare Institute",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Entertainment Network (India)",
+   "target": "Entertainment Network (India)",
+   "method": "exact",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Dixon Technologies (India)",
+   "target": "Dixon Technologies",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Polycab",
+   "target": "Polycab India",
+   "method": "abbreviation",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Kalyan Jewellers India",
+   "target": "Kalyan Jewellers",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Voltas I",
+   "target": "Voltas",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "ZEE Entertainment",
+   "target": "Zee Entertainment Enterprises",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Anheuser-Busch Inbev SA",
+   "target": "Anheuser-Busch Inbev",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Aptus Value Housing Finance India",
+   "target": "Aptus Value Housing Finance",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Waaree Energies I",
+   "target": "Waaree Energies",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Mangalore Refinery and Petrochemicals Limited (MRPL)",
+   "target": "Mangalore Refinery and Petrochemicals",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Mattel Inc.",
+   "target": "Mattel",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Punjab National Bank",
+   "target": "Punjab National Bank (PNB)",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Prestige Estates Project",
+   "target": "Prestige Estates Projects",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "JK Cements",
+   "target": "JK Cement",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Bluestone Jewellery",
+   "target": "BlueStone Jewellery and Lifestyle",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Central Depository Services (India)",
+   "target": "Central Depository Services",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Alibaba",
+   "target": "Alibaba Group",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Vedanta Group",
+   "target": "Vedanta",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Gillette India",
+   "target": "Gillette",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Prestige Estates",
+   "target": "Prestige Estates Projects",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "JSW Energy I",
+   "target": "JSW Energy",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Power Grid Corporation",
+   "target": "Power Grid Corporation of India",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Sagility India",
+   "target": "Sagility",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "ICICI Prudential Asset Management",
+   "target": "ICICI Prudential Asset Management Company",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "ICICI Prudential Life Insurance Compa",
+   "target": "ICICI Prudential Life Insurance",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "ICICI Lombard General Insurance Compa",
+   "target": "ICICI Lombard General Insurance",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Anand Rathi Share & Stock Brokers Ltd. M Cap",
+   "target": "Anand Rathi Share and Stock Brokers",
+   "method": "word_overlap",
+   "score": 0.714,
+   "is_stub": false
+  },
+  {
+   "candidate": "TCS",
+   "target": "Tata Consultancy Services",
+   "method": "abbreviation",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Godawari Power And Ispat",
+   "target": "Godawari Power & Ispat",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Hindalco Industries",
+   "target": "Hindalco",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "L\\&T Finance",
+   "target": "L&T Finance",
+   "method": "word_overlap",
+   "score": 0.667,
+   "is_stub": false
+  },
+  {
+   "candidate": "Tilaknagar Inds",
+   "target": "TIL",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Hitachi Energy India (POWERINDIA)",
+   "target": "Hitachi Energy India",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  },
+  {
+   "candidate": "Airbnb Inc.",
+   "target": "Airbnb",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false
+  }
+ ],
+ "tier_review": [
+  {
+   "candidate": "Rupa \\& Company",
+   "target": "Rupa",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false,
+   "flag": "wrong-target risk \u2014 verify manually (family member vs parent; abbreviation collision)"
+  },
+  {
+   "candidate": "Chambal Fertilizers and Chemicals",
+   "target": "TIL",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false,
+   "flag": "wrong-target risk \u2014 verify manually (family member vs parent; abbreviation collision)"
+  },
+  {
+   "candidate": "Siemens Energy AG",
+   "target": "Siemens",
+   "method": "abbreviation",
+   "score": 1.0,
+   "is_stub": false,
+   "flag": "wrong-target risk \u2014 verify manually (family member vs parent; abbreviation collision)"
+  },
+  {
+   "candidate": "SBI",
+   "target": "SBI Life Insurance Company",
+   "method": "word_overlap",
+   "score": 1.0,
+   "is_stub": false,
+   "flag": "wrong-target risk \u2014 verify manually (family member vs parent; abbreviation collision)"
+  }
+ ],
+ "near_dupes": [
+  {
+   "stub": "Tata Motors",
+   "authored": "Tata Motors Passenger Vehicles",
+   "note": "exchange stub vs authored carve-out \u2014 rename/merge decision for the operator"
+  }
+ ],
+ "instructions": "tier_exact: safe to link (mention == entity name now exists). tier_fuzzy_safe: high-confidence variant matches (word_overlap/abbreviation); link after eyeballing. tier_review: matcher proposed a target that looks WRONG (SBI->SBI Life, Siemens Energy AG->Siemens, Chambal->TIL, Rupa escaping) \u2014 resolve manually. is_stub=true targets carry no note yet: the link UPGRADES the stub.",
+ "curation_2026_09_15": {
+  "accepted_into_relation_aliases": [
+   "airbnb inc.",
+   "alibaba",
+   "anand rathi share & stock brokers ltd. m cap",
+   "anheuser-busch inbev sa",
+   "apollo hospitals enterprise",
+   "apollo micro systems",
+   "aptus value housing finance india",
+   "bluestone jeweller",
+   "central depository services (india)",
+   "chambal fertilizers and chemicals",
+   "dixon technologies (india)",
+   "entertainment network (india)_",
+   "gillette india",
+   "godawari power and ispat",
+   "hindalco industries",
+   "hitachi energy india (powerindia)",
+   "icici lombard general insurance compa",
+   "icici prudential asset management",
+   "icici prudential life insurance compa",
+   "info edge (india)",
+   "jk cements",
+   "jsw energy i",
+   "kalyan jewellers india",
+   "knowledge marine & engineering works",
+   "l\\&t finance",
+   "mangalore refinery and petrochemicals limited (mrpl)",
+   "mattel inc.",
+   "max health",
+   "narayana hrudayalay",
+   "polycab",
+   "power grid corporation",
+   "prestige estates project",
+   "punjab national bank",
+   "rupa \\& company",
+   "sagility india",
+   "sbi",
+   "siemens energy ag",
+   "tcs",
+   "tempsens instruments (india)",
+   "tilaknagar inds",
+   "titan company",
+   "torrent pharma",
+   "vedanta group",
+   "voltas i",
+   "waaree energies i",
+   "zee entertainment"
+  ],
+  "rejected": {
+   "tata motors": "ambiguous post-demerger (TMPV vs TMCV) \u2014 operator eyeball per mention",
+   "amara raja energy": "RESOLVED 2026-09-15: operator ruled ARE&M is the renamed ARBL \u2014 entity renamed 'Amara Raja Batteries' -> 'Amara Raja Energy and Mobility' (note moved, ticker ARE&M.NS); alias added"
+  },
+  "operator_flags": [
+   "Rupa & Company (exchange stub) vs Rupa (authored) \u2014 same knitwear company; merge/delete decision",
+   "Gujarat Energy ticker was GUJGASLTD.NS (Gujarat Gas!) \u2014 corrected to GUJENERGY.NS from the exchange master"
+  ]
+ }
+}

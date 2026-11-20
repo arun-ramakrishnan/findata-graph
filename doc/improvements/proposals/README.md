@@ -38,6 +38,15 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(archived 2026-11-20)* — `findata_misc_json_git_inclusion` (tooling/, filed
+  + executed 2026-11-20, completed.md #547 — writes down the inclusion
+  criterion for `findata/Misc/*.json` operator surfaces (track iff runtime
+  input the code reads OR a human-curation carrier; regenerable triage
+  scratch stays ignored) and whitelists the seven audited files: cascade
+  manifest (runtime input), index/subsector worklists (producer-declared),
+  retro_resolution_worklist (one-shot curation, never regenerate), and the
+  country (235 → 19,141) / nic (journal source gone) / counterparty
+  worklists regenerated same-day; no eval-gate bullet — data files only).
 - `gate_artifact_sidecar_zstd` — LIVE, filed 2026-11-19
   (`tooling/gate_artifact_sidecar_zstd.md`); zstd-compress the pytest metadata
   sidecars — 63% of `outputs/.artifacts` at 111.7 MB, redundant with

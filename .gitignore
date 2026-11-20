@@ -54,6 +54,17 @@ findata/**/*.json
 !findata/Misc/quote_g4sec_backlog.md
 !findata/Misc/quote_g3_discards.jsonl
 !findata/Misc/quote_accepted_losses.jsonl
+# Exception: operator worklists + pipeline input surfaces (inclusion
+# criterion: track iff runtime input the code reads, or a human-curation
+# carrier whose content is irreplaceable; see proposal
+# doc/improvements/archive/tooling/findata_misc_json_git_inclusion.md).
+!findata/Misc/duckdb_research_swap_cascade_manifest.json
+!findata/Misc/index_worklist.json
+!findata/Misc/subsector_worklist.json
+!findata/Misc/retro_resolution_worklist.json
+!findata/Misc/country_worklist.json
+!findata/Misc/nic_worklist.json
+!findata/Misc/counterparty_worklist.json
 # triage_pending_quotes run artifacts (regenerated each report run)
 findata/Misc/quote_triage_report.md
 findata/Misc/quote_triage_decisions.jsonl
