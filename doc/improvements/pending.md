@@ -3,6 +3,38 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **maint skip-masking — served-store no-ops report as "✓ OK" in a
+  10/10 PASS — OPEN, filed 2026-11-20 (gate-triage incident)**. Under
+  the served quack store, `make maint`'s `graph-rebuild` and
+  `stamp-centrality` steps no-op via the `assert_not_served`
+  split-brain guard and the step table records `0.00 s · ✓ OK`; the
+  summary still prints `10/10 steps ok · maint PASS`. Evidence:
+  30 of 51 maint runs in `outputs/maint_report.md` carry 0.00 s
+  stamps; 2026-11-20 22:04 ran 10/10 PASS with both steps at 0.00
+  (server up) while 22:42 (server stopped for the cache bounce)
+  executed them for real. Consequences: (a) a green maint can leave
+  the DuckDB cache unstamped while the SAME run's snapshot step
+  exports stale `v_centrality_*` tables to the tracked parquet;
+  (b) real-run timing creep is invisible — stamp-centrality's last
+  five REAL runs went 59.17 → 66.92 → 76.19 → 93.28 s (+57% in five
+  days) unnoticed under the skip noise; (c) the gen-bump-vs-served
+  cache trap then surfaces as graph-algos / suggest-relations /
+  live-invariants reds with maint itself green (gates-timing-sweep
+  2026-11 memory). Exposing incident resolved 2026-11-21: the 22:42
+  chain death was collateral of a global OOM under the swap storm
+  (kernel victim: `llama-server`, 7.9 Gi VM, `oom_score_adj=200`;
+  kern.log 22:44:23) — NOT a stamp-centrality regression: the solo
+  re-run on the same duckdb 2.0.1 + signed-onager stack and identical
+  store completed in 70 s at 488 MiB peak RSS. The five-real-run
+  creep (59.17 → 93.28 s) stays the watch item; the skip-masking
+  defect above is unchanged.
+  Fix shape: the step runner distinguishes SKIP (with reason:
+  served-store guard) from OK in the table and summary —
+  `8/10 ok, 2 skipped (served store)` — and/or `gate_query` flags
+  0.00 s graph steps as a watch row. Trigger: next maint-adjacent
+  arc or operator go; single-slice fix, no proposal needed per the
+  multi-slice bar.
+
 - **Canonical `research.db` SQLite→DuckDB swap — UNPARKED / EXECUTION FILED
   2026-11-19** (live proposal
   `proposals/database/duckdb_research_swap_execution.md`; readiness program
@@ -222,6 +254,32 @@ Open items below keep their revisit triggers inline; executed work is compressed
    masks executed.** The earlier statement that two pre-existing query.py masks remained is stale.
    query.py has no remaining `# noqa: C901` masks; `.venv/bin/python3 -m ruff check --select C901 .` reports `All checks passed!`;
    no current repo-wide C901 violation is recorded. No code split is in scope for this census arc.
+  **Batch 2 landed 2026-11-21 (lint-audit cleanup, harvest_promotions
+  gate arc)**: the 13 functions the audit leg had accumulated since the
+  ruling all SPLIT (no new masks — the no-new-suppression doctrine
+  held): spectral `_cli` (+`_resolve_orders`/`_sector_targets`/
+  `_run_order`/`_qa_guard`), bench_cosine_knn `_bench_corpus` (+
+  `_bench_scale`/`_scaled_matrix`), hyper_trails `_trail_stats_mojo_batch`
+  (+`_mojo_batch_invoke`), rebuild_memory_search `_search_memory_duckdb`
+  (+`_memory_topk_page`/`_memory_macro_page`), gate_query `cmd_rotate`
+  (+`_rotation_plan`/`_apply_rotation`), rebuild_script_search
+  `_collect_units` (+`_collect_mojo_units`/`_collect_ts_units`),
+  rebuild_git_search `_search_commits_duckdb` (+`_git_topk_page`/
+  `_git_macro_page`), duckdb_shared `_stem_step` (+`_stem_class_strips`),
+  hyper_motifs `_mojo_null` (+`_mojo_null_write_replicates`/
+  `_mojo_null_invoke`), database_integrity_check
+  `check_fuzzy_duplicate_names` (+`_fuzzy_token_cache`/`_fuzzy_supersets`/
+  `_fuzzy_row_superset`/`_fuzzy_collect_pairs`), swap_convert `_build`
+  (+`_self_fk_targets`/`_load_self_fk_table`), swap_rewrite_flows
+  `drop_entity` (+`_drop_set_null_and_edges`/`_drop_event_and_children`)
+  and `rename_entity` (+`_rename_edge_children`/
+  `_rename_entity_children`). Every split behavior-identical: 278
+  targeted tests across the touched files (swap flows/convert/fk-gate,
+  integrity 97, FTS stem-parity battery, hyper motifs/trails/spectral,
+  gate_query 55, git-query) + live CLI/query smoke per lane; S608's 39
+  sites dispositioned the same pass (per-file-ignores for the swap
+  family per the query.py precedent; one real bind fix in
+  test_gate_query). `make lint-audit` green; no C901 mask remains.
 
 - **production-store copy census — TRIGGER ARMED 2026-09-29, FIRED
   2026-10-13 — RE-RUN DONE 2026-10-19 (completed.md #415) — BASELINE
