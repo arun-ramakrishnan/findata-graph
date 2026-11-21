@@ -2466,7 +2466,9 @@ def cmd_grep(con, args) -> str:
 # ---------------------------------------------------------------- rotation
 
 
-def cmd_rotate(con, args) -> str:
+def _rotation_plan(con, args) -> list[tuple]:
+    """Reports over the keep policy: [(rel, path, prefix_end, arch, n_old)].
+    (2026-11-21 lint-audit split out of cmd_rotate for the C901 budget.)"""
     plan = []
     for gate, path, wt, _kind in report_copies():
         if wt:
@@ -2497,11 +2499,12 @@ def cmd_rotate(con, args) -> str:
         stamp = ts.strftime("%Y%m%dT%H%M%S") if ts else str(int(time.time()))
         arch = ROOT / "archives" / Path(rel).stem / f"{Path(rel).stem}.{stamp}.zst"
         plan.append((rel, path, prefix_end, arch, len(blocks) - args.keep_runs))
-    if not plan:
-        return (
-            f"nothing to rotate (default keep policy: last {args.keep_runs} runs, "
-            f"rotate past {args.max_mb:g} MB per report; tune with --keep-runs/--max-mb)"
-        )
+    return plan
+
+
+def _apply_rotation(con, args, plan: list[tuple]) -> list[str]:
+    """Archive + truncate each planned report, rebasing live index rows.
+    Returns the per-report output lines (2026-11-21 lint-audit split)."""
     out = []
     for rel, path, prefix_end, arch, n in plan:
         out.append(f"  {rel}: archive first {n} runs (bytes < {prefix_end}) -> {arch}")
@@ -2554,6 +2557,17 @@ def cmd_rotate(con, args) -> str:
                 "UPDATE parse_state SET parse_offset = GREATEST(parse_offset - ?, 0), size = ?, mtime_ns = ?, updated_at = ? WHERE src_rel = ?",
                 [prefix_end, len(tail), path.stat().st_mtime_ns, datetime.now(), rel],
             )
+    return out
+
+
+def cmd_rotate(con, args) -> str:
+    plan = _rotation_plan(con, args)
+    if not plan:
+        return (
+            f"nothing to rotate (default keep policy: last {args.keep_runs} runs, "
+            f"rotate past {args.max_mb:g} MB per report; tune with --keep-runs/--max-mb)"
+        )
+    out = _apply_rotation(con, args, plan)
     header = "ROTATION PLAN (dry-run; --apply to execute):" if not args.apply else "ROTATED:"
     return header + "\n" + "\n".join(out)
 

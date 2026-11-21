@@ -1155,6 +1155,48 @@ def _migrate_schema(conn: sqlite3.Connection) -> bool:
     return True
 
 
+def _collect_mojo_units(
+    units: list, units_meta: dict, conn, meta_only: bool, base: Path, mojo_src, mojo_tests, mojo_bin
+) -> None:
+    """Walk the Mojo corpus, appending units + meta hashes (2026-11-21
+    lint-audit split out of _collect_units for the C901 budget)."""
+    src_root = Path(mojo_src) if mojo_src else base / "Mojo" / "src"
+    mojo_tests_root = Path(mojo_tests) if mojo_tests else base / "Mojo" / "tests"
+    for rel, path, area in _iter_mojo_units(src_root, mojo_tests_root):
+        try:
+            mtime = path.stat().st_mtime
+            src_bytes = path.read_bytes()
+        except OSError:
+            continue
+        chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
+        decl = None
+        if not meta_only:
+            decl = _mojo_decl_cached(conn, rel, chash, path, src_root, mojo_bin)
+        units.append(_extract_mojo_unit(rel, path, area, decl, mtime, chash))
+        units_meta[rel] = (mtime, chash)
+
+
+def _collect_ts_units(
+    units: list, units_meta: dict, conn, meta_only: bool, base: Path, ts_src, ts_types, node_bin
+) -> None:
+    """Walk the frontend TS corpus, appending units + meta hashes
+    (2026-11-21 lint-audit split out of _collect_units)."""
+    ts_src_root = Path(ts_src) if ts_src else base / "frontend" / "src"
+    ts_types_root = Path(ts_types) if ts_types else base / "frontend" / "types"
+    for rel, path, area in _iter_ts_units(ts_src_root, ts_types_root):
+        try:
+            mtime = path.stat().st_mtime
+            src_bytes = path.read_bytes()
+        except OSError:
+            continue
+        chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
+        decl = None
+        if not meta_only:
+            decl = _ts_decl_cached(conn, rel, chash, path, node_bin)
+        units.append(_extract_ts_unit(rel, path, area, decl, mtime, chash))
+        units_meta[rel] = (mtime, chash)
+
+
 def _collect_units(
     helpers_root,
     tests_root,
@@ -1208,34 +1250,8 @@ def _collect_units(
     if make_unit is not None:
         units_meta[make_unit["rel"]] = (make_unit["mtime"], make_unit["hash"])
     base = Path(helpers_root or HELPERS_ROOT).parent
-    src_root = Path(mojo_src) if mojo_src else base / "Mojo" / "src"
-    mojo_tests_root = Path(mojo_tests) if mojo_tests else base / "Mojo" / "tests"
-    for rel, path, area in _iter_mojo_units(src_root, mojo_tests_root):
-        try:
-            mtime = path.stat().st_mtime
-            src_bytes = path.read_bytes()
-        except OSError:
-            continue
-        chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
-        decl = None
-        if not meta_only:
-            decl = _mojo_decl_cached(conn, rel, chash, path, src_root, mojo_bin)
-        py_units.append(_extract_mojo_unit(rel, path, area, decl, mtime, chash))
-        units_meta[rel] = (mtime, chash)
-    ts_src_root = Path(ts_src) if ts_src else base / "frontend" / "src"
-    ts_types_root = Path(ts_types) if ts_types else base / "frontend" / "types"
-    for rel, path, area in _iter_ts_units(ts_src_root, ts_types_root):
-        try:
-            mtime = path.stat().st_mtime
-            src_bytes = path.read_bytes()
-        except OSError:
-            continue
-        chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
-        decl = None
-        if not meta_only:
-            decl = _ts_decl_cached(conn, rel, chash, path, node_bin)
-        py_units.append(_extract_ts_unit(rel, path, area, decl, mtime, chash))
-        units_meta[rel] = (mtime, chash)
+    _collect_mojo_units(py_units, units_meta, conn, meta_only, base, mojo_src, mojo_tests, mojo_bin)
+    _collect_ts_units(py_units, units_meta, conn, meta_only, base, ts_src, ts_types, node_bin)
     return py_units, make_unit, units_meta
 
 

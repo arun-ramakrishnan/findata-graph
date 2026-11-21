@@ -271,7 +271,7 @@ def _reader(path: Path) -> _MirrorReader | None:
     if cached is not None:
         try:
             cached.con.close()
-        except Exception:  # noqa: BLE001 - best-effort
+        except Exception:  # noqa: BLE001, S110 - best-effort close (stale-reader swap window)
             pass
         _TLS.reader = None
     try:
@@ -570,8 +570,9 @@ def _whole_corpus_similarities(con, vec: list[float], dims: int) -> dict[str, fl
     numpy argsort over the scan order reproduces it exactly.
     """
     sql = (
-        "SELECT row_key, array_cosine_similarity(embedding, $1::FLOAT[{dims}]) AS sim FROM {table}"
-    ).format(dims=int(dims), table=VEC_TABLE)
+        f"SELECT row_key, array_cosine_similarity(embedding, $1::FLOAT[{int(dims)}]) AS sim"  # noqa: S608 - dims int()-validated, VEC_TABLE constant; $1 binds the vector
+        f" FROM {VEC_TABLE}"
+    )
     try:
         res = con.execute(sql, [vec]).fetchnumpy()
         import numpy as np

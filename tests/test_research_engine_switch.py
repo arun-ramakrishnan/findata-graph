@@ -189,10 +189,13 @@ class TestS1ArtifactIntegration:
             assert is_duckdb_conn(con)
             assert schema_version(con) == 17
             assert any(c["name"] == "cin" for c in table_info(con, "entities"))
-            assert con.execute(
-                "SELECT name FROM entities WHERE name = ? COLLATE NOCASE LIMIT 1",
-                ("birkenstock",),
-            ).fetchone()[0] == "Birkenstock"
+            assert (
+                con.execute(
+                    "SELECT name FROM entities WHERE name = ? COLLATE NOCASE LIMIT 1",
+                    ("birkenstock",),
+                ).fetchone()[0]
+                == "Birkenstock"
+            )
         finally:
             con.close()
 

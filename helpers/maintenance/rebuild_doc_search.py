@@ -269,9 +269,7 @@ _PSEUDO_DIMS = 64
 # the touched-file fraction (changed + deleted) reaches this threshold,
 # fold the carried files into the delta and run the full write path.
 # Overridable via env for tuning; default keeps small deltas incremental.
-DELTA_FULL_FALLBACK_THRESHOLD = float(
-    os.environ.get("DOC_DELTA_FULL_FALLBACK_THRESHOLD", "0.8")
-)
+DELTA_FULL_FALLBACK_THRESHOLD = float(os.environ.get("DOC_DELTA_FULL_FALLBACK_THRESHOLD", "0.8"))
 
 _pseudo_warned = False
 
@@ -780,9 +778,7 @@ def _rebuild_sqlite(  # noqa: C901
             _carried_count = len(carried)
             _stored = existing or {
                 r[0]: (r[1], r[2])
-                for r in conn.execute(
-                    "SELECT file_path, mtime, content_hash FROM doc_search_meta"
-                )
+                for r in conn.execute("SELECT file_path, mtime, content_hash FROM doc_search_meta")
             }
             _deleted_count = len([fp for fp in _stored if fp not in rows_by_file])
             _touched = _total_files - _carried_count + _deleted_count
@@ -1467,9 +1463,7 @@ def rebuild_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
             if _total > 0 and (_touched / _total) >= DELTA_FULL_FALLBACK_THRESHOLD:
                 for _rel in list(carried):
                     _abs = files[_rel]
-                    _rows, _rhash, _carried_n = _file_rows(
-                        _abs, _rel, embed_fn, gemma=gemma_active
-                    )
+                    _rows, _rhash, _carried_n = _file_rows(_abs, _rel, embed_fn, gemma=gemma_active)
                     if _rhash is None:
                         dropped.add(_rel)
                         carried.discard(_rel)

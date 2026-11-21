@@ -266,6 +266,21 @@ ignore = ["E501"]
 # hyper_community_probe.py: seeded random.Random IS the probe's synthetic
 # generator (determinism contract, seed=7) — not a crypto context.
 "helpers/bench/hyper_community_probe.py" = ["S311"]
+# The db_swap rewrite/verify family: every interpolation is a table/column
+# identifier from internal module rosters (SET_NULL_ON_DELETE / EDGE_TABLES /
+# REPOINT_CHILDREN / spec["columns"] / DESCRIBE output) or a module-level
+# store-path constant (SOURCE) — DuckDB requires identifier interpolation
+# (binds cannot parameterize identifiers) and ALL values go through ? binds.
+# Same reviewed pattern and remedy as query.py above (lint-audit cleanup
+# 2026-11-21); a future value-interpolation in these files would still be
+# caught by review since the per-file scope covers only S608.
+"helpers/misc/swap_rewrite_flows.py" = ["S608"]
+"helpers/misc/swap_convert.py" = ["S608"]
+"helpers/misc/swap_fk_gate.py" = ["S608"]
+"helpers/misc/swap_fk_integrity.py" = ["S608"]
+"tests/test_swap_rewrite_flows.py" = ["S608"]
+"tests/test_swap_rewrite_flows_s3.py" = ["S608"]
+"tests/test_swap_fk_gate.py" = ["S608"]
 # bipartite_communities.py: seeded random.Random IS the algorithm's deterministic
 # generator (determinism contract, seed) — not a crypto context.
 "helpers/graph/bipartite_communities.py" = ["S311"]

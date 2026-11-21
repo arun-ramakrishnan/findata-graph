@@ -143,12 +143,10 @@ def _rotate_rows(
         _run(con, stmts, f'DELETE FROM "{table}" WHERE "id" = ?', (tid,))
 
 
-def drop_entity(con, name: str) -> list[str]:
-    """Delete entity `name` propagating deletes/set-nulls as SQLite would.
-
-    Returns the ordered list of executed statements (for tests/logging).
-    """
-    stmts: list[str] = []
+def _drop_set_null_and_edges(con, stmts: list[str], name: str) -> None:
+    """drop_entity phases 1-2: SET NULL on parented children, then the edge
+    tables (they cascade to their own children) — 2026-11-21 lint-audit
+    split for the C901 budget."""
     # 1) SET NULL on entities-parented children that declare it
     for table, (col, parent) in SET_NULL_ON_DELETE.items():
         if parent == "entities" and _has_column(con, table, col):
@@ -167,6 +165,12 @@ def drop_entity(con, name: str) -> list[str]:
                     (name, name),
                 )
         _run(con, stmts, f'DELETE FROM "{table}" WHERE "{scol}" = ? OR "{tcol}" = ?', (name, name))
+
+
+def _drop_event_and_children(con, stmts: list[str], name: str) -> None:
+    """drop_entity phases 3-4: event children (participants referencing the
+    entity directly or through a deleted event; then the events) and the
+    remaining CASCADE children — 2026-11-21 lint-audit split."""
     # 3) event children (participants referencing the entity either directly
     #    or through a deleted event; then the events themselves)
     if _has_column(con, "event_participants", "event_id") and _has_column(
@@ -187,9 +191,62 @@ def drop_entity(con, name: str) -> list[str]:
             continue
         if action == "CASCADE" and _has_column(con, table, col):
             _run(con, stmts, f'DELETE FROM "{table}" WHERE "{col}" = ?', (name,))
+
+
+def drop_entity(con, name: str) -> list[str]:
+    """Delete entity `name` propagating deletes/set-nulls as SQLite would.
+
+    Returns the ordered list of executed statements (for tests/logging).
+    """
+    stmts: list[str] = []
+    _drop_set_null_and_edges(con, stmts, name)
+    _drop_event_and_children(con, stmts, name)
     # 5) the entity row itself
     _run(con, stmts, "DELETE FROM entities WHERE name = ?", (name,))
     return stmts
+
+
+def _rename_edge_children(con, stmts: list[str], old: str, new: str) -> None:
+    """rename_entity: propagate across EDGE_TABLES — rows referenced by
+    their own children rotate (RESTRICT), the rest update in place
+    (2026-11-21 lint-audit split for the C901 budget)."""
+    for table, cols in EDGE_TABLES.items():
+        if not _has_column(con, table, cols[0]):
+            continue
+        if table in REPOINT_CHILDREN:
+            rows = [
+                r[0]
+                for r in con.execute(
+                    f'SELECT id FROM "{table}" WHERE "{cols[0]}" = ? OR "{cols[1]}" = ?',
+                    (old, old),
+                ).fetchall()
+            ]
+            _rotate_rows(con, stmts, table, rows, list(cols), old, new)
+            continue
+        for col in cols:
+            _run(con, stmts, f'UPDATE "{table}" SET "{col}" = ? WHERE "{col}" = ?', (new, old))
+
+
+def _rename_entity_children(con, stmts: list[str], old: str, new: str) -> None:
+    """rename_entity: propagate across ENTITY_CHILDREN — same rotate-or-
+    update split, minus the NO_UPDATE_CASCADE tables (2026-11-21 split)."""
+    for table, (col, _action) in ENTITY_CHILDREN.items():
+        if not _has_column(con, table, col):
+            continue
+        # DELETE-CASCADE-only edges have no ON UPDATE CASCADE in SQLite;
+        # renaming the parent is blocked there, so skip on DuckDB too.
+        if table in NO_UPDATE_CASCADE:
+            continue
+        if table in REPOINT_CHILDREN:
+            rows = [
+                r[0]
+                for r in con.execute(
+                    f'SELECT id FROM "{table}" WHERE "{col}" = ?', (old,)
+                ).fetchall()
+            ]
+            _rotate_rows(con, stmts, table, rows, [col], old, new)
+            continue
+        _run(con, stmts, f'UPDATE "{table}" SET "{col}" = ? WHERE "{col}" = ?', (new, old))
 
 
 def rename_entity(con, old: str, new: str, new_values: dict[str, Any] | None = None) -> list[str]:
@@ -225,38 +282,8 @@ def rename_entity(con, old: str, new: str, new_values: dict[str, Any] | None = N
         _run(con, stmts, "INSERT INTO entities (name) VALUES (?)", (new,))
     # Tables whose rows are NOT referenced by children can be updated in
     # place (graph_edges, entity_tags, quotes, ...).
-    for table, cols in EDGE_TABLES.items():
-        if not _has_column(con, table, cols[0]):
-            continue
-        if table in REPOINT_CHILDREN:
-            rows = [
-                r[0]
-                for r in con.execute(
-                    f'SELECT id FROM "{table}" WHERE "{cols[0]}" = ? OR "{cols[1]}" = ?',
-                    (old, old),
-                ).fetchall()
-            ]
-            _rotate_rows(con, stmts, table, rows, list(cols), old, new)
-            continue
-        for col in cols:
-            _run(con, stmts, f'UPDATE "{table}" SET "{col}" = ? WHERE "{col}" = ?', (new, old))
-    for table, (col, _action) in ENTITY_CHILDREN.items():
-        if not _has_column(con, table, col):
-            continue
-        # DELETE-CASCADE-only edges have no ON UPDATE CASCADE in SQLite;
-        # renaming the parent is blocked there, so skip on DuckDB too.
-        if table in NO_UPDATE_CASCADE:
-            continue
-        if table in REPOINT_CHILDREN:
-            rows = [
-                r[0]
-                for r in con.execute(
-                    f'SELECT id FROM "{table}" WHERE "{col}" = ?', (old,)
-                ).fetchall()
-            ]
-            _rotate_rows(con, stmts, table, rows, [col], old, new)
-            continue
-        _run(con, stmts, f'UPDATE "{table}" SET "{col}" = ? WHERE "{col}" = ?', (new, old))
+    _rename_edge_children(con, stmts, old, new)
+    _rename_entity_children(con, stmts, old, new)
     # participant + speaker_identity carry entity FK columns too
     # (UPDATE CASCADE per manifest), so propagate there as well
     if _has_column(con, "event_participants", "participant"):

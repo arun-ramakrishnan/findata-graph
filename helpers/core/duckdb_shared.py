@@ -807,41 +807,11 @@ def _undouble_consonant(w: str) -> str | None:
     return None
 
 
-def _stem_step(w: str) -> set[str]:
-    """One pass of suffix rules -> candidate set (superset generator).
-
-    Each class is pinned by the fixture-oracle batteries of 2026-11-18
-    (see tests/test_fts_topk_parity.py::TestStemLadderParity). Guards:
-    Porter m>1 unless the oracle measured otherwise (ness/ful strip at
-    m>0: freshness→fresh, business→busi, truth stays under m>1 for
-    fresh but business strips — the real stemmer strips both).
-    """
-    s: set[str] = set()
+def _stem_class_strips(w: str, lo: str, s: set[str]) -> None:
+    """M-guarded suffix classes + the -ility/-ion refinements, added into
+    `s` (2026-11-21 lint-audit split out of _stem_step for the C901
+    budget; same measured rules, set-add order irrelevant)."""
     L = len(w)
-    lo = w.lower()
-    # plurals: ies→i AND y (studies→studi via ies→i, activity→activities
-    # via ies→y chaining into -ity)
-    if L > 4 and lo.endswith("ies"):
-        s.add(w[:-3] + "i")
-        s.add(w[:-3] + "y")
-    if L > 4 and lo.endswith("sses"):
-        s.add(w[:-2])
-    if L > 3 and lo.endswith("es"):
-        s.add(w[:-2])
-        s.add(w[:-1])
-    if L > 3 and lo.endswith("s") and not lo.endswith("ss"):
-        s.add(w[:-1])
-    # y→i (day→dai, query→queri) plus y-drop (agency→agenc)
-    if L > 2 and lo.endswith("y"):
-        s.add(w[:-1] + "i")
-        s.add(w[:-1])
-    # ed/ing with e-restore candidate (stored→store; created→creat)
-    if L > 3 and lo.endswith("ing"):
-        s.add(w[:-3])
-        s.add(w[:-3] + "e")
-    if L > 3 and lo.endswith("ed"):
-        s.add(w[:-2])
-        s.add(w[:-2] + "e")
     # m-guarded class strips
     for suf in (
         "ization",
@@ -899,6 +869,44 @@ def _stem_step(w: str) -> set[str]:
         stem = w[:-3]
         if _porters_measure(stem) > 1:
             s.add(stem)
+
+
+def _stem_step(w: str) -> set[str]:
+    """One pass of suffix rules -> candidate set (superset generator).
+
+    Each class is pinned by the fixture-oracle batteries of 2026-11-18
+    (see tests/test_fts_topk_parity.py::TestStemLadderParity). Guards:
+    Porter m>1 unless the oracle measured otherwise (ness/ful strip at
+    m>0: freshness→fresh, business→busi, truth stays under m>1 for
+    fresh but business strips — the real stemmer strips both).
+    """
+    s: set[str] = set()
+    L = len(w)
+    lo = w.lower()
+    # plurals: ies→i AND y (studies→studi via ies→i, activity→activities
+    # via ies→y chaining into -ity)
+    if L > 4 and lo.endswith("ies"):
+        s.add(w[:-3] + "i")
+        s.add(w[:-3] + "y")
+    if L > 4 and lo.endswith("sses"):
+        s.add(w[:-2])
+    if L > 3 and lo.endswith("es"):
+        s.add(w[:-2])
+        s.add(w[:-1])
+    if L > 3 and lo.endswith("s") and not lo.endswith("ss"):
+        s.add(w[:-1])
+    # y→i (day→dai, query→queri) plus y-drop (agency→agenc)
+    if L > 2 and lo.endswith("y"):
+        s.add(w[:-1] + "i")
+        s.add(w[:-1])
+    # ed/ing with e-restore candidate (stored→store; created→creat)
+    if L > 3 and lo.endswith("ing"):
+        s.add(w[:-3])
+        s.add(w[:-3] + "e")
+    if L > 3 and lo.endswith("ed"):
+        s.add(w[:-2])
+        s.add(w[:-2] + "e")
+    _stem_class_strips(w, lo, s)
     # final-e drop (cache→cach); node/store keep their e under the
     # stemmer's *o rule, so this candidate is a harmless superset extra
     if L > 3 and lo.endswith("e"):

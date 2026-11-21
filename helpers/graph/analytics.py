@@ -446,7 +446,10 @@ def _hypergraph(root: Path, con: duckdb.DuckDBPyConnection) -> Report:
     return Report(
         "Hypergraph summary",
         ["edge_type", "edges", "incidences", "avg_incidence_size"],
-        [[r[0] or "?", str(r[1]), str(r[2] or 0), str(r[3] if r[3] is not None else 0)] for r in rows],
+        [
+            [r[0] or "?", str(r[1]), str(r[2] or 0), str(r[3] if r[3] is not None else 0)]
+            for r in rows
+        ],
         note="hyper_edges x hyper_incidences from the parquet snapshot",
     )
 

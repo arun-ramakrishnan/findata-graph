@@ -48,6 +48,7 @@ import os
 import subprocess as _subprocess
 import sys
 import time
+from typing import Any
 from pathlib import Path
 
 import numpy as np
@@ -443,6 +444,51 @@ def _trail_stats_kernel_batch(g: dict, src_labels: list[str], *, limit: int) -> 
 _MOJO_BATCH_BIN = _PROJECT_ROOT / "Mojo" / "bin" / "bfs_bipartite_all_batch"
 
 
+def _mojo_batch_invoke(
+    g: dict, out: Any, src_idx: list[int], *, limit: int, workers: int
+) -> dict[int, tuple[int, dict[int, int]]]:
+    """Run the batched Mojo kernel once and parse ``SRC REACH H0 H1 ...``
+    stdout into {source_id: (reachable, histogram)} (2026-11-21 lint-audit
+    split out of _trail_stats_mojo_batch for the C901 budget). Raises
+    RuntimeError/OSError on any failure — the caller falls back."""
+    n = g["matrix"].shape[0]
+    m = int(g["matrix"].nnz)
+    env = dict(os.environ)
+    env["PATH"] = f"{_PROJECT_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
+    proc = _subprocess.run(  # noqa: S603 — first-party binary at a constant path, fixed numeric argv
+        [
+            str(_MOJO_BATCH_BIN),
+            str(out / "bip_offsets.bin"),
+            str(out / "bip_neighbors.bin"),
+            str(n),
+            str(m),
+            str(g["n_entities"]),
+            str(limit),
+            str(workers),
+            *(str(i) for i in src_idx),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=str(_PROJECT_ROOT),
+        env=env,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"mojo batch kernel rc={proc.returncode}: {proc.stderr[:200]!r}")
+    per_src: dict[int, tuple[int, dict[int, int]]] = {}
+    for line in proc.stdout.splitlines():
+        fields = line.split()
+        if len(fields) < 2 or not fields[0].lstrip("-").isdigit():
+            continue
+        sid = int(fields[0])
+        reach = int(fields[1])
+        hist = {h: int(c) for h, c in enumerate(fields[2:]) if int(c)}
+        per_src[sid] = (reach, hist)
+    if any(i not in per_src for i in src_idx):
+        raise RuntimeError("mojo batch kernel omitted a source")
+    return per_src
+
+
 def _trail_stats_mojo_batch(
     g: dict, src_labels: list[str], *, limit: int, workers: int | None
 ) -> list[dict] | None:
@@ -463,8 +509,6 @@ def _trail_stats_mojo_batch(
         return None
     if not _MOJO_BATCH_BIN.exists():
         return None
-    n = g["matrix"].shape[0]
-    m = int(g["matrix"].nnz)
     out = _mojo_bins(g)
     if workers is None:
         workers = min(len(src_labels), os.cpu_count() or 1)
@@ -474,41 +518,9 @@ def _trail_stats_mojo_batch(
     if unknown:
         raise ValueError(f"unknown source entity: {unknown[:5]}")
     src_idx = [index[s] for s in src_labels]
-    env = dict(os.environ)
-    env["PATH"] = f"{_PROJECT_ROOT / '.venv' / 'bin'}:{env.get('PATH', '')}"
     _t0 = time.perf_counter()
     try:
-        proc = _subprocess.run(  # noqa: S603 — first-party binary at a constant path, fixed numeric argv
-            [
-                str(_MOJO_BATCH_BIN),
-                str(out / "bip_offsets.bin"),
-                str(out / "bip_neighbors.bin"),
-                str(n),
-                str(m),
-                str(g["n_entities"]),
-                str(limit),
-                str(workers),
-                *(str(i) for i in src_idx),
-            ],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            cwd=str(_PROJECT_ROOT),
-            env=env,
-        )
-        if proc.returncode != 0:
-            raise RuntimeError(f"mojo batch kernel rc={proc.returncode}: {proc.stderr[:200]!r}")
-        per_src: dict[int, tuple[int, dict[int, int]]] = {}
-        for line in proc.stdout.splitlines():
-            fields = line.split()
-            if len(fields) < 2 or not fields[0].lstrip("-").isdigit():
-                continue
-            sid = int(fields[0])
-            reach = int(fields[1])
-            hist = {h: int(c) for h, c in enumerate(fields[2:]) if int(c)}
-            per_src[sid] = (reach, hist)
-        if any(i not in per_src for i in src_idx):
-            raise RuntimeError("mojo batch kernel omitted a source")
+        per_src = _mojo_batch_invoke(g, out, src_idx, limit=limit, workers=workers)
     except (RuntimeError, OSError, _subprocess.TimeoutExpired) as exc:
         print(f"mojo batch trail lane unavailable ({exc}); falling back", file=sys.stderr)
         return None

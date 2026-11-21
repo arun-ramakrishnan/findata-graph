@@ -1371,9 +1371,7 @@ class DatabaseIntegrityChecker:
             if t and t not in DatabaseIntegrityChecker._STOPWORDS
         }
 
-    def _fuzzy_names_match(
-        self, tokens_i: frozenset[str], tokens_j: frozenset[str]
-    ) -> bool:
+    def _fuzzy_names_match(self, tokens_i: frozenset[str], tokens_j: frozenset[str]) -> bool:
         """Return True if two token sets represent a fuzzy-name match.
 
         Token sets are built as frozensets in ``check_fuzzy_duplicate_names``
@@ -1397,41 +1395,57 @@ class DatabaseIntegrityChecker:
         """Return True if both tickers are present and equal."""
         return bool(ti and tj and ti == tj)
 
-    def check_fuzzy_duplicate_names(self) -> dict:
-        """
-        Advisory (WARNING, never gate-failing): pairs of company entities whose
-        NAMES suggest they may be the same underlying company recorded twice
-        under different renderings — e.g. 'Hindalco' vs 'Hindalco Industries',
-        'Apollo Hospitals' vs 'Apollo Hospitals Enterprise'. This catches the
-        class of duplication that a strict duplicate-ticker check cannot see
-        (same company filed under two different tickers, or one under a ticker
-        and one unlisted).
-
-        Not treated as an error: name similarity is genuinely ambiguous and a
-        human should confirm before merging. Surfaced for review only.
-
-        Excludes pairs that already share a ticker (those are flagged as errors
-        by check_duplicate_tickers and would be double-counted here).
-
-        Resolved pairs (triaged as distinct companies / parent-subsidiary / merged)
-        are suppressed via ``_FUZZY_SUPPRESSED`` so they don't re-appear after review.
-        """
-        conn = self.get_connection()
-        rows = conn.execute(
-            "SELECT name, ticker FROM entities WHERE entity_type = 'company'"
-        ).fetchall()
-
-        from collections import defaultdict
-
-        # Token sets, memoised by name (duplicate renderings are common).
-        token_cache: list[tuple[str, str | None, frozenset[str]]] = []
+    def _fuzzy_token_cache(self, rows: list) -> list[tuple[str, str | None, frozenset[str]]]:
+        """Token sets memoised by name (duplicate renderings are common)
+        — 2026-11-21 lint-audit split out of check_fuzzy_duplicate_names
+        for the C901 budget."""
         memo: dict[str, frozenset[str]] = {}
+        token_cache: list[tuple[str, str | None, frozenset[str]]] = []
         for ni, ti in rows:
             tokens = memo.get(ni)
             if tokens is None:
                 tokens = frozenset(self._meaningful_tokens(ni))
                 memo[ni] = tokens
             token_cache.append((ni, ti, tokens))
+        return token_cache
+
+    def _fuzzy_row_superset(self, ci: frozenset[str], postings: dict) -> frozenset[int]:
+        """supersets[i] for one row: rows carrying EVERY token of `ci` —
+        smallest-postings-first intersection (2026-11-21 lint-audit split)."""
+        if len(ci) < 2 or not (ci - self._GENERIC_WORDS):
+            # A single token (handled by the exact-set index) or a token
+            # set with no distinctive token can never satisfy the rule.
+            return frozenset()
+        sets = sorted((postings[t] for t in ci), key=len)
+        cur = set(sets[0])
+        for other in sets[1:]:
+            if not cur:
+                break
+            cur.intersection_update(other)
+        return frozenset(cur)
+
+    def _fuzzy_supersets(
+        self, token_cache: list[tuple[str, str | None, frozenset[str]]]
+    ) -> tuple[dict, dict, list[frozenset[int]], dict[int, list[int]]]:
+        """Token indexes + the superset relation + its transpose.
+
+        The fuzzy rule accepts a pair only when one token set is a SUBSET of
+        the other and the two share >= 2 tokens, at least one of them not
+        generic. So the only relation worth computing is "row j carries
+        EVERY token of row i" (one set intersection over the postings):
+
+            supersets[i] = {j : tokens(j) is a superset of tokens(i)}
+
+        It serves both directions — supersets[i] gives the rows whose tokens
+        CONTAIN tokens(i), and its transpose gives the rows whose tokens are
+        CONTAINED BY tokens(i). The old scan unioned every token posting
+        (every row sharing ONE token) and then re-tested each candidate,
+        which cost ~3.8 s over 25,200 companies; the relation above costs
+        ~0.3 s and yields exactly the matching candidates. (2026-11-21
+        lint-audit split; returns by_token_set, postings, supersets,
+        subset_rows.)
+        """
+        from collections import defaultdict
 
         # Two indexes over the token sets:
         #   by_token_set — rows whose token set is EXACTLY a given set
@@ -1445,33 +1459,7 @@ class DatabaseIntegrityChecker:
             for t in tokens:
                 postings[t].add(idx)
 
-        # The fuzzy rule accepts a pair only when one token set is a SUBSET of
-        # the other and the two share >= 2 tokens, at least one of them not
-        # generic. So the only relation worth computing is "row j carries
-        # EVERY token of row i" (one set intersection over the postings):
-        #
-        #   supersets[i] = {j : tokens(j) is a superset of tokens(i)}
-        #
-        # It serves both directions — supersets[i] gives the rows whose tokens
-        # CONTAIN tokens(i), and its transpose gives the rows whose tokens are
-        # CONTAINED BY tokens(i). The old scan unioned every token posting
-        # (every row sharing ONE token) and then re-tested each candidate,
-        # which cost ~3.8 s over 25,200 companies; the relation above costs
-        # ~0.3 s and yields exactly the matching candidates.
-        supersets: list[frozenset[int]] = []
-        for _, _, ci in token_cache:
-            if len(ci) < 2 or not (ci - self._GENERIC_WORDS):
-                # A single token (handled by the exact-set index) or a token
-                # set with no distinctive token can never satisfy the rule.
-                supersets.append(frozenset())
-                continue
-            sets = sorted((postings[t] for t in ci), key=len)
-            cur = set(sets[0])
-            for other in sets[1:]:
-                if not cur:
-                    break
-                cur.intersection_update(other)
-            supersets.append(frozenset(cur))
+        supersets = [self._fuzzy_row_superset(ci, postings) for _, _, ci in token_cache]
 
         # Transpose: rows whose token set is a subset of row i's.
         subset_rows: dict[int, list[int]] = defaultdict(list)
@@ -1479,7 +1467,17 @@ class DatabaseIntegrityChecker:
             for i in sj:
                 if i != j:
                     subset_rows[i].append(j)
+        return by_token_set, postings, supersets, subset_rows
 
+    def _fuzzy_collect_pairs(
+        self,
+        token_cache: list[tuple[str, str | None, frozenset[str]]],
+        by_token_set: dict,
+        supersets: list[frozenset[int]],
+        subset_rows: dict[int, list[int]],
+    ) -> list[dict]:
+        """Scan candidate pairs per the rule, honoring _FUZZY_SUPPRESSED
+        (2026-11-21 lint-audit split)."""
         pairs = []
         seen_pairs: set[frozenset[str]] = set()
         for i, (ni, ti, ci) in enumerate(token_cache):
@@ -1505,6 +1503,35 @@ class DatabaseIntegrityChecker:
                     continue
                 seen_pairs.add(pair_key)
                 pairs.append({"name_a": ni, "name_b": nj})
+        return pairs
+
+    def check_fuzzy_duplicate_names(self) -> dict:
+        """
+        Advisory (WARNING, never gate-failing): pairs of company entities whose
+        NAMES suggest they may be the same underlying company recorded twice
+        under different renderings — e.g. 'Hindalco' vs 'Hindalco Industries',
+        'Apollo Hospitals' vs 'Apollo Hospitals Enterprise'. This catches the
+        class of duplication that a strict duplicate-ticker check cannot see
+        (same company filed under two different tickers, or one under a ticker
+        and one unlisted).
+
+        Not treated as an error: name similarity is genuinely ambiguous and a
+        human should confirm before merging. Surfaced for review only.
+
+        Excludes pairs that already share a ticker (those are flagged as errors
+        by check_duplicate_tickers and would be double-counted here).
+
+        Resolved pairs (triaged as distinct companies / parent-subsidiary / merged)
+        are suppressed via ``_FUZZY_SUPPRESSED`` so they don't re-appear after review.
+        """
+        conn = self.get_connection()
+        rows = conn.execute(
+            "SELECT name, ticker FROM entities WHERE entity_type = 'company'"
+        ).fetchall()
+
+        token_cache = self._fuzzy_token_cache(rows)
+        by_token_set, _postings, supersets, subset_rows = self._fuzzy_supersets(token_cache)
+        pairs = self._fuzzy_collect_pairs(token_cache, by_token_set, supersets, subset_rows)
         return {
             "fuzzy_duplicate_pairs": pairs,
             "warnings": len(pairs),

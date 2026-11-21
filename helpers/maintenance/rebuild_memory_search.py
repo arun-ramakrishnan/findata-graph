@@ -1775,6 +1775,76 @@ def _write_memory_store(
     conn.execute("PRAGMA create_fts_index('memory_search', 'id', 'searchtext')")
 
 
+def _memory_topk_page(
+    conn, tokens: list[str], limit: int, kind: str | None, history: str
+) -> tuple[list[tuple], str]:
+    """fts_stem_ladder S2 fast path: SQL top-k over the FTS postings.
+    Returns (page, mode) — ([], "macro") when any token is unresolvable
+    (2026-11-21 lint-audit split out of _search_memory_duckdb)."""
+    tk_where = ""
+    tk_params: list = []
+    if kind:
+        tk_where = " AND ss.kind = ?"
+        tk_params = [kind]
+    elif history in ("only", "exclude"):
+        tk_ph = ", ".join("?" * len(_HISTORY_KINDS))
+        tk_where = f" AND ss.kind {'IN' if history == 'only' else 'NOT IN'} ({tk_ph})"  # noqa: S608  # fixed keyword + fixed placeholder count
+        tk_params = list(_HISTORY_KINDS)
+    try:
+        rows, mode = ds.fts_topk(
+            conn,
+            fts_table="fts_main_memory_search",
+            base_table="memory_search",
+            tokens=tokens,
+            limit=limit,
+            where_extra=tk_where,
+            params_extra=tk_params,
+        )
+    except duckdb.Error:
+        return [], "macro"
+    if mode != "topk" or rows is None:
+        return [], "macro"
+    ids = [rid for rid, _ in rows]
+    if not ids:
+        return [], "topk"
+    ph = ", ".join("?" for _ in ids)
+    by_id = {
+        r[0]: r
+        for r in conn.execute(
+            "SELECT id, title, kind, name, source_path, purpose, content "  # noqa: S608  # ph is a computed ?, list, not user input
+            f"FROM memory_search WHERE id IN ({ph})",
+            ids,
+        ).fetchall()
+    }
+    return [by_id[i] for i in ids if i in by_id], "topk"
+
+
+def _memory_macro_page(
+    conn, expr: str, limit: int, kind: str | None, history: str
+) -> list[tuple] | None:
+    """match_bm25 fallback page; None on duckdb.Error (caller degrades to
+    the empty bm25 result — 2026-11-21 lint-audit split)."""
+    sc = "fts_main_memory_search.match_bm25(id, ?)"
+    where = f"{sc} IS NOT NULL"
+    params: list = [expr, expr]
+    if kind:
+        where += " AND kind = ?"
+        params.append(kind)
+    elif history in ("only", "exclude"):
+        placeholders = ", ".join("?" * len(_HISTORY_KINDS))
+        where += f" AND kind {'IN' if history == 'only' else 'NOT IN'} ({placeholders})"  # noqa: S608  # fixed keyword + fixed placeholder count
+        params.extend(_HISTORY_KINDS)
+    try:
+        return conn.execute(
+            f"SELECT id, title, kind, name, source_path, purpose, content, {sc} AS score "  # noqa: S608  # WHERE fully parameterized; f-string interpolates fixed columns only
+            f"FROM memory_search WHERE {where} "
+            f"ORDER BY score DESC LIMIT ?",
+            [*params, limit],
+        ).fetchall()
+    except duckdb.Error:
+        return None
+
+
 def _search_memory_duckdb(
     conn,
     q: str,
@@ -1801,64 +1871,16 @@ def _search_memory_duckdb(
     # where_extra; the macro path keeps its unqualified form.
     tokens = ds.fts_query_tokens_duckdb(q)
     page: list[tuple]
-    rows: list[tuple] | None = None
     mode = "macro"
     if tokens:
-        tk_where = ""
-        tk_params: list = []
-        if kind:
-            tk_where = " AND ss.kind = ?"
-            tk_params = [kind]
-        elif history in ("only", "exclude"):
-            tk_ph = ", ".join("?" * len(_HISTORY_KINDS))
-            tk_where = f" AND ss.kind {'IN' if history == 'only' else 'NOT IN'} ({tk_ph})"  # noqa: S608  # fixed keyword + fixed placeholder count
-            tk_params = list(_HISTORY_KINDS)
-        try:
-            rows, mode = ds.fts_topk(
-                conn,
-                fts_table="fts_main_memory_search",
-                base_table="memory_search",
-                tokens=tokens,
-                limit=limit,
-                where_extra=tk_where,
-                params_extra=tk_params,
-            )
-        except duckdb.Error:
-            rows, mode = None, "macro"
-    if mode == "topk" and rows is not None:
-        ids = [rid for rid, _ in rows]
-        page = []
-        if ids:
-            ph = ", ".join("?" for _ in ids)
-            by_id = {
-                r[0]: r
-                for r in conn.execute(
-                    "SELECT id, title, kind, name, source_path, purpose, content "  # noqa: S608  # ph is a computed ?, list, not user input
-                    f"FROM memory_search WHERE id IN ({ph})",
-                    ids,
-                ).fetchall()
-            }
-            page = [by_id[i] for i in ids if i in by_id]
+        page, mode = _memory_topk_page(conn, tokens, limit, kind, history)
     else:
-        sc = "fts_main_memory_search.match_bm25(id, ?)"
-        where = f"{sc} IS NOT NULL"
-        params: list = [expr, expr]
-        if kind:
-            where += " AND kind = ?"
-            params.append(kind)
-        elif history in ("only", "exclude"):
-            placeholders = ", ".join("?" * len(_HISTORY_KINDS))
-            where += f" AND kind {'IN' if history == 'only' else 'NOT IN'} ({placeholders})"  # noqa: S608  # fixed keyword + fixed placeholder count
-            params.extend(_HISTORY_KINDS)
-        try:
-            page = conn.execute(
-                f"SELECT id, title, kind, name, source_path, purpose, content, {sc} AS score "  # noqa: S608  # WHERE fully parameterized; f-string interpolates fixed columns only
-                f"FROM memory_search WHERE {where} "
-                f"ORDER BY score DESC LIMIT ?",
-                [*params, limit],
-            ).fetchall()
-        except duckdb.Error:
+        page = []
+    if mode != "topk":
+        macro = _memory_macro_page(conn, expr, limit, kind, history)
+        if macro is None:
             return {"mode": "bm25", "results": []}
+        page = macro
 
     scored, sims, cos_rank = _cosine_leg_memory_duckdb(conn, q, hybrid, query_vec)
 

@@ -111,7 +111,10 @@ def _duck_type(sqlite_type: str) -> str:
 def _duck_default(sqlite_default: str) -> str:
     """Translate SQLite default expressions DuckDB understands."""
     d = sqlite_default.strip()
-    if d.lower().startswith("datetime(") or d.lower() in ("current_timestamp", "strftime('%s','now')"):
+    if d.lower().startswith("datetime(") or d.lower() in (
+        "current_timestamp",
+        "strftime('%s','now')",
+    ):
         return "CURRENT_TIMESTAMP"
     return d  # literal constants ('active', '{}', 0, 0.85, 1.0) pass through
 
@@ -150,11 +153,16 @@ def _read_schema(source: Path) -> dict:
             fks: dict[int, dict] = {}
             # PRAGMA foreign_key_list row: id, seq, table, from, to, on_update, on_delete, match
             for r in con.execute(f"PRAGMA foreign_key_list('{t}')"):
-                fk = fks.setdefault(r[0], {"parent": r[2], "from": [], "to": [], "on_update": r[5], "on_delete": r[6]})
+                fk = fks.setdefault(
+                    r[0],
+                    {"parent": r[2], "from": [], "to": [], "on_update": r[5], "on_delete": r[6]},
+                )
                 fk["from"].append(r[3])
                 fk["to"].append(r[4])
             schema["tables"][t] = {"columns": cols, "fks": list(fks.values())}
-        for name, sql in con.execute("SELECT name, sql FROM sqlite_master WHERE type='view' ORDER BY name"):
+        for name, sql in con.execute(
+            "SELECT name, sql FROM sqlite_master WHERE type='view' ORDER BY name"
+        ):
             schema["views"][name] = sql
         for name, tbl, sql in con.execute(
             "SELECT name, tbl_name, sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL ORDER BY name"
@@ -178,7 +186,7 @@ def _translate_view(sql: str) -> str:
         n_digits = m.group("digits").count("[0-9]")
         # ONE backslash in the emitted SQL literal: DuckDB passes single-quoted
         # strings through untouched, so \. reaches the regex engine as \.
-        out = glob_re.sub("regexp_matches(source_ref, '_[0-9]{%d}_WEB\\.xml$')" % n_digits, out)
+        out = glob_re.sub(rf"regexp_matches(source_ref, '_[0-9]{{{n_digits}}}_WEB\.xml$')", out)
     return out
 
 
@@ -202,9 +210,7 @@ def _translate_index(table: str, sql: str) -> str:
 
 def _emit_table_ddl(t: str, spec: dict) -> str:
     cols_sql = []
-    pk_cols = sorted(
-        (c for c in spec["columns"] if c["pk"]), key=lambda c: c["pk"]
-    )
+    pk_cols = sorted((c for c in spec["columns"] if c["pk"]), key=lambda c: c["pk"])
     pk_names = {c["name"] for c in pk_cols}
     for c in spec["columns"]:
         seg = f'"{c["name"]}" {c["type"]}'
@@ -248,6 +254,54 @@ def _load_order(tables: dict) -> list[str]:
     return order
 
 
+def _self_fk_targets(spec: dict, t: str, pk_names: list[str]) -> tuple[list[str], list[str]]:
+    """Self-referencing single-column FKs of one table (concepts.broader_id
+    → concept_id): (from_cols, to_cols) (2026-11-21 lint-audit split out of
+    _build for the C901 budget)."""
+    self_fk_cols: list[str] = []
+    self_fk_to: list[str] = []
+    for fk in spec["fks"]:
+        if fk["parent"] == t and len(fk["from"]) == 1:
+            target = fk["to"][0] if fk["to"] else (pk_names[0] if len(pk_names) == 1 else None)
+            if target:
+                self_fk_cols.append(fk["from"][0])
+                self_fk_to.append(target)
+    return self_fk_cols, self_fk_to
+
+
+def _load_self_fk_table(
+    con: duckdb.DuckDBPyConnection, t: str, cols: str, sel: str, f: str, pk_col: str
+) -> None:
+    """Self-referencing FK load: NULL-rooted rows first, then iteratively
+    rows whose parent is present. Leftover rows after convergence = dangling
+    refs (SQLite does not enforce FKs by default) — fail loudly, never
+    silently drop (2026-11-21 lint-audit split)."""
+    con.execute(f'INSERT INTO "{t}" ({cols}) {sel} WHERE "{f}" IS NULL')
+    while True:
+        # RETURNING count(*) is rejected (no aggregates in RETURNING) —
+        # count the returned PKs client-side. NOT EXISTS: never re-match
+        # rows already loaded (the parent-present condition stays true
+        # across iterations).
+        ret = con.execute(
+            f'INSERT INTO "{t}" ({cols}) {sel} s WHERE s."{f}" IS NOT NULL '
+            f'AND EXISTS (SELECT 1 FROM "{t}" d WHERE d."{pk_col}" = s."{f}") '
+            f'AND NOT EXISTS (SELECT 1 FROM "{t}" e WHERE e."{pk_col}" = s."{pk_col}") '
+            f'RETURNING "{pk_col}"'
+        ).fetchall()
+        if not ret:
+            break
+    dangling = _scalar(
+        con,
+        f'SELECT COUNT(*) FROM rs."{t}" s WHERE s."{f}" IS NOT NULL '
+        f'AND NOT EXISTS (SELECT 1 FROM "{t}" d WHERE d."{pk_col}" = s."{f}")',
+    )
+    if dangling:
+        raise ValueError(
+            f"{t}: {dangling} row(s) reference a missing {pk_col} "
+            "(dangling self-FK in the live store)"
+        )
+
+
 def _build(source: Path, dest: Path) -> tuple[dict, float]:
     """Build the converted store at dest; returns (report, seconds)."""
     schema = _read_schema(source)
@@ -268,51 +322,13 @@ def _build(source: Path, dest: Path) -> tuple[dict, float]:
             sel = f'SELECT {cols} FROM rs."{t}"'
             # Self-referencing FK (concepts.broader_id): DuckDB enforces FKs
             # per statement, so load NULL-reference roots first, then the rest.
-            self_fk_cols: list[str] = []
-            self_fk_to: list[str] = []
             pk_names = [
-                c["name"] for c in sorted(
-                    (c for c in spec["columns"] if c["pk"]), key=lambda c: c["pk"]
-                )
+                c["name"]
+                for c in sorted((c for c in spec["columns"] if c["pk"]), key=lambda c: c["pk"])
             ]
-            for fk in spec["fks"]:
-                if fk["parent"] == t and len(fk["from"]) == 1:
-                    target = fk["to"][0] if fk["to"] else (pk_names[0] if len(pk_names) == 1 else None)
-                    if target:
-                        self_fk_cols.append(fk["from"][0])
-                        self_fk_to.append(target)
+            self_fk_cols, self_fk_to = _self_fk_targets(spec, t, pk_names)
             if self_fk_cols:
-                # Self-referencing FK (concepts.broader_id → concept_id):
-                # DuckDB enforces FKs per statement, so load NULL-rooted rows
-                # first, then iteratively load rows whose parent is present.
-                # Leftover rows after convergence = dangling refs (SQLite
-                # does not enforce FKs by default) — fail loudly, never
-                # silently drop.
-                f, pk_col = self_fk_cols[0], self_fk_to[0]
-                con.execute(f'INSERT INTO "{t}" ({cols}) {sel} WHERE "{f}" IS NULL')
-                while True:
-                    # RETURNING count(*) is rejected (no aggregates in
-                    # RETURNING) — count the returned PKs client-side.
-                    # NOT EXISTS: never re-match rows already loaded (the
-                    # parent-present condition stays true across iterations).
-                    ret = con.execute(
-                        f'INSERT INTO "{t}" ({cols}) {sel} s WHERE s."{f}" IS NOT NULL '
-                        f'AND EXISTS (SELECT 1 FROM "{t}" d WHERE d."{pk_col}" = s."{f}") '
-                        f'AND NOT EXISTS (SELECT 1 FROM "{t}" e WHERE e."{pk_col}" = s."{pk_col}") '
-                        f'RETURNING "{pk_col}"'
-                    ).fetchall()
-                    if not ret:
-                        break
-                dangling = _scalar(
-                    con,
-                    f'SELECT COUNT(*) FROM rs."{t}" s WHERE s."{f}" IS NOT NULL '
-                    f'AND NOT EXISTS (SELECT 1 FROM "{t}" d WHERE d."{pk_col}" = s."{f}")',
-                )
-                if dangling:
-                    raise ValueError(
-                        f"{t}: {dangling} row(s) reference a missing {pk_col} "
-                        "(dangling self-FK in the live store)"
-                    )
+                _load_self_fk_table(con, t, cols, sel, self_fk_cols[0], self_fk_to[0])
             else:
                 con.execute(f'INSERT INTO "{t}" ({cols}) {sel}')
         for name, sql in schema["views"].items():
@@ -427,7 +443,9 @@ def _parity(source: Path, dest: Path, schema: dict) -> tuple[bool, dict[str, Any
             ok = ok and match
 
         # 4. index coverage (23 expected)
-        duck_idx = {r[0] for r in duck.execute("SELECT index_name FROM duckdb_indexes()").fetchall()}
+        duck_idx = {
+            r[0] for r in duck.execute("SELECT index_name FROM duckdb_indexes()").fetchall()
+        }
         expected = set(schema["indexes"])
         report["indexes"] = {
             "expected": len(expected),
@@ -461,11 +479,19 @@ def _parity(source: Path, dest: Path, schema: dict) -> tuple[bool, dict[str, Any
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--source", type=Path, default=DEFAULT_SOURCE, help="live SQLite store (read-only)")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--source", type=Path, default=DEFAULT_SOURCE, help="live SQLite store (read-only)"
+    )
     ap.add_argument("--dest", type=Path, default=DEFAULT_DEST, help="converted store to build")
-    ap.add_argument("--report", type=Path, default=None, help="parity report JSON (default: <dest>.report.json)")
-    ap.add_argument("--check", type=Path, default=None, help="skip build; run the parity battery on this store")
+    ap.add_argument(
+        "--report", type=Path, default=None, help="parity report JSON (default: <dest>.report.json)"
+    )
+    ap.add_argument(
+        "--check", type=Path, default=None, help="skip build; run the parity battery on this store"
+    )
     ap.add_argument("--no-build", action="store_true", help="report dispositions only")
     args = ap.parse_args(argv)
 
@@ -496,10 +522,14 @@ def main(argv: list[str] | None = None) -> int:
         "triggers": TRIGGER_DISPOSITION,
         "fts_residue": "dropped (virtual table unsupported everywhere); note_search_meta carried",
     }
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    report_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     if args.no_build:
-        print(f"swap-convert: no-build; carried={report['carried_tables']} dropped_fts={report['dropped_fts']}")
+        print(
+            f"swap-convert: no-build; carried={report['carried_tables']} dropped_fts={report['dropped_fts']}"
+        )
         return 0
     verdict = "PASS" if ok else "FAIL"
     print(

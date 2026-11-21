@@ -103,31 +103,31 @@ def _best_of(fn: Any, reps: int) -> float:
     return best
 
 
+def _decode_blob(raw: bytes, location: str) -> np.ndarray:
+    """Decode a BLOB/bytes embedding (2026-11-20 gate triage: extracted from
+    _decode_embedding to keep it under the C901 complexity budget)."""
+    if not raw:
+        raise ValueError(f"{location}: empty embedding")
+    stripped = raw.lstrip()
+    if stripped.startswith((b"[", b"{")):
+        # Legacy stores may still contain a JSON vector as text/BLOB. A raw
+        # f32 blob can also start with either byte, so only use JSON when
+        # the complete value actually parses.
+        try:
+            return np.asarray(json.loads(raw.decode("utf-8")), dtype=np.float32)
+        except UnicodeDecodeError, json.JSONDecodeError:
+            pass
+    if len(raw) % 4 != 0:
+        raise ValueError(f"{location}: binary embedding length {len(raw)} is not f32-aligned")
+    return np.frombuffer(raw, dtype="<f4")
+
+
 def _decode_embedding(value: Any, location: str) -> np.ndarray:
     """Decode one stored embedding without hiding malformed input."""
     if isinstance(value, np.ndarray):
         vector = value.astype(np.float32, copy=False)
     elif isinstance(value, (bytes, bytearray, memoryview)):
-        raw = bytes(value)
-        if not raw:
-            raise ValueError(f"{location}: empty embedding")
-        stripped = raw.lstrip()
-        if stripped.startswith((b"[", b"{")):
-            # Legacy stores may still contain a JSON vector as text/BLOB. A raw
-            # f32 blob can also start with either byte, so only use JSON when
-            # the complete value actually parses.
-            try:
-                vector = np.asarray(json.loads(raw.decode("utf-8")), dtype=np.float32)
-            except UnicodeDecodeError, json.JSONDecodeError:
-                vector = None
-        else:
-            vector = None
-        if vector is None:
-            if len(raw) % 4 != 0:
-                raise ValueError(
-                    f"{location}: binary embedding length {len(raw)} is not f32-aligned"
-                )
-            vector = np.frombuffer(raw, dtype="<f4")
+        vector = _decode_blob(bytes(value), location)
     elif isinstance(value, str):
         vector = np.asarray(json.loads(value), dtype=np.float32)
     else:
@@ -291,6 +291,115 @@ def _normalized_rows(matrix: np.ndarray) -> np.ndarray:
     return matrix / np.maximum(norms, 1e-12)[:, None]
 
 
+def _scaled_matrix(
+    corpus: Corpus, normalized: np.ndarray, scale: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """scale=1 reuses the corpus as-is; else tile both matrices (f32)."""
+    if scale == 1:
+        return corpus.matrix, normalized
+    return (
+        np.ascontiguousarray(np.tile(corpus.matrix, (scale, 1)), dtype=np.float32),
+        np.ascontiguousarray(np.tile(normalized, (scale, 1)), dtype=np.float32),
+    )
+
+
+def _bench_scale(
+    corpus: Corpus,
+    scale: int,
+    normalized: np.ndarray,
+    reps: int,
+    mojo_bin: str | None,
+    matrix_path: Path,
+    query_path: Path,
+    python_idx: int,
+    python_score: float,
+    query_python: list[float],
+    query_norm: np.ndarray,
+    query_raw: np.ndarray,
+) -> tuple[list[str], bool]:
+    """Run and cross-validate one scale leg (2026-11-21 lint-audit split out
+    of _bench_corpus to fit the C901 budget). Returns (table row, all-ok)."""
+    matrix, normalized_matrix = _scaled_matrix(corpus, normalized, scale)
+    rows = matrix.shape[0]
+    ok = True
+
+    def python_lane() -> tuple[int, float]:
+        return _scan(corpus.vectors * scale, query_python)
+
+    def numpy_lane() -> tuple[int, float]:
+        scores = normalized_matrix @ query_norm
+        idx = int(np.argmax(scores))
+        return idx, float(scores[idx])
+
+    t_python = _best_of(python_lane, reps)
+    t_numpy = _best_of(numpy_lane, reps)
+    numpy_idx, numpy_score = numpy_lane()
+
+    rust_idx = -1
+    rust_score = float("nan")
+    t_rust = float("nan")
+    try:
+        import cosine_knn
+
+        def rust_lane() -> tuple[int, float]:
+            hits = cosine_knn.knn(query_raw, matrix, 10)
+            return int(hits[0][0]), float(hits[0][1])
+
+        rust_lane()
+        t_rust = _best_of(rust_lane, reps)
+        rust_idx, rust_score = rust_lane()
+    except ImportError:
+        print("rust leg unavailable: cosine_knn extension is not installed", file=sys.stderr)
+
+    mojo_idx = -1
+    mojo_score = float("nan")
+    t_mojo = float("nan")
+    mojo_detail = "—"
+    if mojo_bin:
+        _write_dump(matrix_path, matrix, 1)
+        mojo_out, t_mojo = _run_mojo(mojo_bin, matrix_path, query_path, rows, corpus.dims, reps)
+        mojo_idx = int(mojo_out["top1_idx"])
+        mojo_score = float(mojo_out["top1_score"])
+        load_ms = float(mojo_out.get("load_ms", "nan"))
+        compute_ms = float(mojo_out.get("compute_ms", "nan"))
+        mojo_detail = f"{t_mojo * 1e3:.1f}ms ({compute_ms:.2f}+{load_ms:.1f})"
+
+    expected_idx = python_idx
+    for label, idx, score in (
+        ("numpy", numpy_idx, numpy_score),
+        ("rust", rust_idx, rust_score),
+        ("mojo", mojo_idx, mojo_score),
+    ):
+        if idx < 0:
+            continue
+        if idx != expected_idx:
+            ok = False
+            print(
+                f"VALIDATION FAIL {corpus.name} scale={scale}: {label} top1 "
+                f"({idx}, {score}) != python ({expected_idx}, {python_score})",
+                file=sys.stderr,
+            )
+        elif abs(score - python_score) > 1e-4:
+            ok = False
+            print(
+                f"VALIDATION FAIL {corpus.name} scale={scale}: {label} score "
+                f"{score} != python score {python_score}",
+                file=sys.stderr,
+            )
+
+    row = [
+        corpus.name,
+        corpus.shape,
+        f"x{scale}",
+        str(rows),
+        f"{t_python * 1e3:.1f}ms",
+        f"{t_numpy * 1e3:.3f}ms",
+        f"{t_rust * 1e3:.3f}ms" if math.isfinite(t_rust) else "—",
+        mojo_detail,
+    ]
+    return row, ok
+
+
 def _bench_corpus(
     corpus: Corpus,
     scales: list[int],
@@ -323,92 +432,22 @@ def _bench_corpus(
     ok = True
 
     for scale in scales:
-        if scale == 1:
-            matrix = corpus.matrix
-            normalized_matrix = normalized
-        else:
-            matrix = np.ascontiguousarray(np.tile(corpus.matrix, (scale, 1)), dtype=np.float32)
-            normalized_matrix = np.ascontiguousarray(
-                np.tile(normalized, (scale, 1)), dtype=np.float32
-            )
-        rows = matrix.shape[0]
-
-        def python_lane() -> tuple[int, float]:
-            return _scan(corpus.vectors * scale, query_python)
-
-        def numpy_lane() -> tuple[int, float]:
-            scores = normalized_matrix @ query_norm
-            idx = int(np.argmax(scores))
-            return idx, float(scores[idx])
-
-        t_python = _best_of(python_lane, reps)
-        t_numpy = _best_of(numpy_lane, reps)
-        numpy_idx, numpy_score = numpy_lane()
-
-        rust_idx = -1
-        rust_score = float("nan")
-        t_rust = float("nan")
-        try:
-            import cosine_knn
-
-            def rust_lane() -> tuple[int, float]:
-                hits = cosine_knn.knn(query_raw, matrix, 10)
-                return int(hits[0][0]), float(hits[0][1])
-
-            rust_lane()
-            t_rust = _best_of(rust_lane, reps)
-            rust_idx, rust_score = rust_lane()
-        except ImportError:
-            print("rust leg unavailable: cosine_knn extension is not installed", file=sys.stderr)
-
-        mojo_idx = -1
-        mojo_score = float("nan")
-        t_mojo = float("nan")
-        mojo_detail = "—"
-        if mojo_bin:
-            _write_dump(matrix_path, matrix, 1)
-            mojo_out, t_mojo = _run_mojo(mojo_bin, matrix_path, query_path, rows, corpus.dims, reps)
-            mojo_idx = int(mojo_out["top1_idx"])
-            mojo_score = float(mojo_out["top1_score"])
-            load_ms = float(mojo_out.get("load_ms", "nan"))
-            compute_ms = float(mojo_out.get("compute_ms", "nan"))
-            mojo_detail = f"{t_mojo * 1e3:.1f}ms ({compute_ms:.2f}+{load_ms:.1f})"
-
-        expected_idx = python_idx
-        for label, idx, score in (
-            ("numpy", numpy_idx, numpy_score),
-            ("rust", rust_idx, rust_score),
-            ("mojo", mojo_idx, mojo_score),
-        ):
-            if idx < 0:
-                continue
-            if idx != expected_idx:
-                ok = False
-                print(
-                    f"VALIDATION FAIL {corpus.name} scale={scale}: {label} top1 "
-                    f"({idx}, {score}) != python ({expected_idx}, {python_score})",
-                    file=sys.stderr,
-                )
-            elif abs(score - python_score) > 1e-4:
-                ok = False
-                print(
-                    f"VALIDATION FAIL {corpus.name} scale={scale}: {label} score "
-                    f"{score} != python score {python_score}",
-                    file=sys.stderr,
-                )
-
-        table_rows.append(
-            [
-                corpus.name,
-                corpus.shape,
-                f"x{scale}",
-                str(rows),
-                f"{t_python * 1e3:.1f}ms",
-                f"{t_numpy * 1e3:.3f}ms",
-                f"{t_rust * 1e3:.3f}ms" if math.isfinite(t_rust) else "—",
-                mojo_detail,
-            ]
+        row, scale_ok = _bench_scale(
+            corpus,
+            scale,
+            normalized,
+            reps,
+            mojo_bin,
+            matrix_path,
+            query_path,
+            python_idx,
+            python_score,
+            query_python,
+            query_norm,
+            query_raw,
         )
+        table_rows.append(row)
+        ok = ok and scale_ok
 
     widths = [max(len(h), *(len(row[i]) for row in table_rows)) for i, h in enumerate(headers)]
 

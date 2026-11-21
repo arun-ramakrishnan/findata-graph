@@ -1720,6 +1720,69 @@ def search_commits(
 # --------------------------------------------------------------------------- #
 
 
+def _git_topk_page(
+    conn, tokens: list[str], since: str | None, path: str | None, limit: int
+) -> tuple[list[tuple], str]:
+    """fts_stem_ladder S3 fast path: SQL top-k over the FTS postings;
+    since/path ride as ss.-qualified where_extra. Returns (page, mode) —
+    ([], "macro") when any token is unresolvable (2026-11-21 lint-audit
+    split out of _search_commits_duckdb)."""
+    from helpers.core import duckdb_shared as ds_shared
+
+    tk_where = ""
+    tk_params: list = []
+    if since:
+        tk_where = " AND ss.adate >= ?"
+        tk_params.append(since)
+    if path:
+        tk_where += r" AND ss.files LIKE ? ESCAPE '\'"
+        tk_params.append(f"%{_like_escape(path)}%")
+    try:
+        rows, mode = ds_shared.fts_topk(
+            conn,
+            fts_table="fts_main_git_search",
+            base_table="git_search",
+            tokens=tokens,
+            limit=limit,
+            where_extra=tk_where,
+            params_extra=tk_params,
+        )
+    except duckdb.Error:
+        return [], "macro"
+    if mode != "topk" or rows is None:
+        return [], "macro"
+    ids = [rid for rid, _ in rows]
+    if not ids:
+        return [], "topk"
+    ph = ", ".join("?" for _ in ids)
+    by_id = {
+        r[0]: r
+        for r in conn.execute(
+            "SELECT id, sha, adate, subject, files, content "  # noqa: S608  # ph is a computed ?, list, not user input
+            f"FROM git_search WHERE id IN ({ph})",
+            ids,
+        ).fetchall()
+    }
+    return [by_id[i] for i in ids if i in by_id], "topk"
+
+
+def _git_macro_page(conn, expr: str, where: str, params: list, limit: int) -> list[tuple] | None:
+    """match_bm25 fallback page (since/path pre-woven into where/params by
+    _where_and_params); None on duckdb.Error (2026-11-21 lint-audit split)."""
+    sc = "fts_main_git_search.match_bm25(id, ?)"
+    where = f"{sc} IS NOT NULL{where}"
+    params = [expr, expr, *params]
+    try:
+        return conn.execute(
+            f"SELECT id, sha, adate, subject, files, content, {sc} AS score "  # noqa: S608  # where built from parameterized clauses only
+            f"FROM git_search WHERE {where} "
+            f"ORDER BY score DESC LIMIT ?",
+            [*params, limit],
+        ).fetchall()
+    except duckdb.Error:
+        return None
+
+
 def _search_commits_duckdb(
     conn,
     q: str,
@@ -1744,7 +1807,6 @@ def _search_commits_duckdb(
     expr = rds.fts_match_expr(q)
     if not expr:
         return {"mode": "bm25", "results": []}
-    from helpers.core import duckdb_shared as ds_shared
     from helpers.core.duckdb_shared import fts_query_tokens_duckdb
 
     routed_lexical = (
@@ -1756,56 +1818,15 @@ def _search_commits_duckdb(
     # unresolvable; since/path ride as ss.-qualified where_extra.
     tokens = fts_query_tokens_duckdb(q)
     page: list[tuple]
-    rows: list[tuple] | None = None
-    mode = "macro"
     if tokens:
-        tk_where = ""
-        tk_params: list = []
-        if since:
-            tk_where = " AND ss.adate >= ?"
-            tk_params.append(since)
-        if path:
-            tk_where += r" AND ss.files LIKE ? ESCAPE '\'"
-            tk_params.append(f"%{_like_escape(path)}%")
-        try:
-            rows, mode = ds_shared.fts_topk(
-                conn,
-                fts_table="fts_main_git_search",
-                base_table="git_search",
-                tokens=tokens,
-                limit=limit + offset,
-                where_extra=tk_where,
-                params_extra=tk_params,
-            )
-        except duckdb.Error:
-            rows, mode = None, "macro"
-    if mode == "topk" and rows is not None:
-        ids = [rid for rid, _ in rows]
-        page = []
-        if ids:
-            ph = ", ".join("?" for _ in ids)
-            by_id = {
-                r[0]: r
-                for r in conn.execute(
-                    "SELECT id, sha, adate, subject, files, content "  # noqa: S608  # ph is a computed ?, list, not user input
-                    f"FROM git_search WHERE id IN ({ph})",
-                    ids,
-                ).fetchall()
-            }
-            page = [by_id[i] for i in ids if i in by_id]
+        page, mode = _git_topk_page(conn, tokens, since, path, limit + offset)
     else:
-        sc = "fts_main_git_search.match_bm25(id, ?)"
-        where = f"{sc} IS NOT NULL{where}"
-        params = [expr, expr, *params]
-        try:
-            page = conn.execute(
-                f"SELECT id, sha, adate, subject, files, content, {sc} AS score "  # noqa: S608  # where built from parameterized clauses only
-                f"FROM git_search WHERE {where} "
-                f"ORDER BY score DESC LIMIT ?",
-                [*params, limit + offset],
-            ).fetchall()
-        except duckdb.Error:
+        page, mode = [], "macro"
+    if mode != "topk":
+        macro = _git_macro_page(conn, expr, where, params, limit + offset)
+        if macro is None:
             return {"mode": "bm25", "results": []}
+        page = macro
 
     run_cosine = (hybrid and not routed_lexical) or vector_only
     scored, sims, from_body = _cosine_leg(conn, q, query_vec) if run_cosine else ([], {}, set())

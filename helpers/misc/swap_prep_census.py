@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 from collections import Counter
@@ -67,11 +68,14 @@ _IMPORTER_PATTERN = r"helpers\.core\.db"
 # The census script must not pollute its own measurements (its docstring
 # contains the very tokens it counts) — exclude it from every rg scan.
 _SELF_EXCLUDE = ["-g", "!**/swap_prep_census.py"]
+_RG_BIN = (
+    shutil.which("rg") or "rg"
+)  # absolute when on PATH; bare name keeps the old behavior otherwise
 
 
 def _rg_count(args, path):
-    proc = subprocess.run(
-        ["rg", *args, str(path)],
+    proc = subprocess.run(  # noqa: S603 - fixed argv, repo-local rg, no shell
+        [_RG_BIN, *args, str(path)],
         capture_output=True,
         text=True,
         cwd=str(_REPO_ROOT),

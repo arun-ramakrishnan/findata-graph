@@ -473,7 +473,7 @@ def _stored_note_model(db_path: Path) -> str | None:
         if conn is not None:
             try:
                 conn.close()
-            except Exception:  # noqa: BLE001  # best-effort close
+            except Exception:  # noqa: BLE001, S110  # best-effort close
                 pass
 
 

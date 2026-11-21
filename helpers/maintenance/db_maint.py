@@ -782,20 +782,21 @@ class DBMaintainer:
                     except sqlite3.Error:
                         # Last rung: salvage every reachable row via the CLI
                         # .recover (clean rebuild; requires the CLI).
-                        if shutil.which("sqlite3") is None:
+                        sqlite3_bin = shutil.which("sqlite3")
+                        if sqlite3_bin is None:
                             raise
                         dump = staging.with_suffix(".sql")
                         try:
                             with dump.open("wb") as fh:
-                                subprocess.run(
-                                    ["sqlite3", str(src), ".recover"],
+                                subprocess.run(  # noqa: S603 - fixed argv, sqlite3 CLI resolved above
+                                    [sqlite3_bin, str(src), ".recover"],
                                     check=True,
                                     stdout=fh,
                                     stderr=subprocess.PIPE,
                                 )
                             with dump.open("rb") as fh:
-                                subprocess.run(
-                                    ["sqlite3", str(staging)],
+                                subprocess.run(  # noqa: S603 - fixed argv, sqlite3 CLI resolved above
+                                    [sqlite3_bin, str(staging)],
                                     check=True,
                                     stdin=fh,
                                     stderr=subprocess.PIPE,

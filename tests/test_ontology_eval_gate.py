@@ -805,11 +805,21 @@ _DUCKDB_SHAPE_CASES = [
     ("provenance_agents_for", {"table": "events"}),
     (
         "metric_value",
-        {"entity": "Acme Ltd", "metric_label": "q_revenue", "period": "FY27Q1", "scope": "consolidated"},
+        {
+            "entity": "Acme Ltd",
+            "metric_label": "q_revenue",
+            "period": "FY27Q1",
+            "scope": "consolidated",
+        },
     ),
     (
         "metric_value",
-        {"entity": "Acme Ltd", "metric_label": "q_revenue", "period": "FY27Q1", "scope": "standalone"},
+        {
+            "entity": "Acme Ltd",
+            "metric_label": "q_revenue",
+            "period": "FY27Q1",
+            "scope": "standalone",
+        },
     ),
     ("ultimate_parent_of", {"company": "Acme Ltd"}),  # absent table -> []
     ("insight_counterparts", {"kind": "hidden_connections", "subject": "Acme Ltd"}),

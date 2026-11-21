@@ -111,7 +111,9 @@ def _mini_store(path: Path) -> None:
         "created_at DATETIME DEFAULT CURRENT_TIMESTAMP, "
         "FOREIGN KEY (broader_id) REFERENCES concepts (concept_id))"
     )
-    con.execute("INSERT INTO concepts (concept_id, broader_id) VALUES ('a', NULL), ('b', 'a'), ('c', 'b')")
+    con.execute(
+        "INSERT INTO concepts (concept_id, broader_id) VALUES ('a', NULL), ('b', 'a'), ('c', 'b')"
+    )
     con.execute("CREATE INDEX idx_nocase ON concepts(concept_id COLLATE NOCASE)")
     con.execute("CREATE VIEW v AS SELECT concept_id FROM concepts")
     con.execute("CREATE VIRTUAL TABLE note_search USING fts5(a)")  # must be dropped
@@ -146,7 +148,9 @@ def test_end_to_end_mini_store(tmp_path: Path):
     try:
         # self-FK chain fully loaded via the iterative loop, order preserved
         assert con.execute("SELECT COUNT(*) FROM concepts").fetchone()[0] == 3
-        assert con.execute("SELECT broader_id FROM concepts WHERE concept_id='c'").fetchone()[0] == "b"
+        assert (
+            con.execute("SELECT broader_id FROM concepts WHERE concept_id='c'").fetchone()[0] == "b"
+        )
         # NOCASE index landed as an expression index
         idx_sql = con.execute(
             "SELECT sql FROM duckdb_indexes() WHERE index_name='idx_nocase'"
