@@ -71,16 +71,14 @@ entry number and stale DONE pointers):
   `allow_giant` removed + U6 confirmatory (anchors reproduce, EM-collapse
   doesn't — null-level, stays gated), S4 all 32 stem-unmentioned modules
   dispositioned; S3 read-only MCP server DEFERRED).
-- `duckdb_research_swap_execution` — LIVE, filed 2026-11-19
-  (`database/duckdb_research_swap_execution.md`); unparked execution of the
-  canonical `research.db` SQLite→DuckDB swap from the de-risked readiness
-  program (Steps 0–8, completed.md #533). Six independent slices S0–S6:
-  frozen census baseline → converted artifact + full parity → opt-in engine
-  switch (read lanes first) → 22/22 cascade rewrites → integrity/maintenance
-  redesign → consumer sweep → cutover + full gates. Mandatory eval-gate
-  bullet (`ontology_eval_gate.py --parent` SQLite / `--candidate` DuckDB,
-  v21/239 questions, zero regressions) at S1 and S6. Baseline 2026-11-19:
-  363,528,192 B / 38 tables / 24 FK links / 161 PRAGMA / 491 connect sites.
+- *(archived 2026-11-21)* — `duckdb_research_swap_execution` (database/,
+  filed 2026-11-19 + executed 2026-11-19/21, completed.md #551 — canonical
+  research store cut over to `memory/research.duckdb` (quack-served
+  :9495, selector `FINDATA_RESEARCH_ENGINE=duckdb`); sqlite frozen as the
+  rollback anchor (pre-cutover db-backup, SHA256 f547a037…, restore
+  rehearsed); eval gate ACCEPT 239/239 at cutover; gates qa 15/15,
+  perf 34/35, advisory reds chronic-only; follow-up: parquet snapshot
+  leg DuckDB reader stays OPEN in pending.md).
 - *(archived 2026-11-20)* — `gate_artifact_sidecar_zstd` (tooling/, filed +
   executed 2026-11-19, completed.md #548 — zstd-compress gate artifacts at
   retain time: pytest metadata sidecars (111.7 MB = 63% of `outputs/.artifacts`,

@@ -70,6 +70,7 @@ from helpers.maintenance.db_maint import (  # noqa: E402
     SIDECAR_SQLITE,
     DBMaintainer,
 )
+from helpers.core import db_engine  # noqa: E402  # S4: engine-agnostic quick_check
 
 # db_maint's own maintained objects — outside the sidecar registry and
 # outside this sweep (single-owner rule; db_maint.run reclaims them).
@@ -179,7 +180,7 @@ def run_sqlite(p: Path, *, dry_run: bool, lg: logging.Logger) -> dict:
                 # In WAL mode VACUUM's rebuild lives in the -wal file; the
                 # checkpoint makes the on-disk .db the real post-sweep size.
                 conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                quick = conn.execute("PRAGMA quick_check").fetchone()[0]
+                quick = (db_engine.quick_check(conn) or ["-"])[0]
             else:
                 quick = "-"  # clean stores skip the scan (FTS5 quick_check = seconds)
             after = sqlite_census(conn, p)

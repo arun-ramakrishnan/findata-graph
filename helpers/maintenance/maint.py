@@ -244,7 +244,7 @@ def _served_file_lane_skip(label: str, logger: logging.Logger) -> _StepResult | 
             label,
             f"{reason}\n",
         )
-    return _StepResult(label, 0, 0.0, [reason])
+    return _StepResult(label, 0, 0.0, [reason], skip_reason="served store")
 
 
 def _failed_advisory_step(label: str, result: _StepResult, logger: logging.Logger) -> bool:
@@ -753,6 +753,12 @@ class _StepResult:
     rc: int
     seconds: float
     tail: list[str] = field(default_factory=list)
+    # Non-None on an rc==0 result that did NOT actually run its command
+    # (the served-store file-lane skip). The table and summary must
+    # distinguish these from a real OK — a 0.00 s "✓ OK" for a step that
+    # never executed masked 30 of 51 real maint runs (pending.md
+    # skip-masking ticket, 2026-11-20).
+    skip_reason: str | None = None
 
 
 def _run_step(label: str, cmd: list[str], dry_run: bool, logger: logging.Logger) -> _StepResult:
@@ -808,9 +814,12 @@ def _run_step(label: str, cmd: list[str], dry_run: bool, logger: logging.Logger)
 
 
 def _step_status(r: _StepResult) -> str:
-    """`✓ OK` / `✗ FAIL` / `✗ WARN (advisory, continued)` — one definition,
-    so the console table and the markdown report can never disagree."""
+    """`✓ OK` / `⊘ SKIP (reason)` / `✗ FAIL` / `✗ WARN (advisory, continued)`
+    — one definition, so the console table and the markdown report can
+    never disagree."""
     if r.rc == 0:
+        if r.skip_reason is not None:
+            return f"⊘ SKIP ({r.skip_reason})"
         return "✓ OK"
     if r.label in _ADVISORY_STEPS:
         return "✗ WARN (advisory, continued)"
@@ -838,14 +847,22 @@ def _table_lines(results: list[_StepResult]) -> list[str]:
         flag, _, status = _step_status(r).partition(" ")
         lines.append(f"  {r.label:.<{width}s} {r.seconds:8.2f}   {flag} {status}")
     lines.append("-" * (width + 44))
-    ok = sum(1 for r in results if r.rc == 0)
+    ok = sum(1 for r in results if r.rc == 0 and r.skip_reason is None)
+    skipped = [r for r in results if r.skip_reason is not None]
     if all(r.rc == 0 for r in results):
         verdict = "PASS"
     elif any(r.rc != 0 and r.label not in _ADVISORY_STEPS for r in results):
         verdict = "FAIL (aborted)"
     else:
         verdict = "PASS (with advisory warnings)"
-    lines.append(f"  {ok}/{len(results)} steps ok  ·  maint {verdict}")
+    count = f"  {ok}/{len(results)} steps ok"
+    if skipped:
+        # A skip is not an OK: the summary must never read "10/10 steps ok"
+        # when the graph steps no-op'd under the served store (the
+        # skip-masking defect — a green line that hid an unstamped cache).
+        reasons = sorted({r.skip_reason for r in skipped if r.skip_reason})
+        count += f" · {len(skipped)} skipped ({', '.join(reasons)})"
+    lines.append(f"{count}  ·  maint {verdict}")
     return lines
 
 
@@ -880,9 +897,14 @@ def _write_report(
         f.write("|---|---|---|\n")
         for r in results:
             f.write(f"| {r.label} | {r.seconds:.2f} | {_step_status(r)} |\n")
-        ok = sum(1 for r in results if r.rc == 0)
+        ok = sum(1 for r in results if r.rc == 0 and r.skip_reason is None)
+        skipped = [r for r in results if r.skip_reason is not None]
         verdict = _verdict(results)
-        f.write(f"| **{ok}/{len(results)} steps ok** | | **maint {verdict}** |\n\n")
+        count = f"{ok}/{len(results)} steps ok"
+        if skipped:
+            reasons = sorted({r.skip_reason for r in skipped if r.skip_reason})
+            count += f" · {len(skipped)} skipped ({', '.join(reasons)})"
+        f.write(f"| **{count}** | | **maint {verdict}** |\n\n")
         for r in results:
             if r.rc == 0:
                 continue

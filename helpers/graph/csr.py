@@ -51,7 +51,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
-from helpers.core.db import connect  # noqa: E402  # needs the shim above
+from helpers.core.db_engine import research_store_connect  # noqa: E402  # needs the shim above; S6 cutover: the research store routes by the engine selector (sibling redirect gated to the research store)
 from helpers.graph.edge_projection import pairs  # noqa: E402  # needs the shim above
 
 # Module-side substrate cache, keyed on (out_dir, live SQLite generation).
@@ -78,7 +78,7 @@ def clear_cache() -> None:
 
 
 def _read_edges(db_path: str | Path) -> list[tuple[str, str]]:
-    con = connect(db_path, read_only=True, row_factory=None)
+    con = research_store_connect(db_path, read_only=True, row_factory=None)
     try:
         # edge_projection: the retired part_of/has_company pair is projected
         # back out of the canonical sector hyperedges (2026-10-19), so the
@@ -89,7 +89,7 @@ def _read_edges(db_path: str | Path) -> list[tuple[str, str]]:
 
 
 def _live_generation(db_path: str | Path) -> str | None:
-    con = connect(db_path, read_only=True, row_factory=None)
+    con = research_store_connect(db_path, read_only=True, row_factory=None)
     try:
         row = con.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
         return None if row is None else str(row[0])

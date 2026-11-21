@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-SQLite DB maintenance helper for memory/research.db.
+Maintenance helper for the canonical research store (memory/research.duckdb
+since the S6 DuckDB cutover, 2026-11-21; the SQLite body below remains the
+rollback path for memory/research.db — dispatch is by file suffix).
 
 Performs, in this order:
   1. Snapshot settings + pre-maintenance metrics (size, pages, freelist, stat-staleness, indexes)
@@ -216,24 +218,27 @@ def install_agent_id_guard(conn: sqlite3.Connection) -> list[str]:
     return installed
 
 
-def provenance_agent_report(conn: sqlite3.Connection) -> dict:
+def provenance_agent_report(conn: Any) -> dict:  # sqlite3.Connection | DuckDB (S4)
     """S8 advisory probe: counts of ``''`` and unregistered ``agent_id``
     rows per fact table, plus the registered-agent count. Return shape:
     ``{"registered": int, "empty_agent_id": {table: count},
        "unregistered_agent_id": {table: [ids]}}``.
     """
     out: dict = {"registered": 0, "empty_agent_id": {}, "unregistered_agent_id": {}}
+    # S4: probes are best-effort per-table on BOTH engines now (DuckDB
+    # raises duckdb.CatalogException for a missing table where SQLite
+    # raises OperationalError) — the except is deliberately broad.
     try:
         out["registered"] = conn.execute("SELECT COUNT(*) FROM provenance_agents").fetchone()[0]
         id_ok = True
-    except sqlite3.OperationalError:
+    except Exception:  # noqa: BLE001 — per-probe best-effort, both engines
         id_ok = False
     for table in _AGENT_FACT_TABLES:
         try:
             empty = conn.execute(
                 f'SELECT COUNT(*) FROM "{table}" WHERE agent_id IS NOT NULL AND LENGTH(agent_id)=0'  # noqa: S608  # {table} rides the _AGENT_FACT_TABLES constant
             ).fetchone()[0]
-        except sqlite3.OperationalError:
+        except Exception:  # noqa: BLE001, S112 — per-probe best-effort, both engines
             continue
         if empty:
             out["empty_agent_id"][table] = empty
@@ -246,7 +251,7 @@ def provenance_agent_report(conn: sqlite3.Connection) -> dict:
                 ).fetchall()
                 if unreg:
                     out["unregistered_agent_id"][table] = sorted(r[0] for r in unreg)
-            except sqlite3.OperationalError:
+            except Exception:  # noqa: BLE001, S110 — per-probe best-effort, both engines
                 pass
     return out
 
@@ -1097,6 +1102,12 @@ class DBMaintainer:
             conn.close()
 
     def run(self) -> dict:  # noqa: C901
+        # S4 (duckdb_research_swap_execution): a `.duckdb` research store
+        # takes the first-party DuckDB maintenance branch — the SQLite body
+        # below is VACUUM/ANALYZE/REINDEX/wal_checkpoint-shaped and cannot
+        # run on DuckDB.
+        if self.db_path.suffix.lower() == ".duckdb":
+            return self._run_duckdb_research()
         steps = [
             "SNAPSHOT",
             "BACKUP",
@@ -1241,6 +1252,116 @@ class DBMaintainer:
         # read-only connections per file, never both).
         if self.duckdb_path and self.duckdb_path.exists():
             result["duckdb"] = self._maintain_duckdb()
+        return result
+
+    def _run_duckdb_research(self) -> dict:
+        """S4: maintenance branch for a `.duckdb` RESEARCH store.
+
+        The SQLite run() body (VACUUM/ANALYZE/REINDEX/wal_checkpoint/
+        integrity_check/foreign_key_check + trigger guard install) is
+        engine-shaped and cannot execute here. The DuckDB equivalent:
+
+        - BACKUP: pre-mutation recovery copy via _duckdb_zstd_backup
+          (checkpoint-then-copy, shared with the graph cache).
+        - CHECKPOINT + VACUUM under the store's io_lock (EX), served-store
+          skip identical to _maintain_duckdb.
+        - integrity_check / foreign_key_check: the first-party engine
+          helpers (db_engine.quick_check / foreign_key_check) — DuckDB has
+          no PRAGMA equivalents.
+        - agent_id guard: SKIPPED — DuckDB has no triggers; the S8 checks
+          ride CHECK constraints in the swap DDL instead.
+        - provenance_agent_report: plain SQL, engine-neutral.
+        - The registered sidecars, the heavy backup set and the graph-cache
+          maintenance still run (same estate tail as the SQLite run()) —
+          a served primary skips only its own CHECKPOINT/VACUUM/integrity
+          part, never the rest of the estate.
+        """
+        steps = [
+            "BACKUP",
+            "CHECKPOINT",
+            "VACUUM",
+            "integrity_check",
+            "foreign_key_check",
+            "agent_id_guard (skipped: CHECK constraints)",
+            "provenance_agent_report",
+        ]
+        if self.dry_run:
+            return {"status": "dry_run", "engine": "duckdb", "steps": steps}
+        self.ensure_paths()
+        result: dict = {"engine": "duckdb", "path": str(self.db_path), "steps": steps}
+
+        from helpers.core import db_engine as _db_engine
+        from helpers.core.duckdb_shared import is_served as _is_served
+        from helpers.core.duckdb_shared import memory_cap_config
+        from helpers.misc.duckdb_lock import io_lock as _io_lock
+
+        if _is_served(self.db_path):
+            # Served store: the quack child holds the RW file lock — a
+            # file-mode open here raises IOException (2026-10-22 precedent
+            # on the graph cache). Skip only the primary's own part, with a
+            # truthful skip marker; the estate tail below still runs.
+            self._log(
+                logging.WARNING,
+                f"{self.db_path} is served by the quack server — "
+                "CHECKPOINT/VACUUM/integrity skipped (stop it with "
+                "`make quack-stop` for offline maintenance)",
+            )
+            result["checkpoint"] = "skipped (served)"
+        else:
+            if self.backup_path:
+                self._log(logging.INFO, f"DuckDB backup → {self.backup_path}")
+                import duckdb  # local: only the DuckDB branch needs the engine
+
+                backup_size = self._duckdb_zstd_backup(
+                    self.db_path, self.backup_path, label=self.db_path.name
+                )
+                result["backup"] = {"path": str(self.backup_path), "size": backup_size}
+
+            with _io_lock(self.db_path, exclusive=True):
+                con = duckdb.connect(str(self.db_path), **memory_cap_config())
+                try:
+                    before_size = self.db_path.stat().st_size
+                    self._log(logging.INFO, f"DuckDB CHECKPOINT ({self.db_path})")
+                    con.execute("CHECKPOINT;")
+                    self._log(logging.INFO, "DuckDB VACUUM")
+                    con.execute("VACUUM;")
+                    con.execute("CHECKPOINT;")
+                    after_size = self.db_path.stat().st_size
+                    result["before_bytes"] = before_size
+                    result["after_bytes"] = after_size
+                    # First-party integrity + FK (no PRAGMA surface on DuckDB).
+                    integrity = _db_engine.quick_check(con)
+                    fk = _db_engine.foreign_key_check(con)
+                    result["integrity"] = integrity
+                    result["integrity_ok"] = integrity == ["ok"]
+                    result["fk_violations"] = len(fk)
+                    if fk:
+                        self._log(logging.WARNING, f"FK violations: {fk}")
+                    result["provenance"] = provenance_agent_report(con)
+                finally:
+                    con.close()
+
+        # S6: same estate tail as the SQLite run() — the sidecar fold and
+        # the graph-cache maintenance ride after the primary regardless of
+        # the primary's served-store skip.
+        if self.backup_sidecars:
+            self._backup_embed_store()
+            self._backup_corpus()
+            self._backup_convo_search()
+            self._backup_convo_corpus()
+            # The proxy's primary session store is NOT repo-anchored
+            # (unlike every store above), but it is the same class of
+            # thing: a primary copy with no rebuild path. Under the
+            # pure-SQLite default (billion-context 0.1.214+) it holds the
+            # proxy's raw messages, which the harvested corpus keeps only
+            # as compression summaries. Gated by the same flag for the
+            # same reason — it is a heavy production copy.
+            self._backup_bili_index()
+            self._backup_memory_sidecars()
+        result["sidecars"] = self.maintain_registered_sidecars()
+        if self.duckdb_path and self.duckdb_path.exists():
+            result["duckdb"] = self._maintain_duckdb()
+        result["status"] = "ok"
         return result
 
     def _maintain_duckdb(self) -> dict:
@@ -1458,6 +1579,41 @@ class DBMaintainer:
 
 
 def _print_report(r: dict) -> None:  # noqa: C901
+    if r.get("engine") == "duckdb":
+        # S4: the DuckDB research-store branch carries a different result
+        # shape (no PRAGMA settings/metrics/indexes; first-party integrity).
+        print("=== BACKUP (duckdb) ===")
+        if r.get("backup"):
+            b = r["backup"]
+            print(f"-> {b.get('path')} ({_fmt_bytes(b.get('size', 0))})")
+        else:
+            # Served store: the file is RW-locked by the quack child, the
+            # checkpoint-then-copy backup cannot open it (busy → skip).
+            print("-> skipped (served store)")
+        print("\n=== MAINTENANCE ===")
+        if r.get("checkpoint") == "skipped (served)":
+            print("CHECKPOINT: skipped (served)  VACUUM: skipped (served)")
+            print("integrity: skipped (served)")
+        else:
+            print(
+                f"CHECKPOINT: ok  VACUUM: ok  "
+                f"({r.get('before_bytes', 0)} -> {r.get('after_bytes', 0)} B)"
+            )
+            print(f"integrity_ok: {r.get('integrity_ok')}  fk_violations: {r.get('fk_violations')}")
+        print("agent_id guard: skipped (CHECK constraints in DDL)")
+        prov = r.get("provenance") or {}
+        print(
+            f"provenance: registered={prov.get('registered', 0)} "
+            f"empty={prov.get('empty_agent_id', {})} "
+            f"unregistered={prov.get('unregistered_agent_id', {})}"
+        )
+        print("\n=== SIDECARS (store_wide_reclaim estate) ===")
+        for row in r.get("sidecars", []):
+            note = f"  wasted {row['wasted_pct']}%" if "wasted_pct" in row else ""
+            print(
+                f"{row['store']:36} {row['engine']:6} {row['action']:28}{note}  {row.get('secs', '?')}s"
+            )
+        return
     s = r["settings"]
     print("=== SETTINGS ===")
     print(
@@ -1576,16 +1732,17 @@ def _run_sync_check(root: Path) -> dict:
 
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
     parser = argparse.ArgumentParser(
-        description="SQLite DB maintenance for memory/research.db (+ optional DuckDB cache)."
+        description="Maintenance for the canonical research store "
+        "(memory/research.duckdb; --db memory/research.db keeps the SQLite rollback path)."
     )
     parser.add_argument(
         "--db",
-        default="memory/research.db",
-        help="Path to the SQLite database (relative to repo root).",
+        default="memory/research.duckdb",
+        help="Path to the research store (relative to repo root).",
     )
     parser.add_argument(
         "--backup",
-        default="db-backup/research_backup.db",
+        default="db-backup/research_backup.duckdb",
         help="Backup path (will be created if needed).",
     )
     parser.add_argument(
@@ -1739,9 +1896,19 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     print(f"  {line}")
 
     # exit non-zero if integrity failed, FK violations, or sync-check failed
-    healthy = (
-        results["integrity_check"] == "ok" and results["foreign_key_violations"] == 0 and sync_ok
-    )
+    if results.get("engine") == "duckdb":
+        # S4: first-party shapes (integrity list == ['ok'], fk count).
+        # S6: a served primary skips its integrity part — absent
+        # integrity_ok is a truthful skip, not a failure (rc stays 0).
+        healthy = (
+            results.get("integrity_ok", True) and results.get("fk_violations", 0) == 0 and sync_ok
+        )
+    else:
+        healthy = (
+            results["integrity_check"] == "ok"
+            and results["foreign_key_violations"] == 0
+            and sync_ok
+        )
     return 0 if healthy else 1
 
 

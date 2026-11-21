@@ -461,6 +461,10 @@ class TestReport:
         return maint.REPORT_PATH.read_text()
 
     def test_success_run_appends_table_no_tails(self, monkeypatch):
+        # Hermetic: a resident quack server on the box would otherwise skip
+        # the two file-lane steps and the N/N count below would read 8/10
+        # (the skip-masking fix made that live state VISIBLE).
+        monkeypatch.setattr(maint, "_graph_store_served", lambda: False)
         monkeypatch.setattr(
             maint.subprocess,
             "Popen",
@@ -474,6 +478,25 @@ class TestReport:
         assert f"{len(maint.TIER1_STEPS)}/{len(maint.TIER1_STEPS)} steps ok" in text
         assert "PASS" in text
         assert "FAILED" not in text  # successes stay lean: no output tails
+
+    def test_served_store_skips_are_reported_not_ok(self, monkeypatch):
+        """The skip-masking fix (pending.md, filed 2026-11-20): file-lane
+        steps skipped under the quack-served store must read `⊘ SKIP` in
+        the table and break out of the ok count — never `✓ OK` at 0.00s in
+        an `N/N steps ok` line (30 of 51 real runs were masked that way)."""
+        monkeypatch.setattr(maint, "_graph_store_served", lambda: True)
+        monkeypatch.setattr(
+            maint.subprocess,
+            "Popen",
+            lambda cmd, *a, **kw: _FakeProc(0, ["all good\n"]),
+        )
+        assert maint.main([]) == 0  # a skip is by-design continuation, not failure
+        text = self._read().split("# make maint — maint report")[-1]
+        n = len(maint.TIER1_STEPS)
+        assert text.count("⊘ SKIP (served store)") == 2  # graph-rebuild + stamp-centrality
+        assert "✓ OK" in text  # the non-file-lane steps really ran
+        assert f"{n - 2}/{n} steps ok · 2 skipped (served store)" in text
+        assert "maint PASS" in text  # verdict unchanged — but the count is honest
 
     def test_failed_step_gets_tail_and_fail_row(self, monkeypatch):
         """A non-advisory failure aborts and is reported with its tail.

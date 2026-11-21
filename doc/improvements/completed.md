@@ -16599,3 +16599,61 @@ proposal, archived `status: deferred` — S3 MCP server stays deferred).
   call), make perf 33/35 benches (2 OVER_BUDGET psi-confounded,
   snapshot_check preflight healed post-archival). Proposal:
   `archive/graph/harvest_promotions_and_census_writeup.md`.
+
+## 551. Execute the canonical research.db SQLite→DuckDB swap — S4 integrity/maintenance redesign, S5 consumer sweep, S6 cutover + full gates
+
+Filed 2026-11-19; executed 2026-11-19/21 (`duckdb_research_swap_execution`
+proposal, archived `status: executed` — readiness S0–S3 landed
+2026-11-19/20; S4–S6 + cutover 2026-11-21).
+
+- **Problem**: the canonical research store stayed SQLite (363,528,192 B,
+  38 tables, 24 FK links, 491 connect sites) after the readiness program
+  (Steps 0–8, completed.md entry 533) proved conversion parity; the
+  execution slices stayed parked pending the maint skip-masking fix
+  (filed 2026-11-20, FIXED in this arc's S4).
+- **S4 (integrity/maintenance redesign)**: db_maint defaults re-pointed
+  to `memory/research.duckdb` and the served-store skip no longer masks —
+  the skip marks only the primary's own part (`checkpoint: skipped
+  (served)`); the estate tail (heavy sidecar backups + graph-cache
+  maintenance) always runs. snapshot_db gained the DuckDB branches
+  (+128 lines: served/busy degrade, source-compare → integrity-only).
+  database_integrity_check reads both engines (None-tolerant
+  user_version; sector/cap name tie-breaks `ORDER BY n DESC, <key> ASC`
+  mirrored into integrity_check.mojo). maint/rebuild_schema/
+  rename_entity/store_sweep funnel-routed.
+- **S5 (consumer sweep)**: query.py `_attach_sqlite` dispatches sqlite
+  file / native DuckDB / quack wire — `CREATE OR REPLACE SECRET` on the
+  SAME con that attaches (quack secrets are per-connection; a shell-side
+  secret dies at close and the attach fails silently);
+  `_materialise_embeddings` gained the DuckDB fin reader
+  (information_schema probe + BLOB passthrough); onager `_fin_is_wire` +
+  fetch-then-register (the quack executor refuses multi-scan CTAS over
+  two wire attachments — one plain SELECT → pyarrow register → all-local
+  CTAS + duckdb2-drain); csr.py / edge_projection.py / swap_fk_integrity
+  route through `research_store_connect`.
+- **S6 (cutover)**: `db_engine.is_research_store_path` gates the sibling
+  redirect to the research store only (fixture-hijack fix); `table_info`
+  builds dicts positionally (row_factory=None callers); .envrc selector
+  `FINDATA_RESEARCH_ENGINE=duckdb` +
+  `FINDATA_RESEARCH_DB_PATH=memory/research.duckdb`; canonical store
+  placed `memory/research.duckdb` (174,600,192 B, 35 tables, graph_edges
+  86,931 rows byte-set-equal vs sqlite, generation 1,145,755 keeps csr
+  fresh); rollback anchor
+  `db-backup/research_backup_pre_duckdb_cutover_2026-11-21.db`
+  (SHA256 f547a037…, restore rehearsal byte-identical BEFORE any cutover
+  write); `schema/duckdb/research.sql` tracked DDL (22 files, schema-dump
+  drift clean).
+- **Acceptance**: mandatory eval gate ACCEPT 239/239 zero regressions at
+  cutover (`ontology_eval_gate.py --candidate` DuckDB); swap_fk_integrity
+  0 orphans over the wire; DuckDB snapshot round-trip exact (29.2 MB
+  zstd, entities/relations exact); mojo-parity 92/92 after the name
+  tie-breaks (DuckDB parallel GROUP BY flips equal-count order run to
+  run); integrity_check budget re-baselined 10.0 → 20.0 s (ceiling — the
+  leg now reads the canonical store over the wire; the sqlite rollback
+  only gets faster).
+- **Verification**: make qa 15/15 rc=0; make advisory 24/28 with all four
+  reds chronic-only (gate-timing-watch loaded-box confound, convo-fresh
+  session traffic, fuzz 68/68 quiet-box isolation, script-search
+  converged per round); make perf 34/35 in budget. Follow-up filed:
+  parquet snapshot leg DuckDB reader (pending.md); `research.db`
+  deletion after the post-cutover soak is an operator call.

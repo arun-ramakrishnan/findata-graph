@@ -60,28 +60,18 @@ BUDGET_SQL_FALLBACK_S = 2.0
 _REPS = 3
 
 
-def _unreachable_dst(con) -> tuple[str, str]:
-    """Two nodes in a different undirected component than CEAT.
+def _component_and_endpoints(con, src_id: int) -> tuple[set[int], set[int]]:
+    """The undirected component of ``src_id`` + every e_all_und endpoint.
 
-    The component set is computed in Python over ONE e_all_und scan
-    (~0.1 s for 201,534 edges; the table stores both orientations per
-    dyad, so a single a->b pass is complete). The previous recursive CTE
-    walked the component with per-iteration UNION anti-joins — 10.6 s of
-    a 12.0 s leg wall (2026-11-19), pure planner pathology: the same
-    relation serves the BFS itself in <100 ms, and a correlated
-    NOT EXISTS over it costs 13.7 s.
-
-    Returns (dst_any, dst_endpoint): the first v_node name outside the
-    component (any node, for the SQL guard), and the first name that is
-    an e_all_und ENDPOINT outside the component (for the lane case — an
-    endpoint is guaranteed to live in the CSR universe, so the lane
-    actually traverses instead of short-circuiting on the pos check).
+    One scan over e_all_und (~0.1 s for 201,534 edges; the table stores
+    both orientations per dyad, so a single a->b pass is complete). The
+    previous recursive CTE walked the component with per-iteration UNION
+    anti-joins — 10.6 s of a 12.0 s leg wall (2026-11-19), pure planner
+    pathology: the same relation serves the BFS itself in <100 ms, and a
+    correlated NOT EXISTS over it costs 13.7 s.
     """
-    src = con.execute("SELECT id FROM v_node WHERE name = 'CEAT'").fetchone()
-    if src is None:
-        raise SystemExit("CEAT not in the live graph")
-    comp = {src[0]}
-    frontier = [src[0]]
+    comp = {src_id}
+    frontier = [src_id]
     adj: dict[int, list[int]] = {}
     endpoints: set[int] = set()
     for a, b in con.execute("SELECT a_id, b_id FROM e_all_und").fetchall():
@@ -96,6 +86,22 @@ def _unreachable_dst(con) -> tuple[str, str]:
                     comp.add(nb)
                     nxt.append(nb)
         frontier = nxt
+    return comp, endpoints
+
+
+def _unreachable_dst(con) -> tuple[str, str]:
+    """Two nodes in a different undirected component than CEAT.
+
+    Returns (dst_any, dst_endpoint): the first v_node name outside the
+    component (any node, for the SQL guard), and the first name that is
+    an e_all_und ENDPOINT outside the component (for the lane case — an
+    endpoint is guaranteed to live in the CSR universe, so the lane
+    actually traverses instead of short-circuiting on the pos check).
+    """
+    src = con.execute("SELECT id FROM v_node WHERE name = 'CEAT'").fetchone()
+    if src is None:
+        raise SystemExit("CEAT not in the live graph")
+    comp, endpoints = _component_and_endpoints(con, src[0])
     dst_any: str | None = None
     dst_endpoint: str | None = None
     for nid, name in con.execute("SELECT id, name FROM v_node ORDER BY name").fetchall():

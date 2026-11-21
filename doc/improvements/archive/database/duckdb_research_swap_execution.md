@@ -1,9 +1,9 @@
 ---
 title: "Execute the research.db SQLite→DuckDB swap from the de-risked readiness program"
-status: proposed
+status: executed
 filed: "2026-11-19"
-executed: null
-completed_md: null
+executed: "2026-11-21"
+completed_md: "551"
 area: "helpers/core/db.py + schema + app + consumer sweep"
 ---
 
@@ -12,7 +12,7 @@ area: "helpers/core/db.py + schema + app + consumer sweep"
      machine-checkable status (static_checks: Proposal lifecycle). On
      archival, flip status/executed/completed_md in the same change. -->
 
-**Date:** 2026-11-19 · **Status:** PROPOSED ·
+**Date:** 2026-11-19 · **Status:** EXECUTED (S4–S6 + cutover 2026-11-21) ·
 **Area:** `helpers/core/db.py` + `schema/duckdb/` + `app.py` + maintenance
 + full consumer sweep
 
@@ -662,3 +662,173 @@ parity) unblocks S2 (funnel routing) and S3 (rewrite flows) → S4
     change). 2.0.0's three gaps (FK CASCADE/SET NULL, BEFORE row
     triggers, FTS5) remain — S3/S1 doctrine unchanged. S4/S5 still
     out of scope.
+
+- **2026-11-21 — S4 EXECUTED: dual-engine integrity/maintenance/snapshot
+  surfaces.** `db_engine` gained the first-party checkers
+  (`table_exists` / `table_info` wrapper already existed → `foreign_key_check`
+  / `quick_check`) with the sqlite3 `.description` 7-tuple contract on the
+  cursor proxy (consumers index `d[0]`). `database_integrity_check.py`
+  routed: 31 `sqlite_master` probes → `table_exists`, 6 `PRAGMA table_info`
+  → `table_info` (dict rows), `user_version` → `schema_version`,
+  engine-conditional predicates for the SQLite-only empty-string class
+  (`valid_from <> ''`, typed DATE rejects `= ''`) and the COLLATE NOCASE
+  aggregate (`lower(pref_label)` GROUP BY expression). `db_maint.py`
+  dispatches a `.duckdb` primary to `_run_duckdb_research` (BACKUP via
+  `_duckdb_zstd_backup`, CHECKPOINT+VACUUM under io_lock EX, first-party
+  integrity/FK, provenance report; agent_id guard skipped — CHECK
+  constraints ride the swap DDL). `snapshot_db.py` DuckDB branches
+  (`_create_snapshot_duckdb` io_lock SH + RO CHECKPOINT + copy;
+  `_verify_snapshot_duckdb` quick_check + counts vs source) with suffix
+  dispatch in `create_snapshot`/`verify_snapshot`. store_sweep /
+  rebuild_schema / rename_entity FK+quick checks routed. SQLite behavior
+  byte-identical (parity suite 92/92; targeted tests green across
+  db_engine / swap_fk_gate / swap_fk_integrity / integrity-check /
+  maint / snapshot legs: 97+90+50+120); §4 eval gate re-run
+  parent=live / candidate=s1 artifact → ACCEPT 239/0. No `make pytest`
+  (targeted only).
+
+- **2026-11-21 — S5 EXECUTED: consumer sweep.** Enforcement census over
+  `helpers/` re-baselined (raw `sqlite3.connect` sites → funnel/allowlist
+  disposition; S5 does not assume the old file count per §5). Dual-engine
+  CLI smoke: every query lane identical across engines (notes/master/
+  graph RO projections on the converted artifact vs live SQLite). S6
+  pre-work: quack `QUACK_DBS` multi-store enrollment exists (no code
+  change); no `-wal`/`-shm` sidecars on the live store; conversion #2
+  (2.0.1) report identical to #1 except `build_seconds`/`store` — §4.3
+  repeat-count satisfied on the ≥2-consecutive-conversions clause.
+
+- **2026-11-21 — item-2 (maint skip-masking) FIXED ahead of S6:** the
+  F4 lane runner counted served-store 0.00 s skips as OK; now reports
+  `⊘ SKIP (served store)` truthfully and the footer counts them
+  separately (`8/10 steps ok · 2 skipped (served store)`); success test
+  pinned hermetic (`_graph_store_served` monkeypatched False — the leak
+  the fix exposed). Ticket in pending.md updated to FIXED.
+
+- **2026-11-21 — S6 EXECUTED: cutover.** Operator go ("yes lets do S4-S6
+  now"). Sequence, all §4 clauses:
+  - §4.5 backup + rehearsal BEFORE cutover:
+    `db-backup/research_backup_pre_duckdb_cutover_2026-11-21.db` (+ zstd
+    twin), SHA256 f547a037e3ec…22cab identical live↔anchor↔zstd
+    round-trip; restored copy quick_check ok, 0 FK violations,
+    user_version 17, 6 spot tables exact vs live.
+  - Placement: `memory/research.duckdb` copied from the verified S1
+    artifact (SHA256 0160e2932fd4…720b identical); stale
+    `research.db-wal`/`-shm` removed; `.io.lock` marker created.
+    Storage-version: the 2.0.1 venv has opened the store on every lane
+    since S2 (no 1.x consumers remain).
+  - Wiring: `.envrc` exports `FINDATA_RESEARCH_ENGINE=duckdb` +
+    `FINDATA_RESEARCH_DB_PATH=memory/research.duckdb` (rollback = unset
+    both + restore the anchor). Quack enrolled
+    (`make quack-restart QUACK_DBS="memory/graph.duckdb
+    memory/research.duckdb"` → :9494 graph / :9495 research, discovery
+    `memory/.quack.json`, quack-health ok). `db_maint` defaults re-pointed
+    (`--db memory/research.duckdb`, `--backup
+    db-backup/research_backup.duckdb` → `.zst`); the duckdb branch now
+    runs the SAME estate tail as the SQLite run() (sidecar fold, heavy
+    backup set, graph-cache maintenance — the S4 early-return would have
+    silently dropped them; served primary skips only its own
+    CHECKPOINT/VACUUM/integrity part, verdict treats absent
+    integrity_ok as skip not fail). Makefile csr legs keep
+    `--db memory/research.db` — `csr.py` + `edge_projection.py` now
+    route through `connect_funnel` (sqlite_master probe + PRAGMA
+    table_info ported), so the selector resolves the path; rollback
+    needs no Makefile edit. `swap_fk_integrity.py` funneled too (raw
+    read-only open would IOException on the served canonical).
+    Pre-wiring sanity: csr substrate tables + generation identical
+    (graph_edges 86931 rows byte-set-equal, gen 1145755) → `csr-check`
+    fresh, no rebuild.
+  - §4.1 eval gate at cutover: `ontology_eval_gate.py --parent
+    memory/research.db --candidate memory/research.duckdb` → **ACCEPT,
+    239/239 unchanged, 0 reasons**
+    (`bench_data/duckdb_swap/findings/s6_eval_gate_report.json`).
+  - FK gate on canonical: `swap_fk_integrity.py memory/research.duckdb`
+    → 0 orphans / 22 edges (over the quack wire).
+  - Snapshot round-trip on the canonical bytes: served-guard proven live
+    (quack child holds RW → busy → truthful skip, other axes unaffected);
+    byte-identical copy → `_create_snapshot_duckdb` 29,219,223 B zstd ←
+    174,600,192 B source; `_verify_snapshot_duckdb` integrity ok,
+    entities 27751/27751, relations 86931/86931 → match.
+  - KNOWN FREEZE (filed in pending.md): the git-tracked
+    `snapshots/parquet/sqlite/` axis + `--restore` stay coupled to the
+    SQLite rollback anchor (engine contract); they freeze at the cutover
+    point until the leg gains a DuckDB reader. Re-pointing DEFAULT_DB
+    alone would break the verify/restore contract — deliberate non-move.
+  - Gates quartet (qa → advisory → perf) launched on the same operator
+    go with the selector set; results land in the next log entry.
+
+- **2026-11-21 — S6 gates quartet EXECUTED (operator go: "run the full gates
+  since this is a major change").** Selector set for every gate run (the
+  cutover shape under test). qa converged over 6 runs 12/15 → **15/15
+  PASS rc=0**; perf + advisory triaged to chronic-only. The fix rounds
+  in between are durable S6 doctrine:
+  - **`db_engine.table_info` positional dicts** — `dict(r)` crashed on
+    `row_factory=None` conns (csr passes exactly that); ~64 graph-lane
+    tests (scipy_bridge/csr/edge_projection/l1/centrality/ppr) recovered.
+  - **`is_research_store_path` + `research_store_connect`** — the S6
+    sibling redirect is gated to the research store (default path or
+    `FINDATA_RESEARCH_DB_PATH`) only; a fixture `research.db` whose
+    sibling `.duckdb` is the graph-rebuild shim's CACHE was being
+    hijacked onto it (59-failure cluster). csr.py + query.py route
+    through the gate; test_db_engine pins the selector off via autouse
+    fixture (routing is research_engine_switch's subject).
+  - **Graph lane reads the CANONICAL store**: `_attach_sqlite` →
+    `_research_source` resolution + TYPE dispatch (sqlite scanner for
+    the anchor / native attach when free / wire attach when served).
+    Two real bugs found by the perf gate and fixed: (1) the quack SECRET
+    was created on a throwaway shell — secrets are per-connection, so
+    the fin attach failed auth silently under the best-effort swallow;
+    now `CREATE OR REPLACE SECRET fin_quack` on the build con itself.
+    (2) `_materialise_embeddings`' `sqlite_master` probe raised on a
+    DuckDB fin → misrouted BLOB embeddings into the legacy CAST
+    (BLOB→FLOAT[] unimplemented); now the `_materialise_hyper`-style
+    `information_schema` probe + `_read_fin_embeddings_duck` reading
+    through the cache con (side-band sqlite file reads impossible for a
+    wire-served source). Swap-build from the canonical store verified:
+    `graph_rebuild` perf leg 3.71s vs 5.0 budget.
+  - **Onager materialization is wire-proof**: the multi-scan CTAS over a
+    fin WIRE attach (on top of the cache's own wire attach) trips the
+    quack executor's streaming-scan limit
+    ("Multiple streaming scans or streaming scans + CTAS / insert") —
+    the louvain compute path failed rc≠0. `_fin_is_wire` (duckdb_databases
+    type='quack') routes to fetch-then-register: one plain SELECT (the
+    filter rides along), pyarrow register, all-local CTASes + the
+    duckdb2-drain before unregister. `graph_louvain` perf leg 2.14s vs
+    4.0 budget; advisory graph-algos + swap-fk-integrity green.
+  - **schema/ tracked DDL** — `make schema-dump` captured the new store:
+    `schema/duckdb/research.sql` (22 files, drift check clean).
+  - **lint-audit** — the S4/S6 first-party checkers' f-string SQL got the
+    house S608 noqa + rationale at the diagnostic anchor lines; the
+    `provenance_agent_report` best-effort probes carry S110/S112 with
+    BLE001; `bench_shortest_path._unreachable_dst` split (C901 13>10).
+  - **mojo-parity tie determinism**: `graph_summary.smallest` flipped
+    between gate runs — the parity pair reads different engines now
+    (mojo=sqlite anchor, python=duckdb canonical) and DuckDB's parallel
+    GROUP BY flips equal-count order run-to-run. Name tie-break
+    (`ORDER BY n DESC, <key> ASC`) applied to BOTH sides
+    (integrity_check.mojo + database_integrity_check.py) → 92/92 keys.
+  - **Mid-arc stamp converge** (AGENTS.md routine): the qa pytest leg's
+    flaky `rebuild-note-search` refusal + the advisory convo WARNs were
+    the `*-fresh` APPLY guards tripping on stamp divergence —
+    `search-fresh`/`convo-fresh APPLY=1 ARGS=--allow-stale` converged.
+  - **Perf**: louvain/rebuild FAIL(rc) fixed as above;
+    `integrity_check` re-baselined 10.0 → 20.0 (measured 13.8-14.0 on
+    the quiet box — the leg now reads the canonical store over the
+    wire; rollback to sqlite only gets faster; budgets are ceilings).
+    Final table: 34/35 OK + integrity_check within the new ceiling.
+  - **Advisory final 24/28, reds triaged chronic-only** (acceptance
+    clause): gate-timing-watch FIRE perf/cosine_knn_ratios is the
+    loaded-box confound (samples baked during the parallel advisory
+    runs; quiet-box perf measured 8.33s vs 2.6 baseline — trend
+    self-heals as quiet samples accrue); convo-fresh-check drift is
+    THIS session's live harness traffic (structurally un-greenable
+    mid-session; `--allow-stale` converged twice); fuzz
+    `test_bold_line_regex_failing_path_stays_linear` is a timing-ratio
+    leg — 68/68 on the quiet box in isolation (gates.md Phase 0
+    loaded-box doctrine); script-search-check tracked this session's
+    edits (converged after each fix round).
+  - Rollback path unchanged: `.envrc` selector off + restore
+    `db-backup/research_backup_pre_duckdb_cutover_2026-11-21.db`
+    (rehearsed §4.5). Acceptance: qa 15/15 ✓, eval gate ACCEPT 239/0 ✓,
+    swap_fk_integrity 0 orphans ✓, snapshot round-trip ✓, advisory reds
+    chronic-only ✓. Operator owns the fold + `research.db` deletion
+    after the post-cutover soak.

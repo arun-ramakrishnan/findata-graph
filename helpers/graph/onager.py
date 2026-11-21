@@ -263,6 +263,26 @@ def _where_inline(edge_types: list[str] | None, as_of: str | None = None) -> str
     return " WHERE " + " AND ".join(parts)
 
 
+def _fin_is_wire(con: duckdb.DuckDBPyConnection) -> bool:
+    """True when ``fin`` is a quack wire attach (S6 cutover).
+
+    The materialization's multi-scan CTAS is not supported over two wire
+    attachments (the quack executor's streaming-scan limit —
+    "Multiple streaming scans or streaming scans + CTAS / insert in the
+    same query"), so the wire shape takes the fetch-then-register path:
+    one plain SELECT (single streaming statement — wire-safe), then the
+    CTAS reads a registered LOCAL arrow table. A file-attached fin
+    (type 'sqlite' / 'duckdb') keeps the direct SQL path.
+    """
+    try:
+        row = con.execute(
+            "SELECT type FROM duckdb_databases() WHERE database_name = 'fin'"
+        ).fetchone()
+    except duckdb.Error:
+        return False
+    return row is not None and row[0] == "quack"
+
+
 def _materialize_from_db(
     con: duckdb.DuckDBPyConnection,
     edge_types: list[str] | None,
@@ -279,14 +299,44 @@ def _materialize_from_db(
     # _where_inline above.
     where = _where_inline(edge_types, as_of)
     edge_src = _edge_source_sql(con)
+    wire = _fin_is_wire(con)
+    if wire:
+        import pyarrow as pa
+
+        # One plain statement over the wire (the filter rides along), then
+        # the CTASes below read the registered LOCAL table — no remote
+        # scans inside a CTAS, which the quack executor refuses.
+        rows = con.execute(
+            f"SELECT source, target, TRY_CAST(weight AS DOUBLE) AS weight "  # noqa: S608  # edge_src/where are schema-constant / _where_inline-validated
+            f"FROM {edge_src}{where}"
+        ).fetchall()
+        con.register(
+            "_fin_edges_local",
+            pa.table(
+                {
+                    "source": pa.array([r[0] for r in rows], pa.string()),
+                    "target": pa.array([r[1] for r in rows], pa.string()),
+                    "weight": pa.array(
+                        [None if r[2] is None else float(r[2]) for r in rows], pa.float64()
+                    ),
+                }
+            ),
+        )
+        edge_from = "_fin_edges_local"
+        int_where = ""  # the fetch already applied the filter
+        e_where = ""
+    else:
+        edge_from = edge_src  # already parenthesized by _edge_source_sql
+        int_where = where
+        e_where = where
     con.execute(
         f"""
         CREATE OR REPLACE TEMP TABLE _onager_int AS
         SELECT name, (row_number() OVER (ORDER BY name) - 1)::BIGINT AS nid
         FROM (
-            SELECT source AS name FROM {edge_src}{where}
+            SELECT source AS name FROM {edge_from}{int_where}
             UNION
-            SELECT target AS name FROM {edge_src}{where}
+            SELECT target AS name FROM {edge_from}{int_where}
         );
         """,  # noqa: S608
     )
@@ -299,13 +349,19 @@ def _materialize_from_db(
         CREATE OR REPLACE TEMP TABLE _onager_e AS
         SELECT s.nid AS src, t.nid AS dst,
                COALESCE(TRY_CAST(e.weight AS DOUBLE), 1.0) AS weight
-        FROM {edge_src} e
+        FROM {edge_from} e
         JOIN _onager_int s ON s.name = e.source
-        JOIN _onager_int t ON t.name = e.target{where}
+        JOIN _onager_int t ON t.name = e.target{e_where}
         ORDER BY src, dst;
         """,  # noqa: S608
     )
     row = con.execute("SELECT count(*) FROM _onager_e").fetchone()
+    if wire:
+        # duckdb 2.0: unregister() refuses a connection with a pending
+        # result (the register()/temp-table reads leave one) — same drain
+        # the embeddings path does before register().
+        con.execute("SELECT 1").fetchall()  # duckdb2-drain
+        con.unregister("_fin_edges_local")
     return row is not None and row[0] > 0
 
 

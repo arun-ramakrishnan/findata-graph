@@ -108,9 +108,17 @@ class _DuckDBConnCursor:
     def __init__(self, conn: _DuckDBConn) -> None:
         self._conn = conn
         self._last: _DuckDBCursor | None = None
+        # sqlite3.Cursor surface: 7-tuples whose [0] is the column name
+        # (consumers do ``[d[0] for d in cur.description]``), None before
+        # the first execute — same contract as sqlite3.
+        self.description: tuple[tuple, ...] | None = None
 
     def execute(self, sql: str, parameters: Any = ()) -> _DuckDBConnCursor:
         self._last = self._conn.execute(sql, parameters)
+        cols = self._last._cols if self._last is not None else ()
+        self.description = (
+            tuple((c, None, None, None, None, None, None) for c in cols) if cols else None
+        )
         return self
 
     def fetchone(self):
@@ -197,6 +205,49 @@ class ResearchEngine:
         return path
 
 
+def is_research_store_path(db_path: Path | str | None) -> bool:
+    """True for the production research store (default or selector override).
+
+    The S6 sibling redirect inside :meth:`ResearchEngine.resolve_path` (a
+    bare ``.db`` → its converted ``.duckdb``) is designed for THESE paths.
+    Callers that accept arbitrary ``.db`` paths (csr ``--db``, the graph
+    lane's fixture stores) must gate the redirect on this — a tmp fixture
+    named ``research.db`` whose sibling ``.duckdb`` is some other lane's
+    cache (the graph-rebuild shim shape) must not be hijacked onto it.
+    """
+    override = os.environ.get("FINDATA_RESEARCH_DB_PATH")
+    canonical = [DEFAULT_DB_PATH]
+    if override:
+        canonical.append(Path(override))
+    try:
+        target = Path(db_path).resolve() if db_path is not None else DEFAULT_DB_PATH.resolve()
+        return target in {c.resolve() for c in canonical}
+    except OSError:  # unresolvable path — fall back to literal comparison
+        return str(db_path) in {str(c) for c in canonical}
+
+
+def research_store_connect(db_path: Path | str | None, **kw):
+    """Open a store through the funnel with the sibling redirect gated to
+    the research store only (see :func:`is_research_store_path`).
+
+    The selector's engine still decides for ``.duckdb`` paths and for the
+    research store itself; any other ``.db`` path is pinned to SQLite so
+    its sibling (frequently the calling lane's own cache) is never
+    mistaken for a converted store. ``engine=`` in ``kw`` overrides the
+    pin entirely, as with :func:`connect_funnel`.
+    """
+    sel = ResearchEngine.from_env()
+    if (
+        sel.opt_in
+        and not str(Path(db_path) if db_path is not None else DEFAULT_DB_PATH)
+        .lower()
+        .endswith(".duckdb")
+        and not is_research_store_path(db_path)
+    ):
+        sel = ResearchEngine(ResearchEngine.SQLITE)
+    return connect_funnel(db_path, engine=sel, **kw)
+
+
 def connect_funnel(
     db_path: Path | str | None = None,
     *,
@@ -259,7 +310,7 @@ def is_duckdb_conn(conn: Any) -> bool:
     just to run ``isinstance`` is deliberately avoided (this module is
     imported by SQLite-only consumers that may not have duckdb installed).
     """
-    if isinstance(conn, _DuckDBConn):
+    if isinstance(conn, (_DuckDBConn, _DuckDBConnCursor)):
         return True
     return type(conn).__module__ in ("duckdb", "_duckdb")
 
@@ -303,7 +354,21 @@ def table_info(conn: Any, table: str) -> list[dict[str, Any]]:
             }
             for r in rows
         ]
-    return [dict(r) for r in conn.execute(f"PRAGMA table_info({ident})").fetchall()]
+    # Positional projection, not dict(r): the conn may be row_factory=None
+    # (csr.py and every raw-tuple lane) — dict(tuple_row) raises
+    # TypeError. PRAGMA table_info columns are cid/name/type/notnull/
+    # dflt_value/pk in that order on both sqlite3.Row and bare tuples.
+    return [
+        {
+            "cid": r[0],
+            "name": r[1],
+            "type": r[2],
+            "notnull": r[3],
+            "dflt_value": r[4],
+            "pk": r[5],
+        }
+        for r in conn.execute(f"PRAGMA table_info({ident})").fetchall()
+    ]
 
 
 def column_names(conn: Any, table: str) -> list[str]:
@@ -329,3 +394,143 @@ def schema_version(conn: Any) -> int | None:
         return int(row[0])
     except TypeError, ValueError:
         return None
+
+
+def table_exists(conn: Any, name: str, *, kind: str = "table") -> bool:
+    """Engine-agnostic ``sqlite_master`` existence probe.
+
+    kind: ``table`` (base tables only), ``view``, or ``any`` (table or
+    view). SQLite probes ``sqlite_master`` verbatim (same semantics as the
+    historical ``SELECT 1 FROM sqlite_master WHERE name=? AND type=?``);
+    DuckDB reads ``information_schema`` (DuckDB has no sqlite_master — the
+    converted store drops it with the rest of the engine internals).
+    """
+    _safe_ident(name)  # validation only — both branches bind, never interpolate
+    if kind not in ("table", "view", "any"):
+        raise ValueError(f"kind must be table|view|any, got {kind!r}")
+    if is_duckdb_conn(conn):
+        if kind == "table":
+            where = "table_type = 'BASE TABLE'"
+        elif kind == "view":
+            where = "table_type = 'VIEW'"
+        else:
+            where = "table_type IN ('BASE TABLE', 'VIEW')"
+        row = conn.execute(
+            f"SELECT 1 FROM information_schema.tables WHERE table_name = ? AND {where}",  # noqa: S608  # {where} is a schema-constant literal (table/view branch)
+            (name,),
+        ).fetchone()
+        return row is not None
+    if kind == "table":
+        cond = "type='table'"
+    elif kind == "view":
+        cond = "type='view'"
+    else:
+        cond = "type IN ('table','view')"
+    row = conn.execute(
+        f"SELECT 1 FROM sqlite_master WHERE name = ? AND {cond}",  # noqa: S608  # cond is a fixed literal above
+        (name,),
+    ).fetchone()
+    return row is not None
+
+
+def foreign_key_check(conn: Any) -> list[tuple]:
+    """Engine-agnostic FK-orphan scan (the ``PRAGMA foreign_key_check``
+    replacement; reentry §3.2 disposition).
+
+    Returns a list of violations — empty means clean. Consumers only
+    ``len()`` it today, but the shapes are engine-honest:
+
+    - SQLite: ``PRAGMA foreign_key_check`` rows verbatim
+      ``(table, rowid, parent, fkid)`` — declared-FK enforcement scan.
+    - DuckDB: one tuple per FK constraint that has orphans
+      ``(child_table, constraint_name, parent_table, orphan_count)`` —
+      built from ``information_schema.referential_constraints`` +
+      ``key_column_usage`` (DuckDB has no PRAGMA foreign_key_check), a
+      first-party LEFT JOIN per constraint.
+    """
+    if not is_duckdb_conn(conn):
+        return [tuple(r) for r in conn.execute("PRAGMA foreign_key_check").fetchall()]
+    # DuckDB: generic scan over the declared referential constraints.
+    try:
+        constraints = conn.execute(
+            "SELECT constraint_name, unique_constraint_name "
+            "FROM information_schema.referential_constraints ORDER BY constraint_name"
+        ).fetchall()
+    except Exception:  # noqa: BLE001 — no constraints visible → nothing to scan
+        return []
+    violations: list[tuple] = []
+    for cname, ucname in constraints:
+        if ucname is None:
+            continue
+        child = conn.execute(
+            "SELECT table_name FROM information_schema.key_column_usage "
+            "WHERE constraint_name = ? AND position_in_unique_constraint IS NULL",
+            (cname,),
+        ).fetchone()
+        parent = conn.execute(
+            "SELECT table_name FROM information_schema.key_column_usage "
+            "WHERE constraint_name = ? AND position_in_unique_constraint IS NOT NULL",
+            (ucname,),
+        ).fetchone()
+        if child is None or parent is None:
+            continue
+        child_cols = [
+            r[0]
+            for r in conn.execute(
+                "SELECT column_name FROM information_schema.key_column_usage "
+                "WHERE constraint_name = ? AND position_in_unique_constraint IS NULL "
+                "ORDER BY ordinal_position",
+                (cname,),
+            ).fetchall()
+        ]
+        parent_cols = [
+            r[0]
+            for r in conn.execute(
+                "SELECT column_name FROM information_schema.key_column_usage "
+                "WHERE constraint_name = ? AND position_in_unique_constraint IS NOT NULL "
+                "ORDER BY ordinal_position",
+                (ucname,),
+            ).fetchall()
+        ]
+        if not child_cols or len(child_cols) != len(parent_cols):
+            continue
+        child_ident = _safe_ident(child[0])
+        parent_ident = _safe_ident(parent[0])
+        on = " AND ".join(
+            f"c.{_safe_ident(cc)} = p.{_safe_ident(pc)}" for cc, pc in zip(child_cols, parent_cols)
+        )
+        where = " AND ".join(f"p.{_safe_ident(pc)} IS NULL" for pc in parent_cols)
+        orphans = conn.execute(
+            f"SELECT COUNT(*) FROM {child_ident} c LEFT JOIN {parent_ident} p ON {on} WHERE {where}"  # noqa: S608  # identifiers ride _safe_ident(); {where}/{on} are built from _safe_ident()
+        ).fetchone()[0]
+        if orphans:
+            violations.append((child[0], cname, parent[0], int(orphans)))
+    return violations
+
+
+def quick_check(conn: Any) -> list[str]:
+    """Engine-agnostic store-sanity check (the ``PRAGMA quick_check`` /
+    ``integrity_check`` replacement; reentry §3.2 disposition).
+
+    - SQLite: ``PRAGMA quick_check`` verbatim (``['ok']`` when clean).
+    - DuckDB: first-party structural scan — every base table and view is
+      count-probed (unreadable/corrupt structures raise into the issue
+      list) and the FK surface is scanned via :func:`foreign_key_check`.
+      Returns ``['ok']`` when clean, mirroring the SQLite shape.
+    """
+    if not is_duckdb_conn(conn):
+        return [str(r[0]) for r in conn.execute("PRAGMA quick_check").fetchall()]
+    issues: list[str] = []
+    tables = conn.execute(
+        "SELECT table_name, table_type FROM information_schema.tables "
+        "WHERE table_schema = 'main' ORDER BY table_name"
+    ).fetchall()
+    for name, _ttype in tables:
+        try:
+            conn.execute(f"SELECT COUNT(*) FROM {_safe_ident(name)}").fetchone()  # noqa: S608  # {name} rides _safe_ident()
+        except Exception as e:  # noqa: BLE001 — each probe is independent evidence
+            issues.append(f"{name}: unreadable ({type(e).__name__}: {str(e)[:120]})")
+    fk = foreign_key_check(conn)
+    for child, cname, parent, n in fk:
+        issues.append(f"foreign key {cname}: {n} orphan row(s) in {child} -> {parent}")
+    return issues or ["ok"]

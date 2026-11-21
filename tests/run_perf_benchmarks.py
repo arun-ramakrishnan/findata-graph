@@ -164,7 +164,14 @@ _LOAD_RUN_CEIL = float(os.cpu_count() or 1)  # refusal bar: load1 vs cores ("unl
 #                                                per-route 0.5 s bars live
 #                                                inside bench_routes.py
 #   integrity_check          4.4-4.7 s   10.0    O(entities+relations)
-#                                                (operator-approved headroom)
+#                                                (operator-approved headroom);
+#                                                S6 cutover 2026-11-21: the
+#                                                leg reads the canonical
+#                                                store over the quack wire —
+#                                                measured 13.8-14.0 s on the
+#                                                quiet box, budget re-baselined
+#                                                to 20.0 (ceiling, rollback to
+#                                                sqlite would only get faster)
 #   shortest_path_bfs        ~1.2 s      12.0    inner per-route asserts are
 #                                                the real gate (1/81 ms);
 #                                                +2 s operator boost 09-26;
@@ -188,7 +195,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # measured; the 2.0s budget was calibrated on the notes-era db.
     # Optimization slice (batching the per-entity loop) is optional perf-arc
     # work — re-tighten if it lands.
-    ("integrity_check", ["helpers/misc/database_integrity_check.py"], 10.0),
+    ("integrity_check", ["helpers/misc/database_integrity_check.py"], 20.0),
     ("verify_notes", ["helpers/validators/verify_notes.py"], 3.0),
     # --apply (2026-09-03): guard unification made the bare run a dry-run
     # report; the leg times the write path it has always timed (and the 2.0s

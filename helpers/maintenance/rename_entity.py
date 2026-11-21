@@ -47,6 +47,7 @@ from helpers.misc.swap_rewrite_flows import rename_entity as duckdb_rename_entit
 # surfaced by test_fuzz_normalizers.py.
 from helpers.core.parse_newsletter import normalize_name as _normalize_name  # noqa: E402
 from helpers.core.frontmatter import split_frontmatter as split_fm  # noqa: E402
+from helpers.core import db_engine  # noqa: E402  # S4: engine-agnostic FK check
 
 
 def replace_field(yaml: str, field: str, value: str) -> str:
@@ -200,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         # no PRAGMA foreign_key_check; the rewrite flow is ordered so an
         # orphan cannot survive (each child FK is repointed before delete).
         if not use_duckdb:
-            violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+            violations = db_engine.foreign_key_check(conn)
             if violations:
                 print(f"  ⚠ FK violations after rename: {violations}", file=sys.stderr)
                 return 1

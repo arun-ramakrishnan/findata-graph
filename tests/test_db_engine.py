@@ -78,6 +78,22 @@ def duckdb_store(tmp_path):
     return db
 
 
+@pytest.fixture(autouse=True)
+def _no_ambient_selector(monkeypatch):
+    """Engine-semantics tests pin the S6 selector off.
+
+    The sibling fixture pairs here are deliberately named research.db /
+    research.duckdb — under the cutover selector connect_funnel redirects
+    the .db onto its sibling, which is this module's DATA-shape subject
+    matter, not its routing subject. The redirect behavior itself is
+    covered by tests/test_research_engine_switch.py. Ambient env from the
+    operator shell (post-cutover .envrc) must not leak in (same
+    hermeticity class the served-store maint leak exposed).
+    """
+    monkeypatch.delenv("FINDATA_RESEARCH_ENGINE", raising=False)
+    monkeypatch.delenv("FINDATA_RESEARCH_DB_PATH", raising=False)
+
+
 def test_connect_funnel_routes_by_extension(sqlite_store, duckdb_store):
     con_sql = connect_funnel(sqlite_store)
     con_duck = connect_funnel(duckdb_store)

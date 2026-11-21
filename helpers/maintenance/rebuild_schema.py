@@ -72,6 +72,7 @@ from helpers.maintenance.migrate_to_graph_edges import (  # noqa: E402
     PPR_RESULTS_INDEX_DDL,
     RELATIONS_VIEW_DDL,
 )
+from helpers.core import db_engine  # noqa: E402  # S4: engine-agnostic FK check
 
 
 def _ddl_for_new_table(ddl: str, original_name: str, new_name: str) -> str:
@@ -192,7 +193,7 @@ def rebuild(db_path: Path | str = DB_PATH, *, dry_run: bool = False) -> dict:
         pre_entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
         pre_edges = conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
         pre_analytics = conn.execute("SELECT COUNT(*) FROM graph_analytics").fetchone()[0]
-        fk_violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        fk_violations = db_engine.foreign_key_check(conn)
         if fk_violations:
             raise RuntimeError(
                 f"FK violations pre-rebuild ({len(fk_violations)} rows) — "
@@ -252,7 +253,7 @@ def rebuild(db_path: Path | str = DB_PATH, *, dry_run: bool = False) -> dict:
         # regardless of the enforcement flag. If the copy preserved all FK
         # values (it must, since it's a verbatim column copy), this returns
         # empty. Any violation means data loss — abort before COMMIT.
-        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        violations = db_engine.foreign_key_check(conn)
         if violations:
             raise RuntimeError(
                 f"FK violations post-rebuild ({len(violations)} rows) — "

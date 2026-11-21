@@ -16,6 +16,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 # Repo root: helpers/misc/database_integrity_check.py -> parents[2]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -251,6 +252,9 @@ def _registry_hygiene(cur: sqlite3.Cursor) -> dict[str, int]:
     }
 
 
+from helpers.core import db_engine  # noqa: E402  # engine-agnostic introspection (S4)
+
+
 class DatabaseIntegrityChecker:
     def __init__(
         self,
@@ -268,23 +272,26 @@ class DatabaseIntegrityChecker:
             if other_roots is not None
             else _sibling_worktree_roots(self.base_path)
         )
-        self._conn: sqlite3.Connection | None = None
+        self._conn: Any = None  # sqlite3.Connection | _DuckDBConn (S4 funnel)
 
-    def get_connection(self) -> sqlite3.Connection:
+    def get_connection(self) -> Any:
         """Get a shared database connection.
 
         Memoized on the instance so a single integrity-check run reuses
         one connection (avoids ~5-10ms setup cost per query for WAL + FK
         pragma). Call close() at the end of the run.
+
+        S4 (duckdb_research_swap_execution): routed through the engine
+        funnel — a ``*.duckdb`` store path opens the DuckDB branch (the
+        introspection calls below are engine-agnostic); everything else
+        stays the historical SQLite path byte-identical.
         """
         if self._conn is not None:
             return self._conn
         if not os.path.exists(self.db_path):
             raise FileNotFoundError(f"Database not found: {self.db_path}")
         # P0: route through central helper so FK/WAL/busy_timeout are canonical
-        from helpers.core.db import connect as _db_connect
-
-        self._conn = _db_connect(self.db_path)
+        self._conn = db_engine.connect_funnel(self.db_path)
         return self._conn
 
     def close(self) -> None:
@@ -422,12 +429,7 @@ class DatabaseIntegrityChecker:
         # Tolerate a DB that has no relations table/view yet (fresh / partial).
         # NB: since the graph_edges migration, `relations` is a VIEW over
         # graph_edges, so we accept either kind.
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='relations' AND type IN ('table','view')"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "relations", kind="any"):
             return {
                 "total": 0,
                 "unknown_type": 0,
@@ -467,12 +469,7 @@ class DatabaseIntegrityChecker:
         # its own reverse). A stray part_of/has_company row in graph_edges
         # now surfaces as unknown_type (removed from the roster).
         sec_inc_bad = 0
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
-            ).fetchone()
-            is not None
-        ):
+        if db_engine.table_exists(cur, "hyper_incidences", kind="table"):
             sec_inc_bad = one(
                 "SELECT COUNT(*) FROM hyper_incidences hi "
                 "JOIN hyper_edges he ON he.id = hi.edge_id "
@@ -549,18 +546,23 @@ class DatabaseIntegrityChecker:
         # because the relations view projects only source/target/relation_type.
         sidecar_missing = 0
         sidecar_orphaned = 0
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'"
-            ).fetchone()
-            is not None
-        ):
+        if db_engine.table_exists(cur, "graph_edges", kind="table"):
+            # S4: on DuckDB graph_edges.valid_from is a typed DATE column —
+            # the SQLite empty-string class cannot exist there and comparing
+            # to '' raises a ConversionException, so the predicate is
+            # engine-conditional (the live SQLite store has 0 '' rows; the
+            # clause only ever guarded malformed legacy rows).
+            empty_valid_from = (
+                "valid_from IS NULL"
+                if db_engine.is_duckdb_conn(cur)
+                else "valid_from IS NULL OR valid_from = ''"
+            )
             stale = cur.execute(
-                "SELECT source_ref, CASE WHEN properties IS NULL "
+                "SELECT source_ref, CASE WHEN properties IS NULL "  # noqa: S608  # interpolated parts are schema-constant literals ({empty_valid_from} is the engine-conditional constant, both branches literal)
                 "OR NOT json_valid(properties) THEN NULL "
                 "ELSE json_extract(properties, '$.as_of') END "
-                "FROM graph_edges WHERE source_ref LIKE 'promote:sidecar:%' "
-                "AND (valid_from IS NULL OR valid_from = '')"
+                f"FROM graph_edges WHERE source_ref LIKE 'promote:sidecar:%' "
+                f"AND ({empty_valid_from})"
             ).fetchall()
             relations_dir = self.base_path / "findata" / "Misc" / "_relations"
             for source_ref, as_of_prop in stale:
@@ -584,9 +586,7 @@ class DatabaseIntegrityChecker:
         # failure. Mutuals with a missing period on either side are
         # un-decidable (conservative keep) and not counted.
         xperiod_mutual = 0
-        if cur.execute(
-            "SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'"
-        ).fetchone():
+        if db_engine.table_exists(cur, "graph_edges", kind="table"):
             xperiod_mutual = one(
                 """
                 SELECT COUNT(*) FROM graph_edges e1
@@ -645,12 +645,7 @@ class DatabaseIntegrityChecker:
         conn = self.get_connection()
         cur = conn.cursor()
         # Tolerate a DB that has no entity_tags table yet (fresh / partial).
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='entity_tags' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "entity_tags", kind="table"):
             return {"total": 0, "orphaned": 0, "errors": 0}
 
         total = cur.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
@@ -674,12 +669,7 @@ class DatabaseIntegrityChecker:
         """
         conn = self.get_connection()
         cur = conn.cursor()
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='note_tags' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "note_tags", kind="table"):
             return {"total": 0, "stale": 0, "errors": 0}
 
         rows = cur.execute("SELECT note_path, tag FROM note_tags").fetchall()
@@ -718,12 +708,7 @@ class DatabaseIntegrityChecker:
         """
         conn = self.get_connection()
         cur = conn.cursor()
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='events' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "events", kind="table"):
             return {
                 "total": 0,
                 "unknown_type": 0,
@@ -772,12 +757,7 @@ class DatabaseIntegrityChecker:
 
         conn = self.get_connection()
         cur = conn.cursor()
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='hyper_edges' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "hyper_edges", kind="table"):
             return {"total": 0, "unknown_type": 0, "bad_role": 0, "errors": 0}
         total = cur.execute("SELECT COUNT(*) FROM hyper_edges").fetchone()[0]
         type_list = ",".join(f"'{t}'" for t in sorted(HYPEREDGE_TYPES))
@@ -785,12 +765,7 @@ class DatabaseIntegrityChecker:
             f"SELECT COUNT(*) FROM hyper_edges WHERE edge_type NOT IN ({type_list})"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
         ).fetchone()[0]
         bad_role = 0
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
-            ).fetchone()
-            is not None
-        ):
+        if db_engine.table_exists(cur, "hyper_incidences", kind="table"):
             for etype, roles in MERGER_ROLE_BY_TYPE.items():
                 role_list = ",".join(f"'{r}'" for r in roles)
                 bad_role += cur.execute(
@@ -821,12 +796,7 @@ class DatabaseIntegrityChecker:
         """
         conn = self.get_connection()
         cur = conn.cursor()
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='quotes' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "quotes", kind="table"):
             return {"total": 0, "orphaned": 0, "bad_properties": 0, "errors": 0}
         total = cur.execute("SELECT COUNT(*) FROM quotes").fetchone()[0]
         orphaned = cur.execute(
@@ -859,12 +829,7 @@ class DatabaseIntegrityChecker:
         """
         conn = self.get_connection()
         cur = conn.cursor()
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='company_metrics' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "company_metrics", kind="table"):
             return {
                 "total": 0,
                 "orphaned": 0,
@@ -883,7 +848,7 @@ class DatabaseIntegrityChecker:
             "SELECT COUNT(*) FROM company_metrics WHERE json_valid(properties) = 0"
         ).fetchone()[0]
         grain = {"ruled": 0, "collapsed": 0, "null_keys": 0, "key_conflicts": 0}
-        cols = {r[1] for r in cur.execute("PRAGMA table_info(company_metrics)")}
+        cols = {r["name"] for r in db_engine.table_info(cur, "company_metrics")}
         if "consolidated" in cols:
             grain["null_keys"] = cur.execute(
                 "SELECT COUNT(*) FROM company_metrics WHERE period IS NULL OR metric_label IS NULL"
@@ -893,12 +858,7 @@ class DatabaseIntegrityChecker:
                 "FROM company_metrics WHERE period IS NOT NULL AND metric_label IS NOT NULL "
                 "GROUP BY 1, 2, 3, 4 HAVING COUNT(DISTINCT value_num) > 1)"
             ).fetchone()[0]
-            if (
-                cur.execute(
-                    "SELECT 1 FROM sqlite_master WHERE name='company_metrics_ruled' AND type='view'"
-                ).fetchone()
-                is not None
-            ):
+            if db_engine.table_exists(cur, "company_metrics_ruled", kind="view"):
                 grain["ruled"] = cur.execute(
                     "SELECT COUNT(*) FROM company_metrics_ruled"
                 ).fetchone()[0]
@@ -938,24 +898,14 @@ class DatabaseIntegrityChecker:
         conn = self.get_connection()
         cur = conn.cursor()
         # Tolerate a DB that has no relations table/view yet (fresh / partial).
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='relations' AND type IN ('table','view')"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "relations", kind="any"):
             return {"total_companies": 0, "orphan_companies": 0, "errors": 0}
         # D19 exchange intake: listings-derived companies (ticker present,
         # no backing note) are sectorless BY DESIGN until a note exists —
         # the same fileless class the file_path exemption covers. They are
         # excluded from the orphan count; the junk signature (no ticker, no
         # path) still counts.
-        has_incidence_store = (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
-            ).fetchone()
-            is not None
-        )
+        has_incidence_store = db_engine.table_exists(cur, "hyper_incidences", kind="table")
         membership_predicate = (
             "EXISTS (SELECT 1 FROM hyper_incidences hi "
             "JOIN hyper_edges he ON he.id = hi.edge_id "
@@ -1010,12 +960,7 @@ class DatabaseIntegrityChecker:
         conn = self.get_connection()
         cur = conn.cursor()
         # Tolerate a DB that has no relations table/view yet (fresh / partial).
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='relations' AND type IN ('table','view')"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "relations", kind="any"):
             return {
                 "total_belongs_to": 0,
                 "sub_sector_orphans": 0,
@@ -1568,17 +1513,20 @@ class DatabaseIntegrityChecker:
                     "GROUP BY edge_type ORDER BY n DESC"
                 ).fetchall()
             }
-            if cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'"
-            ).fetchone()
+            if db_engine.table_exists(cur, "graph_edges", kind="table")
             else {}
         )
 
         # Sector-size distribution (companies per sector_classification).
+        # S6: name tie-break — the parity pair reads different engines now
+        # (mojo=sqlite anchor, python=duckdb canonical) and DuckDB's
+        # parallel GROUP BY flips equal-count order between runs; without
+        # the tie-break graph_summary.smallest/largest flip-flop the
+        # golden parity.
         sector_sizes = cur.execute(
             "SELECT sector_classification, COUNT(*) AS n FROM entities "
             "WHERE entity_type='company' AND sector_classification IS NOT NULL "
-            "GROUP BY sector_classification ORDER BY n DESC"
+            "GROUP BY sector_classification ORDER BY n DESC, sector_classification ASC"
         ).fetchall()
         sizes = [n for _, n in sector_sizes]
         if sizes:
@@ -1609,11 +1557,9 @@ class DatabaseIntegrityChecker:
                 "LEFT JOIN entity_tags t ON t.entity_name = e.name "
                 "AND t.tag LIKE 'market_cap/%' "
                 "WHERE e.entity_type='company' "
-                "GROUP BY cap ORDER BY n DESC"
+                "GROUP BY cap ORDER BY n DESC, cap ASC"
             ).fetchall()
-            if cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='entity_tags' AND type='table'"
-            ).fetchone()
+            if db_engine.table_exists(cur, "entity_tags", kind="table")
             else []
         )
         market_cap = [{"tier": (c or "(unset)"), "n": n} for c, n in cap_counts]
@@ -1650,12 +1596,7 @@ class DatabaseIntegrityChecker:
         """
         conn = self.get_connection()
         cur = conn.cursor()
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='entity_tags' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "entity_tags", kind="table"):
             return {"conflicts": [], "errors": 0}
 
         conflicts = [
@@ -1750,12 +1691,7 @@ class DatabaseIntegrityChecker:
         """
         conn = self.get_connection()
         cur = conn.cursor()
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='concepts' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "concepts", kind="table"):
             return {"warnings": 0, "errors": 0, "skipped": 1}
 
         warnings = 0
@@ -1785,15 +1721,10 @@ class DatabaseIntegrityChecker:
                 node = broader[node]
         warnings += len(cyclic)
         # --- lifecycle hygiene (ontology_governance S1; pre-S1 DBs skip) ---
-        concept_cols = {row[1] for row in cur.execute("PRAGMA table_info(concepts)")}
-        has_mappings = (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='concept_mappings' AND type='table'"
-            ).fetchone()
-            is not None
-        )
+        concept_cols = {row["name"] for row in db_engine.table_info(cur, "concepts")}
+        has_mappings = db_engine.table_exists(cur, "concept_mappings", kind="table")
         mapping_cols = (
-            {row[1] for row in cur.execute("PRAGMA table_info(concept_mappings)")}
+            {row["name"] for row in db_engine.table_info(cur, "concept_mappings")}
             if has_mappings
             else set()
         )
@@ -1803,10 +1734,19 @@ class DatabaseIntegrityChecker:
         # ACTIVE rows only when the lifecycle column exists — duplicate
         # labels across time are the history superseding keeps.
         active_only = "WHERE status='active'" if has_lifecycle else ""
+        # S4: COLLATE NOCASE is SQLite-only — DuckDB uses lower() (same
+        # case-insensitive grouping for ASCII identifiers); its binder also
+        # requires the grouped expression in the SELECT list.
+        if db_engine.is_duckdb_conn(cur):
+            label_expr = "lower(pref_label) AS pref_label"
+            group_expr = "scheme_id, lower(pref_label)"
+        else:
+            label_expr = "scheme_id, pref_label"
+            group_expr = "scheme_id, pref_label COLLATE NOCASE"
         dupes = cur.execute(
-            f"SELECT COUNT(*) FROM (SELECT scheme_id, pref_label FROM concepts "  # noqa: S608 — interpolated part is the constant active_only filter; no user input
+            f"SELECT COUNT(*) FROM (SELECT {label_expr} FROM concepts "  # noqa: S608 — interpolated parts are the constant active_only filter + engine branch; no user input
             f"{active_only} "
-            f"GROUP BY scheme_id, pref_label COLLATE NOCASE HAVING COUNT(*) > 1)"
+            f"GROUP BY {group_expr} HAVING COUNT(*) > 1)"
         ).fetchone()[0]
         warnings += dupes
         # schemes with no concepts (roster drift)
@@ -1869,10 +1809,8 @@ class DatabaseIntegrityChecker:
         """
         conn = self.get_connection()
         cur = conn.cursor()
-        has_nic = cur.execute(
-            "SELECT 1 FROM sqlite_master WHERE name='nic2008' AND type='table'"
-        ).fetchone()
-        cols = {row[1] for row in cur.execute("PRAGMA table_info(entities)")}
+        has_nic = db_engine.table_exists(cur, "nic2008")
+        cols = {row["name"] for row in db_engine.table_info(cur, "entities")}
         if not has_nic or not {"cin_nic5", "cin_year"} <= cols:
             return {"warnings": 0, "errors": 0, "skipped": 1}
         codes = {row[0] for row in cur.execute("SELECT subclass FROM nic2008")}
@@ -1915,7 +1853,7 @@ class DatabaseIntegrityChecker:
         """
         conn = self.get_connection()
         cur = conn.cursor()
-        cols = {row[1] for row in cur.execute("PRAGMA table_info(entities)")}
+        cols = {row["name"] for row in db_engine.table_info(cur, "entities")}
         if (
             not {
                 "cin",
@@ -1934,12 +1872,7 @@ class DatabaseIntegrityChecker:
         # geography is country-level (geography/india), so any attested
         # ROC state ⇒ an india tag is expected on the entity.
         india_entities: set[str] | None = None
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='entity_tags' AND type='table'"
-            ).fetchone()
-            is not None
-        ):
+        if db_engine.table_exists(cur, "entity_tags", kind="table"):
             india_entities = {
                 row[0]
                 for row in cur.execute(
@@ -1981,12 +1914,7 @@ class DatabaseIntegrityChecker:
                 state_geography_mismatch += 1
 
         registry: dict[str, int] = {}
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='entity_identifiers' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "entity_identifiers", kind="table"):
             registry["skipped"] = 1
         else:
             registry["rows"] = cur.execute("SELECT COUNT(*) FROM entity_identifiers").fetchone()[0]
@@ -2054,16 +1982,10 @@ class DatabaseIntegrityChecker:
         unmapped_total = 0
         unmapped_prefixes: dict[str, list[tuple[str, int]]] = {}
         for table in fact_tables:
-            if (
-                cur.execute(
-                    "SELECT 1 FROM sqlite_master WHERE name=? AND type='table'",
-                    (table,),
-                ).fetchone()
-                is None
-            ):
+            if not db_engine.table_exists(cur, table):
                 by_table[table] = {"total": 0, "unmapped": 0, "skipped": 1}
                 continue
-            cols = {row[1] for row in cur.execute(f"PRAGMA table_info({table})")}
+            cols = {row["name"] for row in db_engine.table_info(cur, table)}
             if not {"agent_id", "source_tier"} <= cols:
                 by_table[table] = {"total": 0, "unmapped": 0, "skipped": 1}
                 continue
@@ -2112,12 +2034,7 @@ class DatabaseIntegrityChecker:
         """
         conn = self.get_connection()
         cur = conn.cursor()
-        if (
-            cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(cur, "graph_edges", kind="table"):
             return {"by_type": {}, "warnings": 0, "errors": 0}
 
         # Edge types where a missing date is most likely salvageable
@@ -2128,11 +2045,15 @@ class DatabaseIntegrityChecker:
         by_type = {}
         warning_total = 0
         for etype, total, with_from, with_to in cur.execute(
+            # S4: typed DATE columns on DuckDB cannot hold '' — the <> ''
+            # guards are SQLite-only; IS NOT NULL alone is equivalent there.
             "SELECT edge_type, COUNT(*), "
-            "SUM(CASE WHEN valid_from IS NOT NULL AND valid_from <> '' "
-            "         THEN 1 ELSE 0 END), "
-            "SUM(CASE WHEN valid_to IS NOT NULL AND valid_to <> '' "
-            "         THEN 1 ELSE 0 END) "
+            "SUM(CASE WHEN valid_from IS NOT NULL"
+            + (" AND valid_from <> ''" if not db_engine.is_duckdb_conn(cur) else "")
+            + "         THEN 1 ELSE 0 END), "
+            "SUM(CASE WHEN valid_to IS NOT NULL"
+            + (" AND valid_to <> ''" if not db_engine.is_duckdb_conn(cur) else "")
+            + "         THEN 1 ELSE 0 END) "
             "FROM graph_edges GROUP BY edge_type ORDER BY edge_type"
         ).fetchall():
             missing_from = total - with_from
@@ -2220,9 +2141,7 @@ class DatabaseIntegrityChecker:
         errors = 0
         reasons: list[str] = []
         # db_meta existence
-        has_meta = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_meta'"
-        ).fetchone()
+        has_meta = db_engine.table_exists(conn, "db_meta")
         if not has_meta:
             return {
                 "errors": 1,
@@ -2243,8 +2162,10 @@ class DatabaseIntegrityChecker:
         try:
             from helpers.core.db import EXPECTED_USER_VERSION
 
-            uv = conn.execute("PRAGMA user_version").fetchone()[0]
-            if int(uv) != EXPECTED_USER_VERSION:
+            uv = db_engine.schema_version(conn)
+            # schema_version returns None when db_meta is absent (both
+            # engines) — that is a version mismatch, not a crash.
+            if uv is None or int(uv) != EXPECTED_USER_VERSION:
                 errors += 1
                 reasons.append(f"user_version {uv} != expected {EXPECTED_USER_VERSION}")
         except Exception as e:
@@ -2355,12 +2276,7 @@ class DatabaseIntegrityChecker:
         only source and the cache is still built from them).
         """
         conn = self.get_connection()
-        if (
-            conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(conn, "hyper_incidences", kind="table"):
             return conn.execute(
                 "SELECT COUNT(*) FROM graph_edges WHERE edge_type=?", (etype,)
             ).fetchone()[0]
@@ -2431,12 +2347,7 @@ class DatabaseIntegrityChecker:
         build does; this one does not).
         """
         conn = self.get_connection()
-        if (
-            conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(conn, "hyper_incidences", kind="table"):
             return 0
         return conn.execute(
             "SELECT COUNT(*) FROM ("
@@ -2504,11 +2415,7 @@ class DatabaseIntegrityChecker:
 
         # Each EDGE_REGISTRY edge table: DuckDB e_<x> count vs SQLite
         # graph_edges WHERE edge_type='<key>'.
-        ge_present = (
-            self.get_connection()
-            .execute("SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'")
-            .fetchone()
-        )
+        ge_present = db_engine.table_exists(self.get_connection(), "graph_edges")
         for etype, spec in EDGE_REGISTRY.items():
             try:
                 dn = duck_con.execute(
@@ -2629,12 +2536,7 @@ class DatabaseIntegrityChecker:
         # makes such a company valid-without-note below. The junk
         # signature (no path, no ticker, NO relation) stays invalid.
         _cur_h = self.get_connection().cursor()
-        if (
-            _cur_h.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='relations' AND type IN ('table','view')"
-            ).fetchone()
-            is None
-        ):
+        if not db_engine.table_exists(_cur_h, "relations", kind="any"):
             _rel_homed = set()  # fresh/partial DB (test fixtures): no relation homes
         else:
             _rel_homed = {
@@ -2650,12 +2552,9 @@ class DatabaseIntegrityChecker:
         # the incidence, not a file. Same fileless class as the relation-homed
         # companies above; mirrors check_orphan_companies, which already treats
         # sector incidence as the canonical company home.
-        if (
-            _cur_h.execute(
-                "SELECT COUNT(*) FROM sqlite_master "
-                "WHERE name IN ('hyper_edges','hyper_incidences') AND type IN ('table','view')"
-            ).fetchone()[0]
-            < 2
+        if not (
+            db_engine.table_exists(_cur_h, "hyper_edges")
+            and db_engine.table_exists(_cur_h, "hyper_incidences")
         ):
             _sector_homed = set()  # fresh/partial DB (test fixtures): no sector homes
         else:

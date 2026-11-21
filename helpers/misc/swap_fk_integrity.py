@@ -26,6 +26,8 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent
+if str(REPO) not in sys.path:
+    sys.path.insert(0, str(REPO))  # S6: the funnel import below needs helpers.*
 MANIFEST = REPO / "findata/Misc/duckdb_research_swap_cascade_manifest.json"
 
 
@@ -99,9 +101,12 @@ def main() -> int:
     ap.add_argument("--json", action="store_true", help="emit JSON")
     args = ap.parse_args()
 
-    import duckdb  # local: only needed on the check path
+    # S6 cutover: route through the funnel so a SERVED canonical store
+    # (quack holds the RW file lock) connects over the wire instead of
+    # raising IOException on a file-mode read-only open.
+    from helpers.core.db_engine import connect_funnel  # noqa: E402
 
-    con = duckdb.connect(args.store, read_only=True)
+    con = connect_funnel(args.store, read_only=True, row_factory=None)
     try:
         findings, checked = scan_orphans(con)
     finally:

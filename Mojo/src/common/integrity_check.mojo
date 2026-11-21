@@ -1277,9 +1277,9 @@ def main() raises:
     for i in range(edge_rows.__len__()):
         ed_canon.append(py_str(edge_rows[i][0]) + ":" + py_str(edge_rows[i][1]))
     var sz_rows = conn.execute(
-        "SELECT sector_classification, COUNT(*) AS n FROM entities WHERE "
-        "entity_type='company' AND sector_classification IS NOT NULL "
-        "GROUP BY sector_classification ORDER BY n DESC"
+        "SELECT sector_classification, COUNT(*) AS n FROM entities WHERE"
+        " entity_type='company' AND sector_classification IS NOT NULL GROUP BY"
+        " sector_classification ORDER BY n DESC, sector_classification ASC"
     ).fetchall()
     var sizes = List[Int]()
     var sz_pairs = List[String]()
@@ -1325,7 +1325,7 @@ def main() raises:
         "SELECT substr(t.tag, length('market_cap/')+1) AS cap, COUNT(*) AS n "
         "FROM entities e LEFT JOIN entity_tags t ON t.entity_name = e.name "
         "AND t.tag LIKE 'market_cap/%' WHERE e.entity_type='company' "
-        "GROUP BY cap ORDER BY n DESC"
+        "GROUP BY cap ORDER BY n DESC, cap ASC"
     ).fetchall()
     var cap_canon = List[String]()
     for i in range(cap_rows.__len__()):

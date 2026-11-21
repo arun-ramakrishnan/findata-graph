@@ -4,7 +4,17 @@ Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
 - **maint skip-masking — served-store no-ops report as "✓ OK" in a
-  10/10 PASS — OPEN, filed 2026-11-20 (gate-triage incident)**. Under
+  10/10 PASS — FIXED 2026-11-21 (was: OPEN, filed 2026-11-20,
+  gate-triage incident)**. `_StepResult.skip_reason` +
+  `⊘ SKIP (served store)` in the step table; summary/report footers
+  now read `8/10 steps ok · 2 skipped (served store) · maint PASS`
+  instead of `10/10 ok`. Regression test
+  `test_served_store_skips_are_reported_not_ok`; the pre-existing
+  success test was reading the LIVE quack server (hermeticity leak the
+  fix surfaced) and is now pinned `_graph_store_served=False`. 105
+  tests green (maint + integration chain + gate_query). The five-run
+  stamp creep (59.17 → 93.28 s) stays the watch item. Original
+  record: Under
   the served quack store, `make maint`'s `graph-rebuild` and
   `stamp-centrality` steps no-op via the `assert_not_served`
   split-brain guard and the step table records `0.00 s · ✓ OK`; the
@@ -35,17 +45,19 @@ Open items below keep their revisit triggers inline; executed work is compressed
   arc or operator go; single-slice fix, no proposal needed per the
   multi-slice bar.
 
-- **Canonical `research.db` SQLite→DuckDB swap — UNPARKED / EXECUTION FILED
-  2026-11-19** (live proposal
-  `proposals/database/duckdb_research_swap_execution.md`; readiness program
-  Steps 0–8 in completed.md #533 was EXECUTED, swap itself was PARKED).
-  Operator unparked 2026-11-19: execute S0–S6 with the mandatory eval gate
-  (`ontology_eval_gate.py --parent` SQLite / `--candidate` DuckDB, v21/239
-  questions, zero regressions) at S1 and S6. No production writes until
-  cutover; all conversion on scratch copies. Filed baseline census 2026-11-19:
-  363,528,192 B, 38 tables, 24 FK links/22 action clauses (15 CASCADE,
-  7 SET NULL), 161 PRAGMA / 491 connect / 93 writer / 120 importer sites.
-  Trigger: operator go for the gate arc; no separate re-file needed.
+- **Parquet snapshot leg does not read the DuckDB research store — OPEN
+  2026-11-21** (follow-up of the S6 cutover, snapshot_db.py): the
+  git-tracked `snapshots/parquet/sqlite/` axis + `--restore` are coupled
+  to `--db memory/research.db` (engine contract: sqlite3+pyarrow export,
+  SQLite-schema restore). Post-cutover that axis freezes at the cutover
+  point — `verify_parquet_snapshot`'s sqlite side and
+  `export_parquet_sqlite` take no DuckDB reader. The canonical store's
+  recovery lane is db_maint's `research_backup.duckdb.zst` + the S4
+  DuckDB snapshot branches (round-trip proven 2026-11-21: 29.2 MB zstd,
+  entities/relations exact). Fix shape: a DuckDB reader in the
+  sqlite-side export/verify (or a third axis), then re-point the
+  defaults; NOT a re-point of `DEFAULT_DB` alone (that breaks the
+  verify/restore contract). Trigger: next snapshot-adjacent arc.
 
 - **DuckDB rebuild deferred candidates — OPEN** (from
   `duckdb_rebuild_incremental_carry`, completed.md #528; measured

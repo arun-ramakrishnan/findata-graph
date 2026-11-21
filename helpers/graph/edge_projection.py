@@ -37,18 +37,15 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from helpers.core import db_engine  # noqa: E402  # engine-agnostic introspection (S6 cutover)
+
 #: The two labels the projection synthesises, in the order readers expect.
 PROJECTED_TYPES: tuple[str, str] = ("part_of", "has_company")
 
 
 def has_incidence_store(con: sqlite3.Connection) -> bool:
     """True when this store carries the canonical sector membership tables."""
-    return (
-        con.execute(
-            "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
-        ).fetchone()
-        is not None
-    )
+    return db_engine.table_exists(con, "hyper_incidences")
 
 
 def edge_rows(con: sqlite3.Connection) -> list[tuple[str, str, str, float]]:
@@ -60,7 +57,7 @@ def edge_rows(con: sqlite3.Connection) -> list[tuple[str, str, str, float]]:
     ``part_of``, ``sector -> company`` as ``has_company``), matching what
     ``helpers/graph/query.py`` serves to the DuckDB consumers.
     """
-    cols = {r[1] for r in con.execute("PRAGMA table_info('graph_edges')").fetchall()}
+    cols = {r["name"] for r in db_engine.table_info(con, "graph_edges")}
     et_col = "edge_type" if "edge_type" in cols else "''"
     w_col = "weight" if "weight" in cols else "1.0"
     if not has_incidence_store(con):
@@ -89,9 +86,9 @@ def pairs(con: sqlite3.Connection) -> list[tuple[str, str]]:
 
 def read(db_path: Any) -> list[tuple[str, str, str, float]]:
     """Convenience: open ``db_path`` read-only, read, close."""
-    from helpers.core.db import connect
+    from helpers.core.db_engine import connect_funnel
 
-    con = connect(str(db_path), read_only=True, row_factory=None)
+    con = connect_funnel(str(db_path), read_only=True, row_factory=None)
     try:
         return edge_rows(con)
     finally:

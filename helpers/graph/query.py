@@ -434,15 +434,90 @@ def _prep_graph_connection(con: duckdb.DuckDBPyConnection) -> None:
     # (_prepare) — idempotent, so no INSTALL here.
 
 
-def _attach_sqlite(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
-    """Re-attach SQLite every connect — DuckDB refuses to persist cross-
-    engine ATTACHes in the catalog for safety (§17.10)."""
+def _cache_path_for(db_path: Path, duckdb_path: Path | None) -> Path:
+    """The graph-cache file this lane owns for *db_path* (connect()'s rule)."""
+    if duckdb_path is not None:
+        return Path(duckdb_path)
+    return DUCKDB_PATH if db_path == DB_PATH else db_path.with_suffix(".duckdb")
+
+
+def _is_research_store_path(p: Path) -> bool:
+    """True for the production research store (default or selector override)."""
+    from helpers.core.db_engine import is_research_store_path
+
+    return is_research_store_path(p)
+
+
+def _research_source(db_path: Path, cache: Path) -> Path:
+    """Resolve the research-store SOURCE for this lane.
+
+    The S6 selector resolves a bare ``.db`` to its converted ``.duckdb``
+    sibling (memory/research.db → the canonical store) — for the research
+    store only (see _is_research_store_path), and never onto the lane's
+    own cache file.
+    """
+    from helpers.core.db_engine import ResearchEngine
+
+    sel = ResearchEngine.from_env()
+    if not sel.opt_in or db_path.suffix.lower() == ".duckdb":
+        return db_path
+    if not _is_research_store_path(db_path):
+        return db_path
+    duck = db_path.with_suffix(".duckdb")
+    if duck.exists() and duck != cache:
+        return duck
+    return db_path
+
+
+def _source_connect(cand: Path, cache: Path, **kw):
+    """Open a research-store source read through the funnel, pinned to
+    SQLite for any non-research-store path (tmp fixtures) — the funnel
+    would otherwise redirect a fixture ``.db`` onto its sibling, which in
+    this lane is usually the cache file itself."""
+    from helpers.core.db_engine import research_store_connect
+
+    return research_store_connect(cand, **kw)
+
+
+def _attach_sqlite(
+    con: duckdb.DuckDBPyConnection, db_path: Path, duckdb_path: Path | None = None
+) -> None:
+    """Re-attach the research-store source every connect — DuckDB refuses
+    to persist cross-engine ATTACHes in the catalog for safety (§17.10).
+
+    S6 cutover: the source is resolved through the selector (a bare .db →
+    its canonical .duckdb sibling, unless that sibling is this lane's own
+    cache). Dispatch by resolved type — a DuckDB source attaches natively
+    when free, or over the quack wire when a server holds it (the build
+    path refuses served caches already, so this fin is reader-only)."""
+    src = _research_source(Path(db_path), _cache_path_for(Path(db_path), duckdb_path))
+    if src.suffix.lower() == ".duckdb":
+        from helpers.core.duckdb_shared import is_served as _is_served
+        from helpers.core.duckdb_shared import served_entry_unfiltered
+
+        entry = served_entry_unfiltered(src)
+        if entry is not None and _is_served(src):
+            from helpers.core.duckdb_shared import sql_lit
+
+            # The secret lives on THIS con (secrets are per-connection —
+            # the _attach_wire discipline). Creating it on a throwaway
+            # shell destroys it at close() and the ATTACH below fails
+            # auth, silently under the best-effort swallow.
+            con.execute(
+                f"CREATE OR REPLACE SECRET fin_quack (TYPE quack, "
+                f"TOKEN {sql_lit(entry['token'])}, SCOPE {sql_lit(entry['uri'])})"
+            )
+            stmt = f"ATTACH {sql_lit(entry['uri'])} AS fin (TYPE quack)"
+        else:
+            stmt = f"ATTACH '{src}' AS fin (READ_ONLY)"
+    else:
+        stmt = f"ATTACH '{src}' AS fin (TYPE sqlite, READ_ONLY)"
     try:
-        con.execute(f"ATTACH '{db_path}' AS fin (TYPE sqlite, READ_ONLY);")
+        con.execute(stmt + ";")
     except Exception:
         try:
             con.execute("DETACH fin;")
-            con.execute(f"ATTACH '{db_path}' AS fin (TYPE sqlite, READ_ONLY);")
+            con.execute(stmt + ";")
         except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
             pass
 
@@ -471,7 +546,7 @@ def connect_read_only(
     con = connect_with_lock_retry(lambda: ds.connect_shared(str(duckdb_path), read_only=True))
     _prep_graph_connection(con)
     if attach_db is not None:
-        _attach_sqlite(con, Path(attach_db))
+        _attach_sqlite(con, Path(attach_db), duckdb_path=Path(duckdb_path))
     return con
 
 
@@ -524,7 +599,7 @@ def _open_read_only_connection(duckdb_path: Path, db_path: Path) -> duckdb.DuckD
     foreign holder; the stamp's io_lock window covers the long one)."""
     con = connect_with_lock_retry(lambda: ds.connect_shared(str(duckdb_path), read_only=True))
     _prep_graph_connection(con)
-    _attach_sqlite(con, db_path)
+    _attach_sqlite(con, db_path, duckdb_path=duckdb_path)
     return con
 
 
@@ -628,7 +703,7 @@ def _build_graph_connection(
                     ds.assert_not_served(duckdb_path)
                 con = ds.connect_shared(duckdb_path, read_only=False)
                 _prep_graph_connection(con)
-                _attach_sqlite(con, db_path)
+                _attach_sqlite(con, db_path, duckdb_path=duckdb_path)
                 return con
             from helpers.graph.onager import connect_kwargs
 
@@ -636,7 +711,7 @@ def _build_graph_connection(
             kw.setdefault("config", {}).update(ds.memory_cap_config()["config"])
             con = duckdb.connect(str(duckdb_path), **kw)
             _prep_graph_connection(con)
-            _attach_sqlite(con, db_path)
+            _attach_sqlite(con, db_path, duckdb_path=duckdb_path)
             if needs_build:
                 _build_graph(con, stamp_centrality=stamp_centrality, db_path=db_path)
                 _mark_warm(con, db_path)
@@ -760,11 +835,9 @@ def _check_generation_staleness(con, duckdb_path: Path, db_path: Path | None) ->
         duck_gen = None
     sqlite_gen = None
     try:
-        # S2: route source reads through the sanctioned research-store
-        # funnel. Default (FINDATA_RESEARCH_ENGINE=sqlite) delegates to the
-        # byte-identical helpers.core.db.connect; opt-in resolves a bare
-        # research.db to its converted .duckdb sibling.
-        from helpers.core.db_engine import connect_funnel as _db_connect
+        # S2/S6: route source reads through the sanctioned research-store
+        # funnel (see _source_connect) — opt-in resolves a bare research.db
+        # to its converted .duckdb sibling, with the cache-collision pin.
 
         for cand in (
             (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH)
@@ -772,7 +845,10 @@ def _check_generation_staleness(con, duckdb_path: Path, db_path: Path | None) ->
             if not cand.exists():
                 continue
             try:
-                _scon = _db_connect(str(cand), read_only=True)
+                # S6: funnel source read with the cache-collision pin — a
+                # fixture-shaped sibling cache would otherwise hijack the
+                # resolution (see _source_connect).
+                _scon = _source_connect(Path(cand), Path(duckdb_path), read_only=True)
                 try:
                     _row = _scon.execute(
                         "SELECT value FROM db_meta WHERE key='generation'"
@@ -922,15 +998,14 @@ def _probe_note_embed_state(  # noqa: C901  # probe: schema-variant ladder
                 scon.close()
         except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
             pass
-    # S2: route source reads through the funnel (see
-    # _check_generation_staleness); default stays byte-identical.
-    from helpers.core.db_engine import connect_funnel as _db_connect
+    # S2/S6: route source reads through the funnel (see _source_connect);
+    # default stays byte-identical.
 
     for cand in (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH):
         if not cand.exists():
             continue
         try:
-            _scon = _db_connect(str(cand), read_only=True)
+            _scon = _source_connect(Path(cand), Path(duckdb_path), read_only=True)
             try:
                 dims = None
                 try:
@@ -967,15 +1042,15 @@ def _mark_warm(  # noqa: C901  # warm-mark: per-table/per-mode branches
 ) -> None:
     """Record build provenance in _build_meta after a successful build."""
     con.execute(_BUILD_META_DDL)
-    # P0: stamp generation from SQLite db_meta so _is_warm can do O(1) staleness
+    # P0: stamp generation from the research store's db_meta so _is_warm can
+    # do O(1) staleness
     gen_val = None
     note_model = None
     try:
-        # S2: funnel source reads (default delegates to helpers.core.db.connect;
-        # no read_only kwarg → byte-identical read-write semantics as before).
-        from helpers.core.db_engine import connect_funnel as _db_connect
-
-        _scon = _db_connect(str(db_path))
+        # S2/S6: funnel source read (see _source_connect) — default
+        # delegates to helpers.core.db.connect byte-identically; the pin
+        # keeps fixture-shaped sibling caches out of the resolution.
+        _scon = _source_connect(Path(db_path), _duckdb_path_of(con))
         try:
             _row = _scon.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
             gen_val = str(int(_row[0])) if _row and _row[0] is not None else None
@@ -1007,7 +1082,7 @@ def _mark_warm(  # noqa: C901  # warm-mark: per-table/per-mode branches
             pass
     if note_model is None:
         try:
-            _scon = _db_connect(str(db_path))
+            _scon = _source_connect(Path(db_path), _duckdb_path_of(con))
             try:
                 _row = _scon.execute(
                     "SELECT value FROM db_meta WHERE key='note_embed_model'"
@@ -1482,7 +1557,7 @@ def _patch_dirty_tables(tmp_duckdb_path: Path, db_path: Path) -> bool:
     con = duckdb.connect(str(tmp_duckdb_path), **kw)
     try:
         _prep_graph_connection(con)
-        _attach_sqlite(con, db_path)
+        _attach_sqlite(con, db_path, duckdb_path=tmp_duckdb_path)
         stored = _load_stored_fingerprints(con)
         if stored is None:
             return False
@@ -2062,6 +2137,47 @@ def _read_fin_embeddings(
     return out, dims
 
 
+def _read_fin_embeddings_duck(
+    con: duckdb.DuckDBPyConnection, table: str, key_cols: str
+) -> tuple[list[tuple], int]:
+    """S6 cutover companion to :func:`_read_fin_embeddings`: the fin
+    attach is a DuckDB catalog (the canonical store, possibly wire-served)
+    — there is no sqlite file to open side-band, so rows are read through
+    the cache connection itself. BLOB columns pass through (f32 binary);
+    TEXT JSON rows are packed via the tolerant codec. Same contract:
+    ``(rows, dims)`` with ``dims == 0`` when nothing readable."""
+    from helpers.core.vec_codec import dims_from_blob, load_vec, pack_f32
+
+    out: list[tuple] = []
+    dims = 0
+    try:
+        cur = con.execute(
+            f"SELECT {key_cols}, embedding FROM fin.{table} "  # noqa: S608  # table/key_cols are call-site constants (same adjudication as _read_fin_embeddings)
+            "WHERE embedding IS NOT NULL"
+        )
+        for row in cur.fetchall():
+            emb = row[-1]
+            if isinstance(emb, (bytes, bytearray)):
+                blob, d = bytes(emb), dims_from_blob(emb)
+            elif emb is None:
+                continue
+            else:
+                vec = load_vec(emb)
+                if not vec:
+                    continue
+                blob, d = pack_f32(vec), len(vec)
+            if d == 0:
+                continue
+            if dims == 0:
+                dims = d
+            elif d != dims:
+                continue
+            out.append((*row[:-1], blob))
+    except Exception:  # noqa: S110  # unreadable source -> caller's fallback
+        return [], 0
+    return out, dims
+
+
 def _arrow_embedding_table(rows: list[tuple], dims: int, names: list[str]):
     """Build a pyarrow table: ``names`` columns + fixed-size f32 ``emb``."""
     import numpy as _np
@@ -2094,26 +2210,40 @@ def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
     future version, the index can be added to this function.
     """
     try:
+        # S6 cutover: engine-agnostic table probe over the fin catalog —
+        # a DuckDB fin (canonical store or wire-served) has no
+        # sqlite_master, so the old unqualified-sqlite_master probe
+        # raised and misrouted the BLOB path into the legacy CAST
+        # (BLOB -> FLOAT[] is unimplemented). Same shape as
+        # _materialise_hyper's catalog probe.
         r = con.execute(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='company_embeddings'"
+            "SELECT COUNT(*) FROM information_schema.tables "
+            "WHERE table_catalog = 'fin' AND table_name = 'company_embeddings'"
         ).fetchone()
-        # S2 note: this probe runs on the DuckDB graph-cache connection
-        # where research.db is ATTACHed as ``fin`` (TYPE sqlite). Verified
-        # 2026-11-19 on duckdb 2.0: unqualified ``sqlite_master`` resolves
-        # the fin-attached SQLite catalog (real tables → 1, fake → 0), so
-        # this is already engine-agnostic on the cache conn. Do NOT switch
-        # to ``fin.sqlite_master`` — that raises CatalogException (the
-        # sqlite compat view is only exposed at the root, not per-schema).
         table_exists = r is not None and r[0] > 0
     except Exception:
         table_exists = False
+    # Engine of the fin attach: duckdb_tables() lists only DuckDB
+    # catalogs — a sqlite-scanner fin never appears there.
+    fin_is_duck = False
+    if table_exists:
+        fr = con.execute(
+            "SELECT COUNT(*) FROM duckdb_tables() "
+            "WHERE database_name = 'fin' AND table_name = 'company_embeddings'"
+        ).fetchone()
+        fin_is_duck = fr is not None and fr[0] > 0
 
     if table_exists:
         # embedding_blob_migration S3: embeddings are f32 BLOBs (legacy
         # TEXT JSON tolerated) — the in-SQL CAST path cannot parse binary,
-        # so rows are read Python-side from the fin-attached sqlite file
-        # and projected via a registered arrow table (zero-copy f32).
-        _rows, _dims = _read_fin_embeddings(con, "company_embeddings", "company_name")
+        # so rows are read Python-side and projected via a registered
+        # arrow table (zero-copy f32). The sqlite fin is read side-band
+        # from its file; a DuckDB fin (canonical store, possibly
+        # wire-served) is read through the cache connection itself.
+        if fin_is_duck:
+            _rows, _dims = _read_fin_embeddings_duck(con, "company_embeddings", "company_name")
+        else:
+            _rows, _dims = _read_fin_embeddings(con, "company_embeddings", "company_name")
         if _rows:
             # duckdb 2.0: register() rejects a connection whose pending result
             # was not fully exhausted (fetchone no longer clears it — 1.x did).
@@ -2130,6 +2260,20 @@ def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
                 """
             )
             con.unregister("_co_emb_src")
+        elif fin_is_duck:
+            # DuckDB fin with an unreadable/empty embedding set: no legacy
+            # TEXT fallback exists (the CAST path assumed a sqlite TEXT
+            # column) — create the empty typed table so semantic_neighbors
+            # returns empty instead of raising.
+            con.execute(
+                """
+                CREATE TABLE v_embeddings (
+                    company_name VARCHAR,
+                    id BIGINT,
+                    embedding FLOAT[]
+                )
+                """
+            )
         else:
             con.execute(
                 "SET sqlite_all_varchar=true"

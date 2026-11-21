@@ -2,6 +2,14 @@
 """
 Versioned snapshot of memory/research.db (+ memory/graph.duckdb).
 
+S6 cutover note (2026-11-21): the canonical research store is now
+memory/research.duckdb (``--db memory/research.duckdb`` takes the S4
+DuckDB snapshot/verify branches). The DEFAULT ``--db`` stays on the
+SQLite rollback anchor so the parquet-sqlite axis + ``--restore`` keep
+their engine contract — which means the git-tracked
+``snapshots/parquet/sqlite/`` leg FREEZES at the cutover point until it
+is re-pointed at the DuckDB store (pending.md, parquet-freeze ticket).
+
 Two artifact families, two roles:
 
 1. Parquet (Bundle L1) — the GIT-TRACKED artifact under ``snapshots/parquet/``.
@@ -149,6 +157,10 @@ def create_snapshot(db_path: Path, out_path: Path, logger: logging.Logger) -> di
     if not db_path.exists():
         raise FileNotFoundError(f"Database not found: {db_path}")
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    # S4 (duckdb_research_swap_execution): a `.duckdb` research store takes
+    # the first-party snapshot branch (no sqlite online-backup API there).
+    if db_path.suffix.lower() == ".duckdb":
+        return _create_snapshot_duckdb(db_path, out_path, logger)
 
     # Online backup into a temp file: consistent, WAL-merged, self-contained.
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tf:
@@ -182,10 +194,126 @@ def create_snapshot(db_path: Path, out_path: Path, logger: logging.Logger) -> di
     return {"snapshot": str(out_path), "compressed_bytes": gz, "source_bytes": raw}
 
 
+def _create_snapshot_duckdb(db_path: Path, out_path: Path, logger: logging.Logger) -> dict:
+    """S4: DuckDB research-store snapshot — checkpoint-then-copy + zstd.
+
+    Same safe pattern as db_maint._duckdb_zstd_backup: DuckDB has no
+    online-backup API, so open read-only under the store's io.lock (SH),
+    force CHECKPOINT (flush the WAL), close, and copy the quiescent file.
+    A store the quack server holds RW (served) is a normal busy — logged
+    and skipped, never a failed snapshot run.
+    """
+    import shutil
+
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
+    from helpers.misc.duckdb_lock import io_lock as _io_lock
+
+    try:
+        with _io_lock(db_path, exclusive=False):
+            con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
+            try:
+                con.execute("CHECKPOINT;")
+            except duckdb.Error as e:
+                logger.warning(f"read-only CHECKPOINT failed ({e}); copying as-is")
+            finally:
+                con.close()
+    except (duckdb.Error, OSError) as e:
+        logger.warning(f"{db_path} busy/served ({e}) — snapshot skipped")
+        return {"snapshot": str(out_path), "skipped": "served/busy"}
+    from helpers.core.zstd_io import compress_file
+
+    raw = db_path.stat().st_size
+    with tempfile.NamedTemporaryFile(suffix=".duckdb", delete=False) as tf:
+        tmp_path = Path(tf.name)
+    try:
+        shutil.copy2(db_path, tmp_path)
+        compress_file(tmp_path, out_path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+    gz = out_path.stat().st_size
+    logger.info(f"Snapshot: {out_path} ({gz:,} bytes compressed, {raw:,} bytes source)")
+    return {"snapshot": str(out_path), "compressed_bytes": gz, "source_bytes": raw}
+
+
+def _verify_snapshot_duckdb(
+    snapshot_path: Path, source_db: Path | None, logger: logging.Logger
+) -> dict:
+    """S4: round-trip check for a `.duckdb` research-store snapshot.
+
+    Decompress, open read-only, run the first-party quick_check (DuckDB has
+    no PRAGMA integrity_check) and compare entities/relations row counts to
+    the source — the same contract as the SQLite verify path.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".duckdb", delete=False) as tf:
+        tmp_path = Path(tf.name)
+    try:
+        from helpers.core.zstd_io import decompress_file
+
+        decompress_file(snapshot_path, tmp_path)
+        import duckdb
+
+        from helpers.core import db_engine as _db_engine
+        from helpers.core.duckdb_shared import memory_cap_config
+
+        conn = duckdb.connect(str(tmp_path), read_only=True, **memory_cap_config())
+        try:
+            integrity_list = _db_engine.quick_check(conn)
+            integrity = "ok" if integrity_list == ["ok"] else "; ".join(integrity_list)
+            snap_entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]  # ty: ignore[not-subscriptable]  # COUNT always returns a row
+            snap_relations = conn.execute("SELECT COUNT(*) FROM relations").fetchone()[0]  # ty: ignore[not-subscriptable]  # COUNT always returns a row
+        finally:
+            conn.close()
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    result = {
+        "integrity": integrity,
+        "entities": snap_entities,
+        "relations": snap_relations,
+    }
+    if source_db and source_db.exists():
+        try:
+            sconn = duckdb.connect(str(source_db), read_only=True, **memory_cap_config())
+        except (duckdb.Error, OSError) as e:
+            # Served/busy source: the RW-locked live store cannot be opened
+            # for the row-count compare — degrade to integrity-only match
+            # with a truthful marker instead of failing the verify run.
+            logger.warning(f"source {source_db} busy/served ({e}) — compare skipped")
+            result["source_skipped"] = "served/busy"
+            result["match"] = integrity == "ok"
+            return result
+        try:
+            src_entities = sconn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]  # ty: ignore[not-subscriptable]  # COUNT always returns a row
+            src_relations = sconn.execute("SELECT COUNT(*) FROM relations").fetchone()[0]  # ty: ignore[not-subscriptable]  # COUNT always returns a row
+        finally:
+            sconn.close()
+        result.update(source_entities=src_entities, source_relations=src_relations)
+        ok = integrity == "ok" and snap_entities == src_entities and snap_relations == src_relations
+        result["match"] = ok
+        logger.info(
+            f"Verify: integrity={integrity} | entities {snap_entities}/{src_entities} "
+            f"| relations {snap_relations}/{src_relations} -> {'OK' if ok else 'MISMATCH'}"
+        )
+    else:
+        result["match"] = integrity == "ok"
+        logger.info(
+            f"Verify: integrity={integrity} | entities={snap_entities} relations={snap_relations}"
+        )
+    return result
+
+
 def verify_snapshot(snapshot_path: Path, source_db: Path | None, logger: logging.Logger) -> dict:
     """Round-trip check: decompress the snapshot, open it, compare row counts to the source."""
     if not snapshot_path.exists():
         raise FileNotFoundError(f"Snapshot not found: {snapshot_path}")
+    # S4: a `.duckdb` source (or snapshot) takes the first-party verify
+    # branch — the SQLite path below is PRAGMA-shaped.
+    if (source_db and source_db.suffix.lower() == ".duckdb") or (
+        source_db is None and ".duckdb" in snapshot_path.name
+    ):
+        return _verify_snapshot_duckdb(snapshot_path, source_db, logger)
 
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tf:
         tmp_path = Path(tf.name)
