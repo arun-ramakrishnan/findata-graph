@@ -105,15 +105,26 @@ def test_null_determinism():
     assert a == b
 
 
-class TestMojoNullOptIn:
-    """S3 (mojo_hyper_motifs_null_scaling): opt-in MOTIF_NULL_MOJO lane
-    runs the same RNG draws through the Mojo kernel and must return a
-    byte-compatible null result vs the Python oracle."""
+class TestMojoNullLane:
+    """S3 (mojo_hyper_motifs_null_scaling), promoted to default 2026-11-21:
+    the Mojo kernel is the default configuration_null lane (same RNG draws,
+    byte-compatible null result vs the Python oracle); MOTIF_NULL_MOJO=0
+    opts out and every kernel failure falls back to the oracle."""
 
     BIN = _REPO / "Mojo" / "bin" / "motifs_null_batch"
 
-    def test_opt_in_default_off(self, monkeypatch):
+    def test_default_mojo_lane(self, monkeypatch):
+        if not self.BIN.exists():
+            pytest.skip("motifs_null_batch not built (make mojo-build)")
         monkeypatch.delenv("MOTIF_NULL_MOJO", raising=False)
+        edges = [["a", "b", "c"], ["b", "c", "d"], ["d", "e"]]
+        got = hm._mojo_null(edges, orders=(2, 3), runs=3, seed=42)
+        assert got is not None
+        assert got["runs"] == 3 and got["seed"] == 42
+        assert got["pairs_ge_2_null_mean"] == got["pairs_ge_2_null_mean"]  # finite float
+
+    def test_opt_out_env_disables(self, monkeypatch):
+        monkeypatch.setenv("MOTIF_NULL_MOJO", "0")
         edges = [["a", "b", "c"], ["b", "c", "d"], ["d", "e"]]
         assert hm._mojo_null(edges, orders=(2, 3), runs=3, seed=42) is None
 
@@ -127,9 +138,9 @@ class TestMojoNullOptIn:
             ["a", "e", "g"],
             ["c", "f", "g", "x"],
         ]
-        monkeypatch.delenv("MOTIF_NULL_MOJO", raising=False)
+        monkeypatch.setenv("MOTIF_NULL_MOJO", "0")
         py = configuration_null(edges, runs=10, seed=42)
-        monkeypatch.setenv("MOTIF_NULL_MOJO", "1")
+        monkeypatch.delenv("MOTIF_NULL_MOJO", raising=False)
         mo = configuration_null(edges, runs=10, seed=42)
         assert py["runs"] == mo["runs"] and py["seed"] == mo["seed"]
         for k in (2, 3):
@@ -137,9 +148,7 @@ class TestMojoNullOptIn:
             assert abs(py[f"pairs_ge_{k}_null_std"] - mo[f"pairs_ge_{k}_null_std"]) < 1e-6
 
     def test_fallback_on_bad_binary_path(self, monkeypatch):
-        if not self.BIN.exists():
-            pytest.skip("motifs_null_batch not built (make mojo-build)")
-        monkeypatch.setenv("MOTIF_NULL_MOJO", "1")
+        monkeypatch.delenv("MOTIF_NULL_MOJO", raising=False)
         monkeypatch.setattr(hm, "_MOJO_NULL_BIN", _REPO / "Mojo" / "bin" / "nonexistent_null")
         edges = [["a", "b", "c"], ["b", "c", "d"], ["d", "e"]]
         assert hm._mojo_null(edges, orders=(2, 3), runs=3, seed=42) is None

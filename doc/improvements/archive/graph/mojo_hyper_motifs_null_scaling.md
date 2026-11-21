@@ -145,6 +145,57 @@ Landed following the `MOJO_TRAIL_BATCH` pattern exactly:
 - Hermetic tests `tests/test_hyper_motifs.py::TestMojoNullOptIn` (3 tests:
   default-off, parity-vs-python, bad-binary fallback). 15 passed total;
   ruff clean. CLI default and `MOTIF_NULL_MOJO=1` produce identical output.
+
+## Promotion 2026-11-21 — default lane (operator go)
+
+The first deferral condition is resolved: the "async surface
+stabilizes" concern is neutralized by the pinned 1.2.0 toolchain
+(`std.runtime._asyncrt` cannot churn under a pin; the 1.3 nightly
+preview shows zero concurrency churn regardless). The second condition
+— a green gate arc — is PENDING the operator's explicit gates go;
+until then the promotion stands on targeted validation only (16/16
+test_hyper_motifs, ruff, md-lint, search-fresh converged). Changes:
+
+- `helpers/graph/hyper_motifs.py`: `MOTIF_NULL_MOJO` semantics flipped
+  from opt-in ("1" enables) to opt-out ("0" disables); absence now
+  dispatches to the Mojo kernel by default. Fallback contract unchanged
+  (missing binary / rc≠0 / timeout / any error → Python oracle).
+- `tests/test_hyper_motifs.py`: class renamed to
+  `TestMojoNullLane` (the S3 record above keeps the old name as
+  history); default-on, opt-out, parity-vs-oracle, and bad-binary
+  fallback tests — 16 passed, ruff clean.
+
+### Default-route semantics (for future reference)
+
+Lane selection by `MOTIF_NULL_MOJO`: absent → **Mojo kernel** (new
+default); `"0"` → Python oracle (opt-out); `"1"` → Mojo (legacy
+opt-in spelling, now a no-op). Gate is `os.environ.get(...) == "0"`.
+The gate is the ONLY behavior change — everything downstream is the
+S3-validated path:
+
+- **Results identical**: Python draws all replicates and ships the
+  permutation tables (postings) to the kernel; the kernel computes the
+  census only. The RNG never crosses the boundary — no PCG64 port.
+  Same output shape `{pairs_ge_k_null_mean, _null_std, runs, seed}`,
+  defaults `runs=10, seed=42`; parity exact (1e-6 tolerance), so no
+  stored/derived null needs recomputing.
+- **RNG details that bit once**: `np.random.default_rng(seed)` (PCG64)
+  shuffles the stub array IN PLACE, compounding — replicate k starts
+  from replicate k-1's end state. The spike's first attempt used
+  edge-major stub ordering + fresh-per-replicate shuffles and drifted
+  ~50–150; node-major ordering + compounding semantics is mandatory.
+- **Perf at the promoted setting**: production invokes the kernel with
+  `workers=1` — the w1 column of the Status table (3.8× at R=3 up to
+  10.2× at R=100 on the live family). The w>1 TaskGroup fan-out stays
+  spike-only; the entire `std.runtime._asyncrt` exposure lives in that
+  unused path, so a future w>1 default is a separate, smaller call.
+- **Fallback unchanged**: missing binary / rc≠0 / 120 s timeout / any
+  exception → Python oracle + one stderr line. Fresh clones without
+  `make mojo-build` silently run the old route.
+- **Validation state**: targeted only — 23/23
+  (`test_hyper_motifs.py` 16 + `test_co_supply.py` 7, the direct
+  `configuration_null` consumer), ruff clean on all four files. Full
+  gates (qa/perf/advisory) PENDING the operator's explicit go.
 - Default `configuration_null` path UNCHANGED; Rust owns no lane here; freeze
   posture: allowed as an OPT-IN PERF LANE (no blanket cutover). Promotion to
   default is a future operator call once the Mojo async surface stabilizes

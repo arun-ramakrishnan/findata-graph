@@ -481,9 +481,12 @@ GATES: dict[str, Gate] = {
             # Rust/ lock; SKIPs without the binary. Vulnerabilities FAIL,
             # warnings-class kinds report-only.
             Step("rust-deny", (_MAKE, "rust-deny")),
-            # mojo-test RETIRED from advisory 2026-10-26 (Mojo freeze —
-            # same operator ruling as the qa mojo-parity retirement; the
-            # `make mojo-test` target survives for manual runs).
+            # mojo-test restored 2026-11-21 (freeze revoked): the
+            # 2026-10-26 Mojo freeze was the only reason it left the
+            # roster, and the lane re-entered service after parity
+            # re-converged (qa mojo-parity, 2026-11-13). One `mojo run`
+            # per test file, needs the venv mojo like qa's mojo-parity.
+            Step("mojo-test", (_MAKE, "-f", "Makefile.mojo", "mojo-test")),
             Step("fuzz", (_MAKE, "fuzz")),
             Step("license-check", (_MAKE, "license-check")),
         ),

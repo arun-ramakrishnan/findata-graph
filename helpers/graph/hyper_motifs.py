@@ -132,16 +132,19 @@ def _mojo_null(
     seed: int,
 ) -> dict[str, Any] | None:
     """Return the configuration-null result via the Mojo kernel, or None when
-    MOTIF_NULL_MOJO != 1, the binary is missing, or any failure occurs.
+    MOTIF_NULL_MOJO=0 opts out, the binary is missing, or any failure occurs.
+
+    Default lane since 2026-11-21 (operator promotion of the 2026-11-18
+    opt-in; the pinned 1.2.0 toolchain holds std.runtime._asyncrt stable,
+    and every failure mode falls back to the Python oracle).
 
     Builds the per-replicate postings with EXACTLY the Python reference's
     shuffle semantics (np.repeat(arange(N), degrees) stub ordering, in-place
     compounding rng.shuffle(seed)), so the kernel's census sees draw-identical
     data. Returns the same {pairs_ge_k_null_mean, ..._null_std, runs, seed}
-    shape as the Python path; callers fall through on None so the default
-    lane is untouched.
+    shape as the Python path; callers fall through on None to that oracle.
     """
-    if os.environ.get("MOTIF_NULL_MOJO") != "1" or not edges:
+    if os.environ.get("MOTIF_NULL_MOJO") == "0" or not edges:
         return None
     if not _MOJO_NULL_BIN.exists():
         return None
@@ -258,7 +261,8 @@ def configuration_null(
     replicate edges can be slightly smaller than their slot size, which
     makes the null conservative (understates cross-edge overlap).
     """
-    # Opt-in Mojo lane: byte-compatible result on the same RNG draws, or None.
+    # Default Mojo lane (MOTIF_NULL_MOJO=0 opts out): byte-compatible result
+    # on the same RNG draws; None falls through to the Python oracle below.
     mojo = _mojo_null(edges, orders=orders, runs=runs, seed=seed)
     if mojo is not None:
         return mojo

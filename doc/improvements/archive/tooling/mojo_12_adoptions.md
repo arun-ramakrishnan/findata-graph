@@ -109,7 +109,24 @@ edit.
   restored (pilot doc §Update 2026-09-20).
 - No pixi/conda revisit (channel-wide dead, pilot doc §pixi).
 
+## FREEZE REVOKED (2026-11-21, operator directive)
+
+The 2026-10-26 freeze ruling is **REVOKED**. Ruling sequence: freeze
+(2026-10-26) → re-evaluation with parity re-converged 92/92
+(2026-11-13) → reframe to a CPU/GPU-acceleration lane after live
+consumers surfaced — `rebuild_script_search.py` (`mojo doc`) and
+`hyper_trails.py` (opt-in BFS) (2026-11-18, m00874/m00961) → freeze
+revoked (2026-11-21). Ports are permitted again, no measured-wall
+precondition. Standing consequences of the unfreeze: `mojo-test`
+returns to the advisory roster the same day (its last standing gate
+consequence; `mojo-parity` had already re-entered qa on 2026-11-13),
+and port work keeps the parity contract — any mirrored semantic
+re-converges `make mojo-parity` before landing. The section below is
+kept verbatim as the historical record of why the lane was frozen.
+
 ## FREEZE (2026-10-26, operator ruling: "Mojo is increasingly unviable")
+
+**REVOKED 2026-11-21 — see the section above.**
 
 The Mojo lane is FROZEN — no further ports, no mirroring obligation.
 

@@ -182,7 +182,9 @@ runs four security/compliance legs: `secret-scan` (incremental git-history
 scan), `cargo-audit` (SKIPs without the binary), `fuzz` (Hypothesis suites, deterministic
 seed; contends with the pytest-scale legs, so advisory wall time grows),
 `license-check` (AGPL + third-party inventory). Wired 2026-10-21;
-`mojo-test` retired from the roster 2026-10-26 (Mojo freeze);
+`mojo-test` was retired 2026-10-26 (Mojo freeze) and re-added
+2026-11-21 when the freeze was revoked (one `mojo run` per test file,
+needs the venv `mojo`, like qa's `mojo-parity`);
 `analytics-fresh` was deliberately left out — it reads external harness
 state and carries the same chronic-red risk class as convo-fresh.
 
