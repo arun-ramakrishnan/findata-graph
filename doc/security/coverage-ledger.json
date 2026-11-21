@@ -204,11 +204,11 @@
   "surface": "/api/graph/metrics/<metric>",
   "kind": "route",
   "attack_class": "injection",
-  "reviewed": "2026-11-13",
+  "reviewed": "2026-11-20",
   "method": "source",
   "verdict": "clean",
   "fingerprint": "efe23a2e5983e50a",
-  "note": "re-review 2026-11-07 after the S5 PEP 758 fix (three except clauses parenthesised in-handler): syntax-only, no control-flow or data-flow change; dispositions unchanged from the S1 re-review earlier today"
+  "note": "re-review 2026-11-20 gate triage: metric name allowlist-gated (400 otherwise), all SQL bound-parameter (WHERE metric = ?); delta since 2026-10-30 is the db_swap engine-agnostic connection wiring + ruff format — no new input paths"
  },
  {
   "scope": "app",
@@ -365,10 +365,11 @@
   "surface": "/api/resolve",
   "kind": "route",
   "attack_class": "injection",
-  "reviewed": "2026-09-18",
+  "reviewed": "2026-11-20",
   "method": "source",
   "verdict": "clean",
-  "fingerprint": "333deb39d28c622c"
+  "fingerprint": "10a84ec990df5682",
+  "note": "re-review 2026-11-20 gate triage: db_swap S2 engine-agnostic probe swap (_research_has_column/_research_table_exists) + ruff format; both lookups stay bound-parameter, the only f-string reflects store-read registry data into the JSON response, not SQL"
  },
  {
   "scope": "app",
@@ -901,11 +902,11 @@
   "surface": "/api/graph/metrics/<metric>",
   "kind": "route",
   "attack_class": "availability",
-  "reviewed": "2026-11-13",
+  "reviewed": "2026-11-20",
   "method": "source",
   "fingerprint": "efe23a2e5983e50a",
   "status": "out_of_scope",
-  "note": "re-review 2026-11-07 after the S5 PEP 758 fix: syntax-only change, cost class unchanged",
+  "note": "re-review 2026-11-20: top= capped 1..500 bounding payload size, per-request conn closed in finally; unchanged by the probe refactor",
   "verdict": "clean"
  },
  {
@@ -913,11 +914,11 @@
   "surface": "/api/graph/metrics/<metric>",
   "kind": "route",
   "attack_class": "concurrency",
-  "reviewed": "2026-11-13",
+  "reviewed": "2026-11-20",
   "method": "source",
   "fingerprint": "efe23a2e5983e50a",
   "status": "out_of_scope",
-  "note": "re-review 2026-11-07 after the S5 PEP 758 fix: syntax-only change, read-only posture unchanged",
+  "note": "re-review 2026-11-20: read-only graph_analytics reads, no shared mutable state; unchanged by the probe refactor",
   "verdict": "clean"
  },
  {
@@ -1101,22 +1102,24 @@
   "surface": "/api/resolve",
   "kind": "route",
   "attack_class": "availability",
-  "reviewed": "2026-10-20",
+  "reviewed": "2026-11-20",
   "method": "source",
-  "fingerprint": "333deb39d28c622c",
+  "fingerprint": "10a84ec990df5682",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route; route-level availability held at the class-sweep level (the AVAIL-1 quadratic-join class stays tracked at /api/graph/near-duplicates), not re-reviewed per route"
+  "note": "re-review 2026-11-20: read-only single conn per request, finally-close, existence-guarded probes degrade instead of erroring; unchanged by the probe refactor",
+  "verdict": "clean"
  },
  {
   "scope": "app",
   "surface": "/api/resolve",
   "kind": "route",
   "attack_class": "concurrency",
-  "reviewed": "2026-10-20",
+  "reviewed": "2026-11-20",
   "method": "source",
-  "fingerprint": "333deb39d28c622c",
+  "fingerprint": "10a84ec990df5682",
   "status": "out_of_scope",
-  "note": "bulk sweep 2026-10-20: GET-only route — no state mutation for a TOCTOU race; concurrency held at shared-singleton surfaces"
+  "note": "re-review 2026-11-20: read-only lookup, per-request connection closed in finally; no shared mutable state added by the probe refactor",
+  "verdict": "clean"
  },
  {
   "scope": "app",
@@ -1459,11 +1462,11 @@
   "surface": "/api/graph/metrics/<metric>",
   "kind": "route",
   "attack_class": "web-protocol/auth",
-  "reviewed": "2026-11-13",
+  "reviewed": "2026-11-20",
   "method": "source",
   "fingerprint": "efe23a2e5983e50a",
   "verdict": "clean",
-  "note": "re-review 2026-10-30 after the S5 PEP 758 fix: syntax-only change, response shapes unchanged"
+  "note": "re-review 2026-11-20: param validation (400s) and response shapes unchanged; public read surface unchanged by the probe refactor"
  },
  {
   "scope": "app",
@@ -1590,10 +1593,11 @@
   "surface": "/api/resolve",
   "kind": "route",
   "attack_class": "web-protocol/auth",
-  "reviewed": "2026-10-20",
+  "reviewed": "2026-11-20",
   "method": "source",
-  "fingerprint": "333deb39d28c622c",
-  "verdict": "note:low"
+  "fingerprint": "10a84ec990df5682",
+  "verdict": "clean",
+  "note": "re-review 2026-11-20: GET param validated (400 on missing), response shapes unchanged; public lookup surface unchanged by the probe refactor"
  },
  {
   "scope": "app",

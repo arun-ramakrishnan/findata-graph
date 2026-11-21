@@ -10,7 +10,15 @@ version = 2
 # notice = warnings (report, don't fail). Nothing ignored yet — first
 # green decides hardening, same doctrine as clippy's -D arming
 # (rust_language_tooling S2).
-ignore = []
+# 2026-11-20 gate triage: the installed cargo-deny flags unmaintained as
+# ERROR by default, failing the leg on RUSTSEC-2026-0543 (chrono —
+# transitive via duckdb → arrow, no direct chrono in our Cargo.tomls, no
+# safe upgrade exists). Transitive-unmaintained is the warn class the
+# house doctrine above names; ignored by ID (portable across cargo-deny
+# versions — the `unmaintained = "transitive"` key is not honored by the
+# installed build). Reopen when a duckdb/arrow release drops chrono or a
+# jiff migration lands upstream.
+ignore = ["RUSTSEC-2026-0543"]
 
 [bans]
 multiple-versions = "warn"

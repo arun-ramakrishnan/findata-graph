@@ -1286,7 +1286,7 @@ def test_rotation_rebases_live_offsets(corpus):
     assert all(off < size_after for _, off in live)
     raw = rep.read_bytes()
     for run_id, off in live:
-        nbytes = one(con, f"SELECT nbytes FROM runs WHERE run_id = {run_id}")[0]
+        nbytes = one(con, "SELECT nbytes FROM runs WHERE run_id = ?", (run_id,))[0]
         block = raw[off : off + nbytes].decode()
         assert "make qa" in block, f"run {run_id} offset {off} points at no block head"
     # a second rotation must not compound drift

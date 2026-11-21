@@ -131,7 +131,11 @@ def _sqlite_edge_union_sql(conn) -> str:
     dyad read — the surface degrades instead of erroring.
     """
     has_store = _research_table_exists(conn, "hyper_incidences")
-    if has_store is None:
+    if not has_store:
+        # absent store (pre-retirement restore, minimal fixture): degrade
+        # to the plain dyad read — the S2 engine-agnostic probe now returns
+        # a plain bool, so the old `is None` absence branch never fired and
+        # minimal fixtures fell into the UNION (no such table) instead
         return "SELECT source, target, edge_type FROM graph_edges"
     return """
         SELECT source, target, edge_type FROM graph_edges
@@ -705,10 +709,7 @@ def api_resolve():
                     "file_path": row[2],
                     "matched": "entities.cin",
                 }
-        if (
-            entity is None
-            and _research_table_exists(conn, "entity_identifiers")
-        ):
+        if entity is None and _research_table_exists(conn, "entity_identifiers"):
             row = cursor.execute(
                 "SELECT i.entity_name, i.identifier_type, e.entity_type, e.file_path "
                 "FROM entity_identifiers i JOIN entities e ON e.name = i.entity_name "

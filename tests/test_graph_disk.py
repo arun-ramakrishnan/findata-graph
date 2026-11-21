@@ -908,6 +908,20 @@ class TestProductionPath:
 
     @pytest.mark.real_graph_cache
     def test_default_connect_uses_memory_graph_duckdb(self):
+        # Served-store mode (2026-11-20 gate triage): when a quack server
+        # owns graph.duckdb, the split-brain guard REFUSES the file-mode
+        # production default by design — this test asserts the UNSERVED
+        # mode only; skip rather than fail while the operator's resident
+        # server (db_swap standing infra) is up.
+        from helpers.core import duckdb_shared as ds
+
+        disc = ds.load_discovery(None)
+        if ds.served_entry(disc, DUCKDB_PATH) is not None:
+            pytest.skip(
+                "graph.duckdb is served by a quack server — file-mode "
+                "connect() is refused by the split-brain guard by design "
+                "(unserved-mode assertion; re-run with the server stopped)"
+            )
         c = connect()  # no args = production default
         try:
             assert DUCKDB_PATH.exists()

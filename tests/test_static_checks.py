@@ -1600,6 +1600,11 @@ _PRODUCTION_COPY_ALLOWLIST = {
     "test_integration_maint_chain.py",
     "test_integration_note_writers.py",
     "test_static_checks.py",  # this guard's own text
+    # _EvilConn mock (db maint convo restore drills): delegates .backup to
+    # a real read-only conn but refuses VACUUM INTO — no production DB is
+    # copied; the textual ".backup(" is the mock's delegation, flagged
+    # 2026-11-20 gate triage (db_swap arc fallout).
+    "test_db_maint_convo.py",
 }
 
 
