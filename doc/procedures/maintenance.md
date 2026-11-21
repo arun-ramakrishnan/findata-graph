@@ -64,7 +64,7 @@ placement invariant).
 | Step | Notes |
 |---|---|
 | `db_maint` | VACUUM/ANALYZE/REINDEX/integrity; takes the `db-backup/*_backup.*.zst` recovery copies (pre-VACUUM) — including `bili_index_backup.db.zst`, the recovery copy of the billion-context proxy's primary session store |
-| `snapshot` | versioned snapshots (post-mutation) — **elided in `--full`** (`TIER1_FULL_SKIP`), the TIER2 tail re-snapshots everything |
+| `snapshot` | versioned snapshots (post-mutation) — **elided in `--full`** (`TIER1_FULL_SKIP`), the TIER2 tail re-snapshots everything. Since the S6 cutover (2026-11-21) the tracked `snapshots/parquet/sqlite/` axis keeps its SQLite-schema restore contract but its DATA source resolves through the research-store selector (canonical DuckDB by default; rollback SQLite under `FINDATA_RESEARCH_ENGINE=sqlite`) — see `parquet_snapshot_duckdb_reader.md` |
 | `graph-rebuild` | DuckDB cache from the snapshotted SQLite — data-only since centrality_rebuild_contract: drops the `v_centrality_*` tables |
 | `stamp-centrality` | re-stamps the ten `v_centrality_*` tables (centrality_rebuild_contract explicit lane; BFS family costs minutes at 56k edges, so it never rides the implicit rebuild) |
 

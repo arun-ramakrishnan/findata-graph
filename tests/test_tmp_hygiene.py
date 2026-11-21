@@ -293,14 +293,14 @@ class TestFullTemplate:
     def tpl(self, tmp_path_factory) -> Path:
         from tests._tmp_hygiene import build_full_template
 
-        return build_full_template(tmp_path_factory.mktemp("fulltpl") / "full.db")
+        return build_full_template(tmp_path_factory.mktemp("fulltpl") / "full.db", tmp_path_factory)
 
-    def test_delete_journal_mode_and_full_corpus(self, tpl):
+    def test_delete_journal_mode_and_full_corpus(self, tpl, tmp_path_factory):
         """DELETE journal mode (the sidecar guard) and a true full copy:
         row counts match production for the hot tables."""
         import sqlite3
 
-        from tests._tmp_hygiene import DB_PATH
+        from tests._tmp_hygiene import legacy_donor
 
         con = sqlite3.connect(str(tpl))
         try:
@@ -314,7 +314,10 @@ class TestFullTemplate:
             )
         finally:
             con.close()
-        src = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+        # Build-route P4 deleted memory/research.db; the legacy SQLite
+        # replica is now restored from the tracked parquet axis.
+        donor = legacy_donor(tmp_path_factory)
+        src = sqlite3.connect(f"file:{donor}?mode=ro", uri=True)
         try:
             src_counts = dict(
                 src.execute(

@@ -10,10 +10,15 @@ unreferenced and is removed. Event-referenced names (counterparty_entity
 rows) are KEPT and reported: their events are re-derived, not the names
 purged. Default is plan-only (--check); --apply writes.
 
-Idempotent. FKs do the cleanup: entities.name is ON DELETE CASCADE from
-graph_edges source/target, hyper_incidences.entity_name, company_metrics,
-quotes, events.entity; events.counterparty_entity is SET NULL — which is
-exactly why event-referenced names are never auto-purged.
+Idempotent. On SQLite, FKs historically did the cleanup: entities.name is
+ON DELETE CASCADE from graph_edges source/target, hyper_incidences.entity_name,
+company_metrics, quotes, events.entity, event_participants.participant,
+entity_tags.entity_name; events.counterparty_entity is SET NULL — which is
+exactly why event-referenced names are never auto-purged. The canonical
+DuckDB store carries NO FK constraints (conversion dropped every REFERENCES
+clause), so `_OTHER_REFS` is the single complete safety net there: it must
+enumerate every child surface or a delete would orphan rows that SQLite used
+to cascade away. Keep the two lists in lockstep.
 """
 
 from __future__ import annotations
@@ -51,6 +56,9 @@ _OTHER_REFS = """
     + (SELECT COUNT(*) FROM quotes WHERE entity = e.name)
     + (SELECT COUNT(*) FROM events WHERE entity = e.name)
     + (SELECT COUNT(*) FROM relations WHERE source = e.name OR target = e.name)
+    + (SELECT COUNT(*) FROM event_participants WHERE participant = e.name)
+    + (SELECT COUNT(*) FROM entity_tags WHERE entity_name = e.name)
+    + (SELECT COUNT(*) FROM ppr_results WHERE entity = e.name)
 """
 
 _EVENT_REFS = """

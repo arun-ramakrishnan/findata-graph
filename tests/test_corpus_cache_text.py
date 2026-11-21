@@ -11,17 +11,17 @@ review (finding B1); evidence in doc/local/engineering/code_review.md.
 Teeth contract: the mtime-hit and hash-hit assertions each die if their
 `text=""` return site comes back; the NULL-row test dies if the v2
 self-heal regresses. Conftest's autouse _corpus_db_to_tmp keeps this off
-the real memory/corpus.db.
+the real memory/corpus.duckdb.
 """
 
 from __future__ import annotations
 
 import os
-import sqlite3
 from pathlib import Path
 
 from helpers.core import corpus as corpus_mod
 from helpers.core.corpus import Corpus
+from helpers.core.db import connect
 from helpers.core.frontmatter import split_frontmatter
 
 NOTES = {
@@ -82,7 +82,7 @@ def test_pre_v3_rows_with_null_text_self_heal(tmp_path):
     # Simulate pre-v3 rows: the text column exists but every row is NULL.
     # Call-time attribute read: the autouse redirect swaps corpus_mod's
     # binding, so a module-level imported name would hit the REAL cache.
-    conn = sqlite3.connect(str(corpus_mod.CORPUS_DB))
+    conn = connect(corpus_mod.CORPUS_DB)
     try:
         conn.execute("UPDATE corpus_cache SET text = NULL")
         conn.commit()
@@ -95,7 +95,7 @@ def test_pre_v3_rows_with_null_text_self_heal(tmp_path):
         assert n.text == _read(n.path), f"NULL-text row was not self-healed: {n.path}"
 
     # And the backfill persisted — no NULL rows remain.
-    conn = sqlite3.connect(str(corpus_mod.CORPUS_DB))
+    conn = connect(corpus_mod.CORPUS_DB)
     try:
         nulls = conn.execute("SELECT COUNT(*) FROM corpus_cache WHERE text IS NULL").fetchone()[0]
     finally:

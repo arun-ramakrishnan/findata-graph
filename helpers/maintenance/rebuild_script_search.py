@@ -807,21 +807,15 @@ def _mojo_decl_cached(
         if decl is not None:
             if conn is not None:
                 try:
-                    if isinstance(conn, duckdb.DuckDBPyConnection):
-                        # duckdb autocommits per statement; `with conn:` would
-                        # CLOSE the connection on exit (verified 2026-11-15).
+                    # `with conn:` is safe on both engines (DuckDB proxy
+                    # matches sqlite3 since 2026-11-21: commit/rollback on
+                    # exit, never close).
+                    with conn:
                         conn.execute(
                             "INSERT OR REPLACE INTO script_search_mojo_doc "
                             "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
                             (rel, chash, generated),
                         )
-                    else:
-                        with conn:
-                            conn.execute(
-                                "INSERT OR REPLACE INTO script_search_mojo_doc "
-                                "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
-                                (rel, chash, generated),
-                            )
                 except sqlite3.Error, duckdb.Error:
                     pass
             return decl
@@ -1027,21 +1021,15 @@ def _ts_decl_cached(
         if decl is not None:
             if conn is not None:
                 try:
-                    if isinstance(conn, duckdb.DuckDBPyConnection):
-                        # duckdb autocommits per statement; `with conn:` would
-                        # CLOSE the connection on exit (verified 2026-11-15).
+                    # `with conn:` is safe on both engines (DuckDB proxy
+                    # matches sqlite3 since 2026-11-21: commit/rollback on
+                    # exit, never close).
+                    with conn:
                         conn.execute(
                             "INSERT OR REPLACE INTO script_search_ts_doc "
                             "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
                             (rel, chash, generated),
                         )
-                    else:
-                        with conn:
-                            conn.execute(
-                                "INSERT OR REPLACE INTO script_search_ts_doc "
-                                "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
-                                (rel, chash, generated),
-                            )
                 except sqlite3.Error, duckdb.Error:
                     pass
             return decl

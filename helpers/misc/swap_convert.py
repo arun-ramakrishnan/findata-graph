@@ -232,6 +232,40 @@ def _emit_table_ddl(t: str, spec: dict) -> str:
     return f'CREATE TABLE "{t}" (\n  ' + ",\n  ".join(cols_sql) + "\n)"
 
 
+def _rowid_alias_pk(spec: dict) -> str | None:
+    """Single-column PK declared as SQLite ``INTEGER PRIMARY KEY`` (rowid
+    alias — SQLite auto-assigned it). Returns the column name, or None.
+
+    DuckDB has no identity syntax (2.0.1 parser rejects GENERATED ... AS
+    IDENTITY), so the converter backs these with a per-table sequence +
+    ``DEFAULT nextval`` (see ``_backfill_id_sequences``) — the
+    engine-neutral equivalent. Writers that INSERT without an explicit id
+    keep working; ``lastrowid``-style callers re-select by UNIQUE key
+    (see derive_org_membership / sector_membership /
+    derive_merger_hyperedges).
+    """
+    pk_cols = sorted((c for c in spec["columns"] if c["pk"]), key=lambda c: c["pk"])
+    if len(pk_cols) == 1 and pk_cols[0]["sqlite_type"].strip().upper() == "INTEGER":
+        return pk_cols[0]["name"]
+    return None
+
+
+def _backfill_id_sequences(con: Any, t: str, pk_col: str) -> None:
+    """Create ``{t}_id_seq`` at MAX(id)+1 and default ``id`` to nextval.
+
+    Runs AFTER the data load so the sequence starts above every carried row
+    (a fresh START 1 would collide with loaded ids). idempotent: skips
+    when the sequence already exists.
+    """
+    if con.execute(
+        f"SELECT 1 FROM duckdb_sequences() WHERE sequence_name = '{t}_id_seq'"
+    ).fetchone():
+        return
+    start = con.execute(f'SELECT COALESCE(MAX("{pk_col}"), 0) + 1 FROM "{t}"').fetchone()[0]
+    con.execute(f'CREATE SEQUENCE "{t}_id_seq" START {start}')
+    con.execute(f'ALTER TABLE "{t}" ALTER "{pk_col}" SET DEFAULT nextval(\'{t}_id_seq\')')
+
+
 def _load_order(tables: dict) -> list[str]:
     """Parents-first topological order (DuckDB enforces FKs at insert time;
     ALTER TABLE ADD FK is unsupported upstream, so FKs are declared at
@@ -331,6 +365,9 @@ def _build(source: Path, dest: Path) -> tuple[dict, float]:
                 _load_self_fk_table(con, t, cols, sel, self_fk_cols[0], self_fk_to[0])
             else:
                 con.execute(f'INSERT INTO "{t}" ({cols}) {sel}')
+            pk_col = _rowid_alias_pk(spec)
+            if pk_col is not None:
+                _backfill_id_sequences(con, t, pk_col)
         for name, sql in schema["views"].items():
             con.execute(_translate_view(sql))
         for name, idx in schema["indexes"].items():

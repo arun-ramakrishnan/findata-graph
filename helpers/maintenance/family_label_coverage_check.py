@@ -40,7 +40,6 @@ from typing import TypedDict
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.maintenance.group_discovery_inventory import load_family_seeds  # noqa: E402
 
 FAMILY_SEEDS_PATH = REPO_ROOT / "helpers" / "misc" / "family_seeds.json"
@@ -265,7 +264,7 @@ def render(report: dict) -> str:
     return "\n".join(lines)
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901  # CLI dispatch with many flat branches
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--db", default=str(DEFAULT_DB))
     ap.add_argument(
@@ -306,9 +305,18 @@ def main() -> int:
             print(f"unknown families: {sorted(unknown)}", file=sys.stderr)
             return 1
 
-    import duckdb
+    from helpers.misc.duckdb_lock import open_read_only
 
-    conn = duckdb.connect(args.db, **memory_cap_config())
+    # Build-route P4: the legacy memory/research.db host is deleted; the
+    # canonical research store is the .duckdb sibling. Resolve raw .db
+    # defaults to the sibling so this check never CREATES an empty duckdb
+    # file at the retired path.
+    db_path = Path(args.db)
+    if db_path.suffix.lower() == ".db":
+        duck = db_path.with_suffix(".duckdb")
+        if duck.exists():
+            db_path = duck
+    conn = open_read_only(str(db_path))
     try:
         labels = _load_group_labels(conn)
     finally:

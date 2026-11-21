@@ -1311,10 +1311,11 @@ def write_analytics(
         conn = connect()
     now = datetime.now(UTC).isoformat()
     try:
-        # NOTE: no `with conn:` here — DuckDB's Connection.__exit__ CLOSES
-        # the connection, so a caller-provided conn (own_conn=False) would
-        # be killed mid-flow. Both backends auto-commit per statement, so
-        # the delete+upsert loop needs no explicit transaction wrapper.
+        # NOTE: no `with conn:` here — the delete+upsert loop spans a
+        # caller-provided conn (own_conn=False), and `with conn:` would
+        # commit/rollback per block, not close (DuckDB's proxy matches
+        # sqlite3 semantics since 2026-11-21). Both backends auto-commit
+        # per statement, so the loop needs no explicit transaction wrapper.
         if replace_population and values:
             names = list(values)
             placeholders = ",".join("?" for _ in names)

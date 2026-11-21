@@ -412,9 +412,10 @@ def _index_count_dims(db_path: Path) -> tuple[int, int | None]:
     from helpers.core.db_engine import connect_funnel, is_duckdb_conn
 
     # S2: route through the sanctioned research-store funnel so the
-    # FINDATA_RESEARCH_ENGINE opt-in applies. Extension still decides the
-    # engine (a .duckdb sidecar opens DuckDB under every selector), and
-    # the default SQLite branch is byte-identical to the old db_connect.
+    # FINDATA_RESEARCH_ENGINE selector applies (duckdb-first default since
+    # the S6 cutover). Extension still decides the engine (a .duckdb
+    # sidecar opens DuckDB under every selector), and the SQLite branch is
+    # byte-identical to the old db_connect.
     conn = connect_funnel(db_path, read_only=True, wal=False)
     try:
         if is_duckdb_conn(conn):

@@ -79,13 +79,14 @@ def index():
 
 
 def get_db_connection():
-    """Get a research-store connection (opt-in DuckDB, SQLite by default).
+    """Get a research-store connection (duckdb-first default, ``sqlite``
+    rollback).
 
-    Routes through ``helpers.core.db_engine.connect_funnel`` so the
-    ``FINDATA_RESEARCH_ENGINE`` selector (``duckdb``/``auto``) can point
-    the pure-reader routes at a converted DuckDB artifact. With the default
-    ``sqlite`` selector this calls the unchanged ``helpers.core.db.connect``
-    — same FK/WAL pragmas and ``sqlite3.Row`` factory as before.
+    Routes through ``helpers.core.db_engine.connect_funnel``: the
+    ``FINDATA_RESEARCH_ENGINE`` selector (default ``duckdb`` since the S6
+    cutover, ``sqlite`` = explicit rollback) decides the engine, and the
+    SQLite branch still calls the unchanged ``helpers.core.db.connect`` —
+    same FK/WAL pragmas and ``sqlite3.Row`` factory as before.
     """
     from helpers.core.db_engine import connect_funnel
 

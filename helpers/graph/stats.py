@@ -36,6 +36,7 @@ except ImportError:  # pragma: no cover
     sys.modules.pop("helpers", None)
 
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -878,6 +879,27 @@ def _print_structure_metrics() -> None:
             print(f"  exact (stamped): unavailable ({type(e).__name__})")
 
 
+def _staleness_julianday(value: object) -> float | None:
+    """Best-effort julianday for the two stamp TEXT shapes (space-separated
+    `utc_now()` convention and ISO-T legacy rows) — engine-neutral:
+    SQLite's `julianday()` does not exist under DuckDB. Returns None for
+    NULL / empty / unparseable values (mirrors julianday's NULL pass)."""
+    if not value:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    s = text.replace("T", " ")
+    try:
+        dt = datetime.strptime(s[:19], "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        try:
+            dt = datetime.strptime(s[:10], "%Y-%m-%d")
+        except ValueError:
+            return None
+    return dt.timestamp() / 86400.0 + 2440587.5
+
+
 def _staleness_verdict(conn) -> list[str]:
     """The fresh/stale verdict lines for graph_analytics vs entities.
 
@@ -890,12 +912,12 @@ def _staleness_verdict(conn) -> list[str]:
     NULL), so the decision is by time; the raw strings stay in the
     banner for humans.
     """
-    entity_last, entity_jd = conn.execute(
-        "SELECT MAX(last_updated), MAX(julianday(last_updated)) FROM entities"
-    ).fetchone()
-    analytics_last, analytics_jd = conn.execute(
-        "SELECT MAX(computed_at), MAX(julianday(computed_at)) FROM graph_analytics"
-    ).fetchone()
+    entity_last = conn.execute("SELECT MAX(last_updated) FROM entities").fetchone()[0]
+    analytics_last = conn.execute(
+        "SELECT MAX(computed_at) FROM graph_analytics"
+    ).fetchone()[0]
+    entity_jd = _staleness_julianday(entity_last)
+    analytics_jd = _staleness_julianday(analytics_last)
     if entity_jd is None or analytics_jd is None:
         # widened guard: no parseable stamp on one side is unknown, not fresh
         return [

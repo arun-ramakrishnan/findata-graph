@@ -134,11 +134,9 @@ from helpers.core.db import connect  # noqa: E402
 # re-implements. Primaries (research.db, graph.duckdb) are NOT here; they
 # are db_maint's own maintained objects.
 SIDECAR_SQLITE: tuple[str, ...] = (
-    "memory/embed_store.db",
-    "memory/corpus.db",
-    "memory/doc_search.db",  # legacy FTS5 sidecar (duckdb_sidecar_fold; rollback path)
-    "memory/memory_search.db",  # legacy FTS5 sidecar (duckdb_sidecar_fold; rollback path)
-    "memory/md_lint_cache.db",
+    "memory/embed_store.db",  # only SQLite store left (build route P4: frozen
+    # research.db + FTS5 twins doc/memory/script/git deleted after soak; rollback
+    # net = tracked parquet axis + db-backup zstd, see help/maintenance/build_route_p4.py)
 )
 # (path, vacuum) — convo_search is CHECKPOINT-only: its compact-copy
 # rewrites the file wholesale, the checkpoint is the belt-and-braces
@@ -162,7 +160,20 @@ SIDECAR_DUCKDB: tuple[tuple[str, bool], ...] = (
         "memory/note_search.duckdb",
         False,
     ),  # note_search carve-out S1: native FTS sidecar; CHECKPOINT rides maint
+    (
+        "memory/corpus.duckdb",
+        False,
+    ),  # S1b corpus cache (build route P5: moved from SQLite); CHECKPOINT rides maint
+    (
+        "memory/md_lint_cache.duckdb",
+        False,
+    ),  # lint verdict cache (build route P5: moved from SQLite); CHECKPOINT rides maint
     ("memory/graph.xdist-shared.duckdb", True),
+    (
+        "memory/note_vectors.duckdb",
+        False,
+    ),  # derived vector mirror (vec_search); captured since 2026-11-21
+    ("memory/gate_runs.duckdb", False),  # gate-run bookkeeping; captured since 2026-11-21
     ("memory/data/agent_traces.duckdb", True),
     ("memory/data/sources.duckdb", True),
     ("memory/data/model_usage.duckdb", True),
@@ -553,23 +564,23 @@ class DBMaintainer:
         return self._duckdb_zstd_backup(src, dst, label="Embed store")
 
     def _backup_corpus(self) -> int:
-        """Paired recovery copy of the S1b corpus cache (memory/corpus.db).
+        """Paired recovery copy of the S1b corpus cache (memory/corpus.duckdb).
 
         corpus_cache holds path/mtime/content_hash/frontmatter_json/body
         for every vault note — the private-content class the git snapshot
         deliberately excludes, so this is its only recovery copy
         (operator decision 2026-09-04). Rebuildable (one findata walk),
         but a lost cache also loses the mtime-incremental baseline.
-        Resolution + WAL-consistent sqlite online-backup + zstd exactly
-        as _backup_embed_store; absent state just skips."""
+        DuckDB checkpoint-then-copy + zstd exactly as _backup_embed_store
+        (which remains SQLite); absent state just skips."""
         from helpers.core.corpus import CORPUS_DB
 
         src = Path(CORPUS_DB)
         if not src.exists():
             self._log(logging.INFO, f"Corpus cache absent — backup skipped ({src})")
             return 0
-        dst = self.backup_path.parent / "corpus_backup.db"
-        return self._sqlite_zstd_backup(src, dst, label="Corpus cache")
+        dst = self.backup_path.parent / "corpus_backup.duckdb"
+        return self._duckdb_zstd_backup(src, dst, label="Corpus cache")
 
     def _duckdb_zstd_backup(self, src: Path, dst: Path, label: str) -> int:
         """Checkpoint-then-copy one DuckDB file into ``<dst>.zst``.
@@ -878,7 +889,7 @@ class DBMaintainer:
             "graph.duckdb",
             "embed_store.db",
             "embed_store.duckdb",
-            "corpus.db",
+            "corpus.duckdb",
             "doc_search.db",
             "memory_search.db",
             "memory_search.duckdb",

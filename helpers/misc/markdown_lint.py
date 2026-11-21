@@ -17,7 +17,8 @@ node_modules/.venv/.cache/build trees out of every walk.
 
 Stale-scan cache (2026-09-01, ``archive/tooling/md_lint_cache.md``):
 verdicts are recorded per file in the
-gitignored sidecar ``memory/md_lint_cache.db`` keyed by content hash +
+gitignored sidecar ``memory/md_lint_cache.duckdb`` (build route P5: moved
+from SQLite to DuckDB; schema unchanged) keyed by content hash +
 config hash + cli2 version; only changed/new files are re-linted. A stale
 subset runs inside a scratch symlink mirror that reproduces repo-relative
 paths, so overrides/filters match identically — cli2 command-line globs
@@ -67,7 +68,7 @@ from helpers.core.db import connect  # noqa: E402
 MARKDOWNLINT_CLI2_VERSION = "0.23.2"
 _NPX = shutil.which("npx")
 _CONFIG_PATH = REPO_ROOT / ".markdownlint-cli2.jsonc"
-_CACHE_DB = REPO_ROOT / "memory" / "md_lint_cache.db"  # sidecar, gitignored
+_CACHE_DB = REPO_ROOT / "memory" / "md_lint_cache.duckdb"  # sidecar, gitignored
 # cli2 default formatter: ``path/file.md:12:5 error MD037/Name message``
 # (the column is optional and the severity word is always present)
 _VIOLATION = re.compile(r"^.+?:\d+(?::\d+)?\s+(?:error|warning)\s+(MD\d+)(?:/\S+)?\s")
@@ -198,7 +199,7 @@ def _cache_open() -> sqlite3.Connection | None:
             "path TEXT PRIMARY KEY, hash TEXT NOT NULL, violations TEXT NOT NULL)"
         )
         return conn
-    except sqlite3.Error:
+    except Exception:  # cache must never take down the linter (any engine)
         return None
 
 
@@ -211,11 +212,14 @@ def _split_stale(
     violation lines and ``stale`` is a list of ``(key, hash)`` pairs to scan.
     """
     sig = _config_signature()
-    if dict(conn.execute("SELECT key, value FROM meta")).get("config_hash") != sig:
+    if dict(conn.execute("SELECT key, value FROM meta").fetchall()).get("config_hash") != sig:
         conn.execute("DELETE FROM verdicts")
         conn.execute("INSERT OR REPLACE INTO meta VALUES ('config_hash', ?)", (sig,))
         conn.commit()
-    rows = {p: (h, v) for p, h, v in conn.execute("SELECT path, hash, violations FROM verdicts")}
+    rows = {
+        p: (h, v)
+        for p, h, v in conn.execute("SELECT path, hash, violations FROM verdicts").fetchall()
+    }
     cached: dict[str, list[str]] = {}
     stale: list[tuple[str, str]] = []
     for f in files:

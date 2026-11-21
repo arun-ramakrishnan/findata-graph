@@ -18,7 +18,6 @@ SKIP branch → the gate fails on a machine without memory/ DBs.
 from __future__ import annotations
 
 import re
-import sqlite3
 from pathlib import Path
 
 import pytest
@@ -72,14 +71,10 @@ class TestSchemaDrift:
         }
         checked = 0
         for path, engine in sd.source_dbs():
-            if engine != "sqlite" or path.stem not in expected_by_db:
+            if path.stem not in expected_by_db:
                 continue
-            con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-            present = {
-                r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            }
-            con.close()
-            text = sd.sqlite_ddl(path)
+            text = sd.sqlite_ddl(path) if engine == "sqlite" else sd.duckdb_ddl(path)
+            present = set(re.findall(r"CREATE TABLE\s+([A-Za-z0-9_]+)", text))
             for companion in expected_by_db[path.stem]:
                 if companion not in present:
                     continue  # not a live table on this machine

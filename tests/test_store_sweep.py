@@ -122,7 +122,7 @@ def test_size_watch_ratio_contract(monkeypatch):
             "memory/embed_store.db": 184.6,
             "memory/convo_search.duckdb": 102.0,
             "memory/doc_search.db": 24.7,
-            "memory/corpus.db": 53.33,
+            "memory/corpus.duckdb": 53.33,
         },
     )
     rows = [
@@ -145,7 +145,7 @@ def test_size_watch_ratio_contract(monkeypatch):
             "after_bytes": int(40 * mib),
         },
         # 54M / 53.33M ≈ 1.01× — quiet.
-        {"store": "memory/corpus.db", "engine": "sqlite", "after_bytes": int(54 * mib)},
+        {"store": "memory/corpus.duckdb", "engine": "duckdb", "after_bytes": int(54 * mib)},
         # No baseline — one prompt line, not a crash, not silence.
         {"store": "memory/git_search.duckdb", "engine": "duckdb", "bytes": int(26 * mib)},
         # No baseline AND 0 bytes — fully silent.
@@ -160,7 +160,7 @@ def test_size_watch_ratio_contract(monkeypatch):
     assert "no filing baseline" in next(ln for ln in lines if "git_search" in ln)
     assert not any("sources.duckdb" in ln for ln in lines)
     # 0-byte stores with a baseline stay silent too (nothing measured).
-    assert not ss.size_watch([{"store": "memory/corpus.db", "engine": "sqlite", "bytes": 0}])
+    assert not ss.size_watch([{"store": "memory/corpus.duckdb", "engine": "duckdb", "bytes": 0}])
     # The watch is advisory by contract: it must never change the
     # exit-code inputs.
     assert ss.exit_code(rows) == 0

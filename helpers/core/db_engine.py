@@ -44,7 +44,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from helpers.core.db import DEFAULT_DB_PATH, connect as _sqlite_connect
+from helpers.core.db import DEFAULT_DB_PATH, _sqlite_connect  # noqa: PLC0415  # private house sqlite opener (S1)
 from helpers.core.duckdb_shared import connect_shared as _duckdb_connect_shared
 
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -95,6 +95,16 @@ class _DuckDBCursor:
         # not iterable — iterate the materialized rows instead.
         return iter(self.fetchall())
 
+    @property
+    def rowcount(self) -> int:
+        """sqlite3.Cursor-compatible rowcount.
+
+        duckdb's execute() returns the connection (not a cursor); its
+        ``rowcount`` reflects the LAST statement run on that connection,
+        so read it immediately (callers do, e.g. the INSERT OR IGNORE
+        new-edge/new-incidence accounting in derive_hyperedges)."""
+        return int(self._raw.rowcount)
+
 
 class _DuckDBConnCursor:
     """sqlite3.Cursor-shaped handle over the shared DuckDB connection.
@@ -121,6 +131,21 @@ class _DuckDBConnCursor:
         )
         return self
 
+    def executemany(self, sql: str, parameters: Any = ()) -> _DuckDBConnCursor:
+        """sqlite3.Cursor-compatible executemany (app writers use it on
+        the shared connection cursor)."""
+        self._last = self._conn.executemany(sql, parameters)
+        cols = self._last._cols if self._last is not None else ()
+        self.description = (
+            tuple((c, None, None, None, None, None, None) for c in cols) if cols else None
+        )
+        return self
+
+    @property
+    def rowcount(self) -> int:
+        """sqlite3.Cursor-compatible rowcount (last executed statement)."""
+        return self._last.rowcount if self._last is not None else -1
+
     def fetchone(self):
         return self._last.fetchone() if self._last is not None else None
 
@@ -144,9 +169,30 @@ class _DuckDBConn:
         cols = tuple(d[0] for d in self.raw.description) if self.raw.description else ()
         return _DuckDBCursor(cur, cols)
 
+    def executemany(self, sql: str, parameters: Any = ()) -> _DuckDBCursor:
+        """sqlite3.Connection-compatible executemany (bulk writers — the
+        research-store writer lanes use it on the canonical DuckDB conn)."""
+        cur = self.raw.executemany(sql, parameters)
+        cols = tuple(d[0] for d in self.raw.description) if self.raw.description else ()
+        return _DuckDBCursor(cur, cols)
+
+    def executescript(self, sql: str) -> _DuckDBConn:
+        """sqlite3.Connection-compatible executescript: run a multi-statement
+        script. DuckDB executes semicolon-separated statements in one call;
+        the script runs in the current transaction (sqlite3's executescript
+        commits first — callers here use it for idempotent DDL, so the
+        difference is invisible for the canonical research-store writers)."""
+        self.raw.execute(sql)
+        return self
+
     def cursor(self) -> _DuckDBConnCursor:
         """Return a sqlite3.Cursor-shaped handle over this connection."""
         return _DuckDBConnCursor(self)
+
+    def commit(self) -> None:
+        """sqlite3.Connection-compatible commit (DuckDB auto-commits; the
+        call is a no-op that keeps writer helpers engine-neutral)."""
+        self.raw.commit()
 
     def close(self) -> None:
         self.raw.close()
@@ -154,23 +200,39 @@ class _DuckDBConn:
     def __enter__(self) -> _DuckDBConn:
         return self
 
-    def __exit__(self, *exc) -> None:
-        self.close()
+    def __exit__(self, exc_type, exc, tb) -> None:
+        # sqlite3.Connection parity: a `with conn:` block commits on clean
+        # exit (rolls back on exception) and leaves the connection OPEN —
+        # callers routinely keep using the conn after the block. Closing
+        # here would silently kill every later statement (observed:
+        # derive_hyperedges S0 prune loop → "Connection already closed!").
+        if exc_type is None:
+            self.commit()
+        else:
+            try:
+                self.raw.rollback()
+            except Exception:  # noqa: S110
+                pass
 
 
 class ResearchEngine:
-    """Opt-in engine selector for the research store.
+    """Engine selector for the research store.
 
-    ``FINDATA_RESEARCH_ENGINE`` (default ``sqlite``):
+    ``FINDATA_RESEARCH_ENGINE`` — default ``duckdb`` since the S6 cutover
+    (2026-11-21, operator order: nothing resolves to the sqlite default
+    anymore):
 
-    - ``sqlite`` / unset — rollback/default: connect SQLite paths directly
-      via the unchanged ``helpers.core.db.connect``. ``.duckdb`` paths still
-      route to DuckDB by extension (the historical funnel behavior).
-    - ``auto`` / ``duckdb`` — opt-in: route every research-store path
-      through the funnel; when the selector names an engine the *path* is
-      resolved to that engine (a bare ``research.db`` becomes
-      ``research.duckdb`` alongside it), so callers that never pass a path
-      can opt in with just the env var. ``sqlite`` remains the rollback.
+    - ``duckdb`` / ``auto`` / unset — canonical-first: research-store paths
+      route through the funnel; a bare research-store ``.db`` resolves to
+      its ``.duckdb`` sibling when it exists (SQLite fallback when the
+      sibling is absent — a fresh clone or a rollback box without the
+      converted store). A pathless call honors ``FINDATA_RESEARCH_DB_PATH``.
+    - ``sqlite`` — explicit rollback: connect SQLite paths directly via the
+      unchanged ``helpers.core.db.connect`` (no sibling redirect for the
+      research store). ``.duckdb`` paths still route to DuckDB by
+      extension (the historical funnel behavior).
+    - Unknown values degrade to the sqlite branch — a selector typo reads
+      the rollback store, not the wrong canonical.
     """
 
     SQLITE = "sqlite"
@@ -178,7 +240,7 @@ class ResearchEngine:
     DUCKDB = "duckdb"
 
     def __init__(self, value: str | None) -> None:
-        self.name = (value or self.SQLITE).strip().lower() or self.SQLITE
+        self.name = (value or self.DUCKDB).strip().lower() or self.DUCKDB
 
     @classmethod
     def from_env(cls) -> ResearchEngine:
@@ -192,13 +254,22 @@ class ResearchEngine:
         path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
         if db_path is None and self.name == self.DUCKDB:
             # No explicit path (app.py readers et al.): let the operator
-            # point the opt-in engine at a converted artifact. Production
-            # default is untouched — this env is read only when DuckDB is
-            # opted in and the caller passed no path.
+            # point the selector at a converted artifact; the default path
+            # itself still resolves through the gated sibling redirect
+            # below.
             override = os.environ.get("FINDATA_RESEARCH_DB_PATH")
             if override:
                 path = Path(override)
-        if self.name == self.DUCKDB and path.suffix.lower() != ".duckdb":
+        if (
+            self.name == self.DUCKDB
+            and path.suffix.lower() != ".duckdb"
+            and is_research_store_path(db_path)
+        ):
+            # Sibling redirect, gated to the research store (the S6 hijack
+            # law now holds at the funnel itself, not only in
+            # research_store_connect): a fixture ``research.db`` whose
+            # sibling ``.duckdb`` is another lane's cache must never be
+            # hijacked onto it, duckdb-first default or not.
             duck = path.with_suffix(".duckdb")
             if duck.exists():
                 return duck
@@ -259,10 +330,11 @@ def connect_funnel(
 ):
     """Open a connection to ``db_path`` routing by engine + file extension.
 
-    The opt-in ``FINDATA_RESEARCH_ENGINE`` selector (default ``sqlite``)
-    decides the engine for research-store paths; ``engine=`` overrides the
-    env var for a single call. DuckDB paths always route to DuckDB. The
-    SQLite default path delegates to ``helpers.core.db.connect`` unchanged.
+    The ``FINDATA_RESEARCH_ENGINE`` selector — default ``duckdb`` since the
+    S6 cutover, ``sqlite`` the explicit rollback — decides the engine for
+    research-store paths; ``engine=`` overrides the env var for a single
+    call. DuckDB paths always route to DuckDB. The SQLite branch delegates
+    to ``helpers.core.db.connect`` unchanged.
 
     Args (mirror ``helpers.core.db.connect``):
         db_path: Path to the store. Defaults to ``memory/research.db``.

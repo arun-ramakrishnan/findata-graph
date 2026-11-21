@@ -65,11 +65,13 @@ except ImportError:  # pragma: no cover - fallback for isolated import
 # S1b shared cache — consolidated in helpers/core/corpus.py (one place, not duped per-module).
 # Was a /tmp pickle ephemeral (0.16s load, full rebuild if any file newer, and its findata-root
 # branch returned unfiltered content — a stale synthetic pickle silently poisoned production
-# loads, hit 2026-09-02); dropped 2026-09-02. Now memory/corpus.db (gitignored, like
+# loads, hit 2026-09-02); dropped 2026-09-02. Now memory/corpus.duckdb (gitignored, like
 # doc_search.db) with per-file mtime incremental (0.02s load + 1 file yaml when 1 of 1243
 # changed, not 0.37s full). Persistent across reboots; snapshot does not bloat research.db —
-# corpus.db is sidecar like embed_store.db.
-_CACHE_DB = Path(__file__).resolve().parents[2] / "memory" / "corpus.db"
+# corpus.duckdb is sidecar like embed_store.db (build route P5: moved
+# from SQLite to DuckDB — same schema, SQL portable as-is; loss = one
+# 8.6 s rebuild).
+_CACHE_DB = Path(__file__).resolve().parents[2] / "memory" / "corpus.duckdb"
 # Public seam for the backup machinery (db_maint._backup_corpus /
 # snapshot_db._snapshot_corpus) — mirrors vec_search.EMBED_DB_PATH. Import
 # at CALL time so tests' conftest tmp-redirect of this module is honored.
@@ -120,7 +122,7 @@ def _ensure_cache_text_column(conn) -> None:
     the cache, then runs `sync_tags --corpus --apply`, a delete-then-insert)
     would have wiped entity_tags. One ALTER on the first v3 connect;
     pre-v3 rows carry text NULL and self-heal on first read."""
-    cols = {r[1] for r in conn.execute("PRAGMA table_info(corpus_cache)")}
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(corpus_cache)").fetchall()}
     if cols and "text" not in cols:
         conn.execute("ALTER TABLE corpus_cache ADD COLUMN text TEXT")
         conn.commit()
@@ -203,7 +205,7 @@ class Corpus:
     def load(  # noqa: C901
         cls, root: str | Path = "findata", *, workers: int = 1, use_cache: bool = True
     ) -> "Corpus":
-        """One walk+parse. `use_cache=True` hits `memory/corpus.db` per-file mtime
+        """One walk+parse. `use_cache=True` hits `memory/corpus.duckdb` per-file mtime
         incremental (`0.02s` load + `1` yaml when `1/1243` changed) not `0.37s` full.
         Falls back to the full walk. `maint --full` pre-warms once;
         subsequent `sync_tags --corpus` etc. hit DB cache.
@@ -518,7 +520,7 @@ class Corpus:
 
 
 def _init_db_cache(notes: list[Note], root: Path | None = None) -> None:
-    """Create or refresh memory/corpus.db from a full notes list (S1b consolidated).
+    """Create or refresh memory/corpus.duckdb from a full notes list (S1b consolidated).
 
     ``root`` canonicalizes the row keys (see _cache_key) — the fallback
     full walk may have run from an absolute-root caller."""

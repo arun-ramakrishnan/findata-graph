@@ -148,6 +148,52 @@ def connect(
     wal: bool = True,
     read_only: bool = False,
 ) -> sqlite3.Connection:
+    """Open a project-standard connection to a store.
+
+    Post-S6 (duckdb_research_swap_execution.md), the house door is
+    selector-aware: the research store (default path, ``DEFAULT_DB_PATH``,
+    or ``FINDATA_RESEARCH_DB_PATH`` override) and every ``.duckdb`` path
+    resolve through ``db_engine.research_store_connect`` — canonical
+    DuckDB by default, SQLite under ``FINDATA_RESEARCH_ENGINE=sqlite``.
+    Any other ``.db`` path is untouched and opens as SQLite with the
+    project-standard pragmas below (parquet_snapshot_duckdb_reader.md S1).
+
+    Returns:
+        A `sqlite3.Connection` (rollback path / non-research stores) or the
+        ``_DuckDBConn`` proxy (canonical). Caller is responsible for
+        closing (use as a context manager).
+    """
+    from helpers.core.db_engine import is_research_store_path, research_store_connect
+
+    if (
+        db_path is None
+        or is_research_store_path(db_path)
+        or str(db_path).lower().endswith(".duckdb")
+    ):
+        return research_store_connect(
+            db_path,
+            row_factory=row_factory,
+            enable_fk=enable_fk,
+            wal=wal,
+            read_only=read_only,
+        )
+    return _sqlite_connect(
+        db_path,
+        row_factory=row_factory,
+        enable_fk=enable_fk,
+        wal=wal,
+        read_only=read_only,
+    )
+
+
+def _sqlite_connect(
+    db_path: Path | str | None = None,
+    *,
+    row_factory=sqlite3.Row,
+    enable_fk: bool = True,
+    wal: bool = True,
+    read_only: bool = False,
+) -> sqlite3.Connection:
     """Open a SQLite connection with project-standard pragmas applied.
 
     Args:
@@ -241,8 +287,11 @@ def close_connection(conn: sqlite3.Connection) -> None:
     Prefer this over bare ``conn.close()`` in new code.
     """
     try:
-        conn.execute("PRAGMA optimize")
-    except sqlite3.Error:
+        from helpers.core.db_engine import is_duckdb_conn
+
+        if not is_duckdb_conn(conn):
+            conn.execute("PRAGMA optimize")
+    except Exception:  # noqa: BLE001, S110
         pass
     conn.close()
 
@@ -255,16 +304,26 @@ def get_generation(conn: sqlite3.Connection) -> int | None:
     try:
         row = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
         return int(row[0]) if row and row[0] is not None else None
-    except sqlite3.Error:
+    except Exception:  # noqa: BLE001  # duckdb raises non-sqlite errors; None = absent/unreadable
         return None
 
 
 def get_user_version(conn: sqlite3.Connection) -> int | None:
-    """Return PRAGMA user_version."""
+    """Return PRAGMA user_version (SQLite) or db_meta.schema_version (DuckDB).
+
+    S1 (parquet_snapshot_duckdb_reader.md): DuckDB has no ``user_version``
+    PRAGMA — the canonical version source on both engines is the db_meta
+    ``schema_version`` row, so the duckdb branch reads it there.
+    """
     try:
+        from helpers.core.db_engine import is_duckdb_conn
+
+        if is_duckdb_conn(conn):
+            row = conn.execute("SELECT value FROM db_meta WHERE key='schema_version'").fetchone()
+            return int(row[0]) if row and row[0] is not None else None
         row = conn.execute("PRAGMA user_version").fetchone()
         return int(row[0]) if row else None
-    except sqlite3.Error:
+    except Exception:  # noqa: BLE001
         return None
 
 
@@ -376,9 +435,16 @@ def bump_generation(conn: sqlite3.Connection, by: int = 1) -> int | None:
 
     Returns the new generation value.
     """
-    has_meta = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_meta'"
-    ).fetchone()
+    from helpers.core.db_engine import is_duckdb_conn, table_exists
+
+    if is_duckdb_conn(conn):
+        has_meta = table_exists(conn, "db_meta")
+    else:
+        has_meta = bool(
+            conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_meta'"
+            ).fetchone()
+        )
     if not has_meta:
         return None
     conn.execute(
@@ -440,27 +506,36 @@ def ensure_db_meta(conn: sqlite3.Connection) -> int:
             (EXPECTED_SCHEMA_VERSION,),
         )
 
-    # triggers — idempotent: drop then create
-    # Bump generation by 1 per row-change (INSERT/DELETE/UPDATE on the two
-    # graph-relevant tables). entity_tags/quotes/etc. are derived and don't
-    # affect the DuckDB graph, so they don't bump.
-    for tbl in ("entities", "graph_edges"):
-        for op in ("insert", "delete", "update"):
-            tname = f"trg_{tbl}_{op}_gen"
-            conn.execute(f"DROP TRIGGER IF EXISTS {tname}")
-            conn.execute(
-                f"CREATE TRIGGER {tname} AFTER {op.upper()} ON {tbl} "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-                f"BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) "
-                f"WHERE key='generation'; END"
-            )
-    # user_version
-    try:
-        uv = conn.execute("PRAGMA user_version").fetchone()[0]
-        if int(uv) != EXPECTED_USER_VERSION:
-            conn.execute(f"PRAGMA user_version = {EXPECTED_USER_VERSION}")
-    except sqlite3.Error:
-        pass
-    conn.commit()
+    from helpers.core.db_engine import is_duckdb_conn
+
+    if is_duckdb_conn(conn):
+        # DuckDB has no CREATE TRIGGER and no user_version PRAGMA — the
+        # schema_version mirror above is the canonical version source (S1).
+        # Generation bumps on DuckDB are writer-driven (bump_generation);
+        # the SQLite trigger set stays for the rollback store.
+        conn.commit()
+    else:
+        # triggers — idempotent: drop then create
+        # Bump generation by 1 per row-change (INSERT/DELETE/UPDATE on the two
+        # graph-relevant tables). entity_tags/quotes/etc. are derived and don't
+        # affect the DuckDB graph, so they don't bump.
+        for tbl in ("entities", "graph_edges"):
+            for op in ("insert", "delete", "update"):
+                tname = f"trg_{tbl}_{op}_gen"
+                conn.execute(f"DROP TRIGGER IF EXISTS {tname}")
+                conn.execute(
+                    f"CREATE TRIGGER {tname} AFTER {op.upper()} ON {tbl} "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                    f"BEGIN UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+1 AS TEXT) "
+                    f"WHERE key='generation'; END"
+                )
+        # user_version
+        try:
+            uv = conn.execute("PRAGMA user_version").fetchone()[0]
+            if int(uv) != EXPECTED_USER_VERSION:
+                conn.execute(f"PRAGMA user_version = {EXPECTED_USER_VERSION}")
+        except sqlite3.Error:
+            pass
+        conn.commit()
     # re-read generation after any migration that bumped it
     row2 = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
     try:

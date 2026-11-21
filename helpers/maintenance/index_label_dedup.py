@@ -125,7 +125,11 @@ def apply_fold(conn) -> dict:
             conn.execute("DELETE FROM hyper_incidences WHERE edge_id = ?", (alias_id,))
             conn.execute("DELETE FROM hyper_edges WHERE id = ?", (alias_id,))
             stats["hyperedges_merged"] += 1
-        # 2) drop the alias entity (FK CASCADE removes its listed_on_index edges)
+        # 2) drop any alias-pinned incidences, then the alias entity. On
+        # SQLite the entity FK CASCADE removed them; the canonical DuckDB
+        # store has no FK constraints, so delete explicitly (both engines
+        # end identical).
+        conn.execute("DELETE FROM hyper_incidences WHERE entity_name = ?", (alias,))
         cur = conn.execute("DELETE FROM entities WHERE name = ?", (alias,))
         stats["entities_dropped"] += cur.rowcount
     # closing a sqlite3 connection rolls back an open transaction; persist here so

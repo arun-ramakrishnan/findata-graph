@@ -258,6 +258,10 @@ _SQLITE3_CONNECT_ALLOWLIST = {
     # Online-backup API + snapshot verify need their own throwaway connections
     # to scratch files; connect() targets the production DB path.
     "helpers/maintenance/snapshot_db.py",
+    # The sqlite3.connect( literal below is a SCAN PATTERN constant (the
+    # P4-deletion readiness probe greps for legacy open sites), never an
+    # actual connect call — direct-opens in this module are zero.
+    "helpers/maintenance/build_route_p4.py",
     # Read-only diagnostics (foreign_key_check, integrity_check) — FK
     # enforcement is irrelevant for PRAGMAs and SELECTs.
     "helpers/misc/database_integrity_check.py",

@@ -222,11 +222,18 @@ def gate_check(reference: list[dict], current: list[dict]) -> tuple[bool, list[s
 
 def run_inventory(db: str) -> list[dict]:
     """Run the inventory inline against a live DB (read-only)."""
-    import duckdb
+    from helpers.misc.duckdb_lock import open_read_only
 
-    from helpers.core.duckdb_shared import memory_cap_config
-
-    conn = duckdb.connect(db, **memory_cap_config())
+    # Build-route P4: the legacy memory/research.db host is deleted; the
+    # canonical research store is the .duckdb sibling. Resolve raw .db
+    # defaults to the sibling so a read-only probe never CREATES an empty
+    # duckdb file at the retired path (which poisoned gate legs).
+    db_path = Path(db)
+    if db_path.suffix.lower() == ".db":
+        duck = db_path.with_suffix(".duckdb")
+        if duck.exists():
+            db_path = duck
+    conn = open_read_only(str(db_path))
     try:
         dyads, sectors = _load(conn)
         if not dyads:

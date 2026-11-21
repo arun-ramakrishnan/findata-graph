@@ -149,7 +149,7 @@ def apply_derivation(conn, members: dict[str, dict[str, dict]], *, dry_run: bool
                 )
                 conn.execute("DELETE FROM hyper_incidences WHERE edge_id = ?", (edge_id,))
             else:
-                cur = conn.execute(
+                conn.execute(
                     "INSERT INTO hyper_edges (edge_type, label, properties, source_ref, "
                     "agent_id, source_tier) VALUES (?, ?, ?, ?, ?, ?)",
                     (
@@ -161,7 +161,10 @@ def apply_derivation(conn, members: dict[str, dict[str, dict]], *, dry_run: bool
                         SOURCE_TIER,
                     ),
                 )
-                edge_id = int(cur.lastrowid)
+                edge_id = conn.execute(
+                    "SELECT id FROM hyper_edges WHERE edge_type = ? AND label = ?",
+                    (MEMBERSHIP_HYPER_TYPE, label),
+                ).fetchone()[0]
             conn.executemany(
                 "INSERT INTO hyper_incidences "
                 "(edge_id, entity_name, weight, role, valid_from) VALUES (?, ?, ?, ?, ?)",

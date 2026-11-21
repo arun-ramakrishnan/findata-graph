@@ -43,6 +43,7 @@ heavy runs unless TMPDIR is exported.
 from __future__ import annotations
 
 import fcntl
+import logging
 import os
 import re
 import shutil
@@ -53,7 +54,10 @@ import time
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Build-route P4 deleted the frozen memory/research.db donor; the SQLite
+# template donors are now rebuilt from the tracked parquet restore axis.
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
+LEGACY_SNAPSHOT_DIR = PROJECT_ROOT / "snapshots" / "parquet" / "sqlite"
 
 # A-fix (2026-08-21): downsample the production copy. A full-corpus cold
 # build costs ~1.2s and the build-mechanics tests build up to 3x each;
@@ -66,9 +70,29 @@ DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 _KEEP_COMPANIES = 120
 
 
-def build_trimmed_template(dst: Path) -> Path:
+def build_legacy_donor(dst: Path) -> Path:
+    """Rebuild a full SQLite production replica from the tracked parquet
+    restore axis (build-route P4: frozen memory/research.db deleted)."""
+    from helpers.maintenance.snapshot_db import restore_sqlite_from_parquet
+
+    restore_sqlite_from_parquet(
+        LEGACY_SNAPSHOT_DIR,
+        dst,
+        logging.getLogger("tmp_hygiene"),
+        drop_agent_triggers=True,
+    )
+    return dst
+
+
+def legacy_donor(tmp_path_factory) -> Path:
+    """Shared once-per-run legacy SQLite donor (restored from parquet)."""
+    return _shared_template(tmp_path_factory, "legacy_donor.db", build_legacy_donor)
+
+
+def build_trimmed_template(dst: Path, tmp_path_factory=None) -> Path:
     """Build the downsampled, VACUUMed production copy at ``dst``."""
-    src = sqlite3.connect(str(DB_PATH))
+    donor = legacy_donor(tmp_path_factory) if tmp_path_factory else DB_PATH
+    src = sqlite3.connect(str(donor))
     dstdb = sqlite3.connect(str(dst))
     try:
         src.backup(dstdb)
@@ -127,10 +151,14 @@ def trimmed_template(tmp_path_factory) -> Path:
     Callers treat the returned file as READ-ONLY (byte-copy it per test);
     the file is shared concurrently by all workers of this run.
     """
-    return _shared_template(tmp_path_factory, "trimmed_template.db", build_trimmed_template)
+    return _shared_template(
+        tmp_path_factory,
+        "trimmed_template.db",
+        lambda dst: build_trimmed_template(dst, tmp_path_factory),
+    )
 
 
-def build_schema_template(dst: Path) -> Path:
+def build_schema_template(dst: Path, tmp_path_factory=None) -> Path:
     """Production SCHEMA + db_meta, zero rows, VACUUMed tiny (D2).
 
     Serves the schema-only test class (fuzz_shortest_path, test_graph, the
@@ -143,7 +171,8 @@ def build_schema_template(dst: Path) -> Path:
     behavior under test matches the old copy_production_db path, which
     kept them).
     """
-    src = sqlite3.connect(str(DB_PATH))
+    donor = legacy_donor(tmp_path_factory) if tmp_path_factory else DB_PATH
+    src = sqlite3.connect(str(donor))
     out = sqlite3.connect(str(dst))
     try:
         src.backup(out)
@@ -193,10 +222,14 @@ def build_schema_template(dst: Path) -> Path:
 def schema_template(tmp_path_factory) -> Path:
     """The shared schema-only template: built once per run, byte-copy per
     scope. Same sharing contract as :func:`trimmed_template`."""
-    return _shared_template(tmp_path_factory, "schema_template.db", build_schema_template)
+    return _shared_template(
+        tmp_path_factory,
+        "schema_template.db",
+        lambda dst: build_schema_template(dst, tmp_path_factory),
+    )
 
 
-def build_full_template(dst: Path) -> Path:
+def build_full_template(dst: Path, tmp_path_factory=None) -> Path:
     """Full live corpus, once per run (production_db_copy_audit S2/S3).
 
     Serves the two former keep_all amplifiers: query_plans opens the
@@ -217,7 +250,8 @@ def build_full_template(dst: Path) -> Path:
     from tests import hermeticity_watch
 
     hermeticity_watch.allow()
-    src = sqlite3.connect(str(DB_PATH))
+    donor = legacy_donor(tmp_path_factory) if tmp_path_factory else DB_PATH
+    src = sqlite3.connect(str(donor))
     out = sqlite3.connect(str(dst))
     try:
         src.backup(out)
@@ -234,7 +268,9 @@ def full_template(tmp_path_factory) -> Path:
     """The shared full-corpus template: built once per run, opened
     read-only (query_plans) or byte-copied per test (rebuild_schema).
     Same sharing contract as :func:`trimmed_template`."""
-    return _shared_template(tmp_path_factory, "full_template.db", build_full_template)
+    return _shared_template(
+        tmp_path_factory, "full_template.db", lambda dst: build_full_template(dst, tmp_path_factory)
+    )
 
 
 def reflink_or_copy(src: Path, dst: Path) -> Path:

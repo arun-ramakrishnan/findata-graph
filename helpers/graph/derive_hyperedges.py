@@ -76,6 +76,7 @@ import re
 import sqlite3
 import sys
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 # sys.path bootstrap so this works both as `python3 helpers/graph/...` (the
@@ -692,7 +693,7 @@ def collect_event_facets(conn) -> dict:  # noqa: C901  # facet collector: one br
     cols = {r[1] for r in conn.execute("PRAGMA table_info(events)")}
     if not cols or "counterparty_entity" not in cols:
         return facets
-    for eid, etype, ent, cp, date, period, prec, mag in conn.execute(
+    for eid, etype, ent, cp, ev_date, period, prec, mag in conn.execute(
         "SELECT id, event_type, entity, counterparty_entity, event_date, "
         "period, date_precision, magnitude FROM events "
         "WHERE counterparty_entity IS NOT NULL"
@@ -717,8 +718,8 @@ def collect_event_facets(conn) -> dict:  # noqa: C901  # facet collector: one br
         }
         if props:
             facets["props"][label] = props
-        if date:
-            facets["valid_from"][label] = date
+        if ev_date:
+            facets["valid_from"][label] = ev_date
     # S1 (polyadic): events with a participants payload get their roles
     # from the event_participants store rows themselves (payload roles:
     # acquirer/target/seller/partner/lead_partner — beyond the pair
@@ -1367,8 +1368,8 @@ def collect_hyperedges(  # noqa: C901
             # hyperedges. NULL bounds read as always-visible, matching
             # helpers/graph/as_of.py.
             "SELECT source, target FROM graph_edges WHERE edge_type = ? "  # noqa: S608
-            "AND (valid_to IS NULL OR valid_to > date('now'))",
-            (dyad_type,),
+            "AND (valid_to IS NULL OR valid_to > ?)",
+            (dyad_type, date.today().isoformat()),
         ):
             groups.setdefault(label, set()).add(member)
         if min_k is not None:
@@ -1384,15 +1385,15 @@ def collect_hyperedges(  # noqa: C901
         for label, member in conn.execute(
             "SELECT json_extract(properties, ?) AS label, source AS member "
             "FROM graph_edges WHERE edge_type = ? AND label IS NOT NULL "  # noqa: S608
-            "AND (valid_to IS NULL OR valid_to > date('now'))",
-            (prop, dyad_type),
+            "AND (valid_to IS NULL OR valid_to > ?)",
+            (prop, dyad_type, date.today().isoformat()),
         ):
             groups.setdefault(label, set()).add(member)
         for label, member in conn.execute(
             "SELECT json_extract(properties, ?) AS label, target AS member "
             "FROM graph_edges WHERE edge_type = ? AND label IS NOT NULL "  # noqa: S608
-            "AND (valid_to IS NULL OR valid_to > date('now'))",
-            (prop, dyad_type),
+            "AND (valid_to IS NULL OR valid_to > ?)",
+            (prop, dyad_type, date.today().isoformat()),
         ):
             groups.setdefault(label, set()).add(member)
         out[hyper_type] = groups

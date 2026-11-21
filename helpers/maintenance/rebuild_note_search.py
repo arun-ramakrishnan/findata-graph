@@ -86,14 +86,15 @@ from helpers.core.frontmatter import split_frontmatter_with_title as _strip_fron
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 import duckdb  # noqa: E402  (used by the DuckDB-native sidecar path, S1)
 
-DEFAULT_DB = _REPO_ROOT / "memory" / "research.db"
+DEFAULT_DB = _REPO_ROOT / "memory" / "research.db"  # legacy rollback host (deleted build-route P4)
+NOTE_DB = _REPO_ROOT / "memory" / "note_search.duckdb"  # canonical default (S1 native sidecar)
 FINDATA = _REPO_ROOT / "findata"
 
 # S1 (note_search_carve_out): DuckDB-native sidecar store. The legacy FTS5
-# virtual table inside research.db stays the default (DEFAULT_DB); pass
-# `--db memory/note_search.duckdb` to build/query the native sidecar.
+# The S1 native sidecar is the only default after build-route P4 deleted
+# the legacy SQLite research.db FTS5 host (memory/research.db); an
+# explicit `--db memory/research.db` now fails closed with a clear ERROR.
 # Gitignored via memory/ (same as doc_search.duckdb).
-NOTE_DB = _REPO_ROOT / "memory" / "note_search.duckdb"
 NOTE_DUCKDB_DB = _REPO_ROOT / "memory" / "note_search.duckdb"
 
 
@@ -945,7 +946,15 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
         else:
             embed_fn = embed_fn  # injected test embedder
 
-        research = connect(DEFAULT_DB)
+        # Entity-lookup host: the legacy sqlite rollback file when present
+        # (tests repoint DEFAULT_DB), else the canonical DuckDB research store
+        # (sqlite host deleted in build-route P4). A zero-byte tombstone
+        # does not count as present.
+        research = (
+            connect(DEFAULT_DB)
+            if (Path(DEFAULT_DB).exists() and Path(DEFAULT_DB).stat().st_size > 0)
+            else connect()
+        )
         rows, doc_paths = _collect_rows(
             research, embed_fn=embed_fn, reuse=None, carried=None, deferred=deferred
         )
@@ -1514,6 +1523,21 @@ def _summary_line(stats: dict) -> str:
     return f"note_search: {stats.get('total_docs', 0)} docs ({breakdown})"
 
 
+def _default_db() -> str:
+    """CLI default: the legacy sqlite rollback host when it still exists
+    (tests patch DEFAULT_DB), else the canonical S1 native sidecar.
+
+    A zero-byte tombstone (e.g. ``memory/research.db`` silently recreated
+    by a stray ``sqlite3.connect`` after build-route P4 deleted the host)
+    does NOT count as the host existing — treat it as absent so the
+    canonical sidecar wins.
+    """
+    legacy = Path(DEFAULT_DB)
+    if legacy.exists() and legacy.stat().st_size > 0:
+        return str(legacy)
+    return str(NOTE_DB)
+
+
 def _resolve_db(db_arg: str) -> Path | None:
     """Anchor relative --db paths at the repo root; guard existence.
 
@@ -1537,10 +1561,11 @@ def main(argv: list[str] | None = None) -> int:
         argv,
         rbc.RebuildCliSpec(
             description=__doc__.split("\n\n")[0],
-            default_db=str(DEFAULT_DB),
+            default_db=_default_db(),
             db_help=(
-                "Path to research.db (default: memory/research.db); a "
-                ".duckdb target builds/queries the S1 native sidecar."
+                "Path to the note_search store (default: memory/note_search.duckdb, "
+                "S1 native sidecar). The legacy SQLite research.db host was deleted "
+                "in build-route P4 — an explicit memory/research.db fails closed."
             ),
             check_help="Count indexable docs without writing (for CI / dry-run).",
             incremental_help="Incremental rebuild (only re-index changed/deleted files, P2.1).",

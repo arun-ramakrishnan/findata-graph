@@ -344,12 +344,15 @@ def apply_derivation(conn, facts: list[dict], *, dry_run: bool = True) -> dict:
             props_json = json.dumps(fact["properties"], sort_keys=True)
             edge_id = existing.get((edge_type, label))
             if edge_id is None:
-                cur = conn.execute(
+                conn.execute(
                     "INSERT INTO hyper_edges (edge_type, label, properties, source_ref, "
                     "agent_id, source_tier) VALUES (?, ?, ?, ?, ?, ?)",
                     (edge_type, label, props_json, SOURCE_REF, AGENT_ID, SOURCE_TIER),
                 )
-                edge_id = int(cur.lastrowid)
+                edge_id = conn.execute(
+                    "SELECT id FROM hyper_edges WHERE edge_type = ? AND label = ?",
+                    (edge_type, label),
+                ).fetchone()[0]
             else:
                 conn.execute(
                     "UPDATE hyper_edges SET properties = ?, source_ref = ?, agent_id = ?, "

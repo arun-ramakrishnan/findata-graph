@@ -44,6 +44,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.db_engine import is_duckdb_conn, table_exists  # noqa: E402  (S3: DuckDB engine-agnostic probes)
 from helpers.core.entity_identity import (  # noqa: E402
     FOOTNOTE_RE,
     is_person_name,
@@ -292,6 +293,11 @@ def ledger_path_for(plan_path: Path) -> Path:
 
 def _db_path(con) -> Path | None:
     """The on-disk file behind ``con``, or None for an in-memory database."""
+    if is_duckdb_conn(con):
+        row = con.execute(
+            "SELECT file_path FROM duckdb_databases() WHERE file_path IS NOT NULL LIMIT 1"
+        ).fetchone()
+        return Path(row[0]) if row else None
     row = con.execute("PRAGMA database_list").fetchone()
     return Path(row[2]) if row and row[2] else None
 
@@ -428,7 +434,26 @@ _REFOLD_COLUMNS: tuple[tuple[str, str, str | None], ...] = (
 
 
 def _table_names(con) -> set[str]:
+    if is_duckdb_conn(con):
+        return {
+            r[0]
+            for r in con.execute(
+                "SELECT table_name FROM information_schema.tables WHERE table_type = 'BASE TABLE'"
+            )
+        }
     return {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+
+
+def _constraint_error_types() -> tuple[type[Exception], ...]:
+    """Integrity/constraint error classes across engines (SQLite + DuckDB).
+
+    DuckDB parse-rejects CASCADE/SET NULL (see swap_rewrite_flows), so it
+    raises ``duckdb.ConstraintException`` where SQLite raises
+    ``sqlite3.IntegrityError``; fold paths must treat both as "retain".
+    """
+    import duckdb  # noqa: PLC0415  (canonical lane only; keep module import light)
+
+    return (sqlite3.IntegrityError, duckdb.ConstraintException)
 
 
 #: Column names that CAN carry an entity name in a derived table. SQLite has no
@@ -501,15 +526,11 @@ def derived_name_columns(con) -> set[tuple[str, str]]:
     :data:`_HYPEREDGE_ENTITY_LABEL_FAMILIES` is live, because the column is
     polymorphic — the family decides whether a label is an entity name."""
     out: set[tuple[str, str]] = set()
+    guarded = _foreign_keys_to(con, "entities")
     tables = _table_names(con)
     for table in sorted(tables):
-        guarded = {
-            fk[3]
-            for fk in con.execute(f"PRAGMA foreign_key_list('{table}')").fetchall()
-            if fk[2] == "entities"
-        }
         for col in (r[1] for r in con.execute(f"PRAGMA table_info('{table}')")):
-            if col in guarded:
+            if (table, col) in guarded:
                 continue
             if col in _NAME_SHAPED_COLUMNS and (table, col) not in _NON_ENTITY_NAME_COLUMNS:
                 out.add((table, col))
@@ -523,18 +544,48 @@ def derived_name_columns(con) -> set[tuple[str, str]]:
     return out
 
 
+def _foreign_keys_to(con, ref_table: str) -> set[tuple[str, str]]:
+    """Every ``(child_table, child_column)`` FK referencing ``ref_table``.
+
+    Engine-agnostic: SQLite reads ``PRAGMA foreign_key_list`` (rows are
+    ``(id, seq, table, from, to, on_update, on_delete, match)`` — ``from``
+    at index 3, ``to`` at index 2); DuckDB has no such pragma and exposes
+    the same edges through ``information_schema`` (verified on 2.x:
+    table_constraints ⋈ key_column_usage ⋈ referential_constraints ⋈
+    constraint_column_usage).
+    """
+    out: set[tuple[str, str]] = set()
+    if is_duckdb_conn(con):
+        rows = con.execute(
+            "SELECT tc.table_name, kcu.column_name "
+            "FROM information_schema.table_constraints tc "
+            "JOIN information_schema.key_column_usage kcu "
+            "  ON tc.constraint_name = kcu.constraint_name "
+            "  AND tc.table_schema = kcu.table_schema "
+            "JOIN information_schema.referential_constraints rc "
+            "  ON tc.constraint_name = rc.constraint_name "
+            "JOIN information_schema.constraint_column_usage ccu "
+            "  ON rc.unique_constraint_name = ccu.constraint_name "
+            "WHERE tc.constraint_type = 'FOREIGN KEY' "
+            "  AND ccu.table_name = ? AND ccu.column_name = 'name'",
+            (ref_table,),
+        ).fetchall()
+        out.update((tbl, col) for tbl, col in rows)
+        return out
+    for table in sorted(_table_names(con)):
+        for fk in con.execute(f"PRAGMA foreign_key_list('{table}')").fetchall():
+            if fk[2] == ref_table:
+                out.add((table, fk[3]))
+    return out
+
+
 def entity_fk_children(con) -> set[tuple[str, str]]:
     """Every ``(table, column)`` foreign key pointing at ``entities(name)``.
 
     The coverage guard for :data:`_REFOLD_COLUMNS` — a new FK child added to
     the schema without a re-point entry would turn the next fold into silent
     data loss, so ``tests/test_name_dedup.py`` asserts this set is covered."""
-    out: set[tuple[str, str]] = set()
-    for table in sorted(_table_names(con)):
-        for fk in con.execute(f"PRAGMA foreign_key_list('{table}')").fetchall():
-            if fk[2] == "entities":
-                out.add((table, fk[3]))
-    return out
+    return _foreign_keys_to(con, "entities")
 
 
 def _refold_entity_refs(
@@ -608,12 +659,7 @@ def _stamp_repointed_cohorts(con, touched: dict[str, int]) -> None:
         stamp_cohort,
     )
 
-    if (
-        con.execute(
-            "SELECT 1 FROM sqlite_master WHERE name='derived_cohort_meta' AND type='table'"
-        ).fetchone()
-        is None
-    ):
+    if not table_exists(con, "derived_cohort_meta"):
         return
     for table in sorted({key.split(".", 1)[0] for key in touched} & DERIVED_COHORT_TABLES):
         stamp_cohort(con, table, MODE_REPOINTED)
@@ -753,9 +799,7 @@ def apply_plan(  # noqa: C901
     folded_now: dict[str, str] = {}
     retained_variants: list[str] = []
     absent_variants: list[str] = []
-    has_entities = con.execute(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='entities'"
-    ).fetchone()[0]
+    has_entities = table_exists(con, "entities")
     if has_entities:
         present = _table_names(con)
         for variant in folded:
@@ -786,7 +830,7 @@ def apply_plan(  # noqa: C901
                 for key, n in touched.items():
                     refs_repointed[key] = refs_repointed.get(key, 0) + n
                 refs_collapsed += collapsed_refs
-            except sqlite3.IntegrityError:
+            except _constraint_error_types():
                 entities_retained += 1
                 retained_variants.append(variant)
     # Ledger sweep (the invariant the S2 tests assert): variants folded by
@@ -848,7 +892,7 @@ def apply_plan(  # noqa: C901
                     ledger_swept += con.execute(
                         "DELETE FROM entities WHERE name = ?", (variant,)
                     ).rowcount
-            except sqlite3.IntegrityError:
+            except _constraint_error_types():
                 entities_retained += 1
     after = con.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
     return {

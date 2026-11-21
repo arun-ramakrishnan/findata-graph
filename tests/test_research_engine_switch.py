@@ -2,9 +2,10 @@
 
 Covers the two routed read lanes (``price_sync.load_tickers`` and the
 ``app.py`` pure reader helpers) against parallel SQLite/DuckDB stores, plus
-the env-flag semantics (default SQLite, ``SQLITE`` rollback, ``DUCKDB``/
-``AUTO`` opt-in). Where the S1 canonical artifact exists (machine-local
-``bench_data/``), an extra integration test runs the §4 eval gate on it.
+the env-flag semantics (duckdb-first default since the S6 cutover,
+``SQLITE`` rollback, sibling redirect gated to the research store). Where
+the S1 canonical artifact exists (machine-local ``bench_data/``), an extra
+integration test runs the §4 eval gate on it.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ CREATE TABLE entities (
     ticker VARCHAR,
     cin VARCHAR
 );
+CREATE TABLE graph_edges (id INTEGER, source VARCHAR, target VARCHAR);
 CREATE TABLE hyper_incidences (edge_id INTEGER, entity_name VARCHAR);
 CREATE TABLE db_meta (key VARCHAR PRIMARY KEY, value VARCHAR);
 """
@@ -67,25 +69,58 @@ def pair(tmp_path: Path):
 
 
 class TestSelector:
-    def test_default_is_sqlite(self, monkeypatch, tmp_path):
+    def test_default_redirect_gated_to_research_store(self, monkeypatch, pair):
+        # The S6 hijack law holds at the funnel itself: a tmp research.db
+        # whose sibling .duckdb exists is NOT the research store — the
+        # duckdb-first default must not redirect onto it.
         monkeypatch.delenv("FINDATA_RESEARCH_ENGINE", raising=False)
-        path = tmp_path / "research.db"
-        _seed(path, False)
-        con = connect_funnel(path, read_only=True)
+        monkeypatch.delenv("FINDATA_RESEARCH_DB_PATH", raising=False)
+        sqlite_path, _ = pair
+        con = connect_funnel(sqlite_path, read_only=True)
         try:
             assert not is_duckdb_conn(con)
         finally:
             con.close()
 
-    def test_sqlite_env_is_rollback(self, monkeypatch, tmp_path):
+    def test_default_routes_research_store_sibling(self, monkeypatch, pair):
+        # Post-cutover default: the research store (the default path, bare
+        # or pathless) resolves to its .duckdb sibling when it exists.
+        import helpers.core.db_engine as db_engine_mod
+
+        monkeypatch.delenv("FINDATA_RESEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("FINDATA_RESEARCH_DB_PATH", raising=False)
+        sqlite_path, _ = pair
+        monkeypatch.setattr(db_engine_mod, "DEFAULT_DB_PATH", sqlite_path)
+        for call in (
+            lambda: connect_funnel(sqlite_path, read_only=True),
+            lambda: connect_funnel(read_only=True),
+        ):
+            con = call()
+            try:
+                assert is_duckdb_conn(con)
+                row = con.execute("SELECT name FROM entities LIMIT 1").fetchone()
+                assert row[0] == SEED[0][0]
+            finally:
+                con.close()
+
+    def test_sqlite_env_is_rollback(self, monkeypatch, pair):
+        # Explicit sqlite = rollback: no sibling redirect even for the
+        # research store — the .db opens directly.
+        import helpers.core.db_engine as db_engine_mod
+
         monkeypatch.setenv("FINDATA_RESEARCH_ENGINE", "sqlite")
-        path = tmp_path / "research.db"
-        _seed(path, False)
-        con = connect_funnel(path, read_only=True)
+        sqlite_path, _ = pair
+        monkeypatch.setattr(db_engine_mod, "DEFAULT_DB_PATH", sqlite_path)
+        con = connect_funnel(sqlite_path, read_only=True)
         try:
             assert not is_duckdb_conn(con)
         finally:
             con.close()
+
+    def test_default_is_duckdb(self):
+        sel = ResearchEngine(None)
+        assert sel.name == "duckdb"
+        assert sel.opt_in
 
     def test_duckdb_env_routes_explicit_path(self, monkeypatch, pair):
         _, duckdb_path = pair
@@ -175,6 +210,106 @@ class TestReadLaneParity:
                 assert row["ticker"] == row[1]
             finally:
                 con.close()
+
+
+class TestHouseConnectDispatch:
+    """S1: helpers.core.db.connect() is the selector-aware house door."""
+
+    def test_non_research_db_stays_sqlite(self, tmp_path):
+        from helpers.core import db as dbmod
+
+        path = tmp_path / "other.db"
+        con = dbmod.connect(path, read_only=False)
+        try:
+            assert not is_duckdb_conn(con)
+        finally:
+            con.close()
+
+    def test_research_sibling_routes_to_duckdb(self, monkeypatch, pair):
+        import helpers.core.db_engine as db_engine_mod
+        from helpers.core import db as dbmod
+
+        sqlite_path, _ = pair
+        monkeypatch.delenv("FINDATA_RESEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("FINDATA_RESEARCH_DB_PATH", raising=False)
+        monkeypatch.setattr(db_engine_mod, "DEFAULT_DB_PATH", sqlite_path)
+        con = dbmod.connect(sqlite_path, read_only=True)
+        try:
+            assert is_duckdb_conn(con)
+        finally:
+            con.close()
+
+    def test_default_engine_routes_research_store(self, monkeypatch, pair):
+        import helpers.core.db_engine as db_engine_mod
+        from helpers.core import db as dbmod
+
+        sqlite_path, _ = pair
+        monkeypatch.delenv("FINDATA_RESEARCH_ENGINE", raising=False)
+        monkeypatch.delenv("FINDATA_RESEARCH_DB_PATH", raising=False)
+        monkeypatch.setattr(db_engine_mod, "DEFAULT_DB_PATH", sqlite_path)
+        con = dbmod.connect(read_only=True)
+        try:
+            assert is_duckdb_conn(con)
+        finally:
+            con.close()
+
+    def test_rollback_env_keeps_sqlite(self, monkeypatch, pair):
+        import helpers.core.db_engine as db_engine_mod
+        from helpers.core import db as dbmod
+
+        sqlite_path, _ = pair
+        monkeypatch.setenv("FINDATA_RESEARCH_ENGINE", "sqlite")
+        monkeypatch.delenv("FINDATA_RESEARCH_DB_PATH", raising=False)
+        monkeypatch.setattr(db_engine_mod, "DEFAULT_DB_PATH", sqlite_path)
+        con = dbmod.connect(sqlite_path, read_only=True)
+        try:
+            assert not is_duckdb_conn(con)
+        finally:
+            con.close()
+
+
+class TestWriterHelperParity:
+    """S1: generation/version writer helpers behave identically on SQLite and
+    DuckDB stores (parquet_snapshot_duckdb_reader.md S1 acceptance #2)."""
+
+    def test_ensure_and_bump_parity(self, pair):
+        from helpers.core import db as dbmod
+
+        sqlite_path, duckdb_path = pair
+        scon = connect_funnel(sqlite_path)
+        dcon = connect_funnel(duckdb_path)
+        try:
+            s_gen = dbmod.ensure_db_meta(scon)
+            d_gen = dbmod.ensure_db_meta(dcon)
+            assert s_gen == d_gen == 1
+            assert dbmod.get_user_version(scon) == dbmod.get_user_version(dcon) == 17
+            assert dbmod.bump_generation(scon) == dbmod.bump_generation(dcon) == 2
+            assert dbmod.get_generation(scon) == dbmod.get_generation(dcon) == 2
+        finally:
+            scon.close()
+            dcon.close()
+
+    def test_bump_on_bare_fixture_is_noop(self, pair):
+        from helpers.core import db as dbmod
+
+        sqlite_path, duckdb_path = pair
+        # bare fixture has no db_meta-generation-capable shape here; the
+        # no-op contract returns None without raising on either engine.
+        scon = connect_funnel(sqlite_path)
+        dcon = connect_funnel(duckdb_path)
+        try:
+            assert dbmod.bump_generation(scon) is None
+            assert dbmod.bump_generation(dcon) is None
+        finally:
+            scon.close()
+            dcon.close()
+
+    def test_close_connection_both_engines(self, pair):
+        from helpers.core import db as dbmod
+
+        for path in pair:
+            con = connect_funnel(path)
+            dbmod.close_connection(con)
 
 
 @pytest.mark.skipif(not S1_ARTIFACT.exists(), reason="S1 canonical artifact is machine-local")

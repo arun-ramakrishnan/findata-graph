@@ -16657,3 +16657,64 @@ proposal, archived `status: executed` — readiness S0–S3 landed
   converged per round); make perf 34/35 in budget. Follow-up filed:
   parquet snapshot leg DuckDB reader (pending.md); `research.db`
   deletion after the post-cutover soak is an operator call.
+
+## 552. SQLite retirement build route — full DuckDB consolidation (cleanup + sidecar twin deletion + concurrent-writer audit)
+
+Filed 2026-11-21; executed 2026-11-21 (`duckdb_build_route` proposal,
+archived `status: executed`).
+
+- **Decision**: BUILD route over freeze — delete the frozen sqlite
+  research store and the FTS5 twins after soak, per the operator call
+  (m00856/m00908). Supersedes the #483 deferred posture and the swap-gate
+  item 1 of pending.md (that gate's purpose — leaving sqlite — is now
+  moot by deletion).
+- **P1** cascade rewrites: canonical research.duckdb has ZERO FK
+  constraints (CHECK 152 + PK 30 only), so every parent-delete/rename
+  does child work in code — `name_dedup.py` dual-engine
+  `_foreign_keys_to` (information_schema / PRAGMA foreign_key_list),
+  `purge_stranded_companies.py` `_OTHER_REFS` enumeration (0 orphans live),
+  `index_label_dedup.py` explicit `DELETE FROM hyper_incidences`.
+- **P2** verified already-landed: native DuckDB FTS paths with Python
+  highlighting in all three rebuild scripts + app.py (121 tests).
+- **P3** `database_integrity_check.py` +5 orphan checks (incidences/
+  graph_edges/event_participants/ppr_results/dangling agent_ids) and the
+  hardcoded report-section fix (97 tests).
+- **P5** corpus.db + md_lint_cache.db moved to DuckDB (engine-aware
+  connect, `fetchall()` on PRAGMA/`dict(conn.execute())` fixes, backup
+  routines swapped to `_duckdb_zstd_backup`; 48-suite green + live
+  smokes).
+- **P4** deletion executed: refreshed
+  `db-backup/research_backup.db.zst` (102,263,277 B, restore-verified 39
+  tables), forensic copies → `/mnt/data/tmp/p4_forensic/`, deleted
+  research.db + doc/memory/script/git twins, `--assert-gone` exit 0,
+  census updates (`SIDECAR_SQLITE` = embed_store.db only), 59 tests.
+- **Backup coverage audit (2026-11-21)**: every store in memory/ +
+  memory/data/ covered — 10 new duckdb artifacts (script/doc/memory/git/
+  note/md_lint/gate_runs/note_vectors/graph.xdist/corpus), sources
+  refreshed, `frozen_ft5_twins_backup.tar.zst` (all four twins),
+  `research_backup.parquet_export_2026-11-21.tar.zst` (wire COPY, 32 base
+  tables), embed_store.db refreshed; note_vectors + gate_runs added to
+  `SIDECAR_DUCKDB`; all artifacts verified decompress + open.
+- **Verification**: 265/265 test sets + 59 db_maint/store_sweep; ruff +
+  py_compile + md-lint clean; canonical smoke schema_version 17.
+
+## 553. Close the implicit-sqlite surface: selector-aware house connect + the parquet snapshot axis on the DuckDB research store
+
+Filed 2026-11-21; executed 2026-11-21 (`parquet_snapshot_duckdb_reader`
+proposal, archived `status: executed`).
+
+- **S1** (MAIN): `helpers/core/db.py connect()` now dispatches
+  research-store paths to `research_store_connect` (lazy) with private
+  `_sqlite_connect` fallback; writer helpers dual-engine
+  (get_generation/get_user_version/bump_generation/ensure_db_meta/
+  close_connection); `db_engine._DuckDBConn` gained commit()/
+  executemany(); `snapshot_db.py` deterministic-sqlite sites →
+  `_sqlite_connect`; 194 engine/snapshot/db/db_maint + 168 writer-lane
+  tests; live env-less probes duckdb/sqlite correct.
+- **S2–S5**: tracked `snapshots/parquet/sqlite/` axis is engine-aware
+  (export/verify/defaults dispatch to DuckDB; restore contract pinned);
+  S5 tracked parquet refresh green (73+7+3 tables, gen 1,145,755 =
+  1,145,755).
+- Outcome: “nothing should resolve to the sqlite default now” (operator
+  directive) — delivered; the freeze-or-build call resolved to BUILD and
+  the sqlite estate was deleted under completed.md entry 552.

@@ -120,7 +120,7 @@ def test_backup_memory_sidecars_covers_all_and_hides_secrets(tmp_path):
         "research.db": b"x",
         "graph.duckdb": b"x",
         "embed_store.db": b"x",
-        "corpus.db": b"x",
+        "corpus.duckdb": b"x",
         "doc_search.db": b"x",
         "script_search.duckdb": b"x",
         "convo_search.duckdb": b"x",
@@ -157,7 +157,6 @@ def test_backup_memory_sidecars_covers_all_and_hides_secrets(tmp_path):
         ".env": b"SECRET=1",
         "goog_svc_account.json": b"{}",
         "research.db-wal": b"w",
-        "corpus.db-shm": b"s",
         "graph.duckdb.build.lock": b"",
     }
     for rel, blob in denied.items():

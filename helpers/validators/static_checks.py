@@ -1229,13 +1229,36 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
             text = py.read_text(encoding="utf-8")
         except Exception:  # noqa: S112  # best-effort; skip item on failure
             continue
+        # Tokenize-based scan: flag only real sqlite3.connect attribute-access
+        # code. Comment/docstring/string-literal mentions (e.g. build_route_p4.py
+        # scan-pattern constants, rebuild_note_search.py docstring) are inert.
         if "sqlite3.connect" in text:
-            # Find line numbers for the message
-            for i, line in enumerate(text.splitlines(), start=1):
-                if "sqlite3.connect" in line and "helpers/core/db" not in line:
-                    failures.append(
-                        f"{rel}:{i}: use helpers.core.db.connect instead of sqlite3.connect"
-                    )
+            try:
+                toks = list(tokenize.generate_tokens(io.StringIO(text).readline))
+            except (IndentationError, SyntaxError, tokenize.TokenError):
+                # Parse-fragile file (rare); fall back to the text scan.
+                toks = []
+            if toks:
+                seen: set[int] = set()
+                for idx, tok in enumerate(toks):
+                    if tok.type != tokenize.NAME or tok.string != "sqlite3":
+                        continue
+                    if idx + 2 >= len(toks):
+                        continue
+                    dot, name = toks[idx + 1], toks[idx + 2]
+                    if dot.type == tokenize.OP and dot.string == "." and name.type == tokenize.NAME and name.string == "connect":
+                        line_no = tok.start[0]
+                        if line_no not in seen:
+                            seen.add(line_no)
+                            failures.append(
+                                f"{rel}:{line_no}: use helpers.core.db.connect instead of sqlite3.connect"
+                            )
+            else:
+                for i, line in enumerate(text.splitlines(), start=1):
+                    if "sqlite3.connect" in line and "helpers/core/db" not in line:
+                        failures.append(
+                            f"{rel}:{i}: use helpers.core.db.connect instead of sqlite3.connect"
+                        )
     return failures
 
 

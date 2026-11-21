@@ -45,19 +45,15 @@ Open items below keep their revisit triggers inline; executed work is compressed
   arc or operator go; single-slice fix, no proposal needed per the
   multi-slice bar.
 
-- **Parquet snapshot leg does not read the DuckDB research store — OPEN
-  2026-11-21** (follow-up of the S6 cutover, snapshot_db.py): the
-  git-tracked `snapshots/parquet/sqlite/` axis + `--restore` are coupled
-  to `--db memory/research.db` (engine contract: sqlite3+pyarrow export,
-  SQLite-schema restore). Post-cutover that axis freezes at the cutover
-  point — `verify_parquet_snapshot`'s sqlite side and
-  `export_parquet_sqlite` take no DuckDB reader. The canonical store's
-  recovery lane is db_maint's `research_backup.duckdb.zst` + the S4
-  DuckDB snapshot branches (round-trip proven 2026-11-21: 29.2 MB zstd,
-  entities/relations exact). Fix shape: a DuckDB reader in the
-  sqlite-side export/verify (or a third axis), then re-point the
-  defaults; NOT a re-point of `DEFAULT_DB` alone (that breaks the
-  verify/restore contract). Trigger: next snapshot-adjacent arc.
+- **Parquet snapshot leg does not read the DuckDB research store — DONE
+  2026-11-21** (multi-slice proposal `parquet_snapshot_duckdb_reader`,
+  archived `status: executed` completed.md #553): S1 selector-aware house
+  connect + dual-engine writer helpers landed; S2–S5 re-wired the
+  git-tracked `snapshots/parquet/sqlite/` axis to engine-aware
+  export/verify/defaults with the restore contract pinned; the
+  freeze-or-build call resolved to BUILD (completed.md #552), so the
+  frozen sqlite store was deleted and the axis now reads DuckDB
+  exclusively.
 
 - **DuckDB rebuild deferred candidates — OPEN** (from
   `duckdb_rebuild_incremental_carry`, completed.md #528; measured

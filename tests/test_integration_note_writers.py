@@ -28,7 +28,6 @@ import pytest
 from helpers.core.db import connect as db_connect  # noqa: E402
 from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
 from helpers.graph import derive_cited_in as dci  # noqa: E402
-from helpers.graph.query import DB_PATH  # noqa: E402
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
 from helpers.maintenance import sync_sector_wikilinks as ssw  # noqa: E402
 
@@ -59,17 +58,19 @@ India's largest private sector bank.
 
 
 class _WritersProject:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, donor: Path):
         self.root = root
         self.db = root / "research.db"
         self.vault = root / "findata"
-        self._build_db()
+        self._build_db(donor)
         self._build_vault()
         self._run_bsh(apply=True)
         self._run_ssw(apply=True)
 
-    def _build_db(self) -> None:
-        src = sqlite3.connect(str(DB_PATH))
+    def _build_db(self, donor: Path) -> None:
+        # Build-route P4 deleted memory/research.db; the SQLite donor is
+        # restored from the tracked parquet axis (tests._tmp_hygiene).
+        src = sqlite3.connect(str(donor))
         dst = sqlite3.connect(str(self.db))
         src.backup(dst)
         src.close()
@@ -218,7 +219,9 @@ class _WritersProject:
 
 @pytest.fixture(scope="module")
 def writers(tmp_path_factory) -> _WritersProject:
-    return _WritersProject(tmp_path_factory.mktemp("note_writers"))
+    from tests._tmp_hygiene import legacy_donor
+
+    return _WritersProject(tmp_path_factory.mktemp("note_writers"), legacy_donor(tmp_path_factory))
 
 
 class TestConvergence:

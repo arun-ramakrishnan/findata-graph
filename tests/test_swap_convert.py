@@ -184,3 +184,40 @@ def test_dangling_self_fk_fails_loudly(tmp_path: Path):
     con.close()
     with pytest.raises(ValueError, match="dangling"):
         sc.main(["--source", str(src), "--dest", str(tmp_path / "d.duckdb")])
+
+
+def test_rowid_alias_pk_becomes_sequence_default(tmp_path: Path):
+    """A single-column INTEGER PRIMARY KEY (rowid alias) must land in DuckDB
+    with a per-table sequence + DEFAULT nextval — writers that INSERT without
+    an explicit id (hyper_edges, graph_edges, events, quotes,
+    company_metrics) keep working after conversion. Sequence starts above
+    the carried max(id), so no collision with loaded rows."""
+    src = tmp_path / "rowid.db"
+    con = sqlite3.connect(src)
+    con.execute("CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT)")
+    con.execute("INSERT INTO db_meta VALUES ('generation','0')")
+    con.execute("CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT, UNIQUE(name))")
+    con.execute("INSERT INTO items (name) VALUES ('a'), ('b'), ('c')")
+    con.commit()
+    con.close()
+    dest = tmp_path / "rowid.duckdb"
+    assert sc.main(["--source", str(src), "--dest", str(dest)]) == 0
+
+    import duckdb
+
+    con = duckdb.connect(str(dest))
+    try:
+        # carried rows intact
+        assert con.execute("SELECT COUNT(*) FROM items").fetchone()[0] == 3
+        # sequence exists and is positioned at max+1
+        row = con.execute(
+            "SELECT start_value, last_value FROM duckdb_sequences() "
+            "WHERE sequence_name = 'items_id_seq'"
+        ).fetchone()
+        assert row is not None, "items_id_seq missing after conversion"
+        assert row[0] == 4, f"sequence starts at {row[0]}, expected 4 (max+1)"
+        # default emits nextval → a bare INSERT gets the next id (4), not 1
+        con.execute("INSERT INTO items (name) VALUES ('d')")
+        assert con.execute("SELECT id FROM items WHERE name='d'").fetchone()[0] == 4
+    finally:
+        con.close()

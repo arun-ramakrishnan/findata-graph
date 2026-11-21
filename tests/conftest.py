@@ -650,7 +650,7 @@ def _corpus_db_to_tmp(tmp_path):
     from helpers.core import corpus as corpus_mod
 
     orig = (corpus_mod._CACHE_DB, corpus_mod.CORPUS_DB)
-    corpus_mod._CACHE_DB = tmp_path / "memory" / "corpus.db"
+    corpus_mod._CACHE_DB = tmp_path / "memory" / "corpus.duckdb"
     corpus_mod.CORPUS_DB = corpus_mod._CACHE_DB
     yield
     corpus_mod._CACHE_DB, corpus_mod.CORPUS_DB = orig

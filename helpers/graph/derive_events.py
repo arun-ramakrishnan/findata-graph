@@ -408,9 +408,11 @@ def promote_from_edges(conn) -> list[Event]:
         # Date precision: year-known -> "year"; month-precise valid_from -> "month".
         precision = None
         if valid_from:
-            if props.get("year") and valid_from.endswith("-01-01"):
+            # DuckDB returns DATE (datetime.date); SQLite returned TEXT. Normalize.
+            vf = valid_from.isoformat() if hasattr(valid_from, "isoformat") else str(valid_from)
+            if props.get("year") and vf.endswith("-01-01"):
                 precision = "year"
-            elif valid_from[5:7] != "01" or valid_from[8:10] != "01":
+            elif vf[5:7] != "01" or vf[8:10] != "01":
                 precision = "month"
             else:
                 precision = "year"

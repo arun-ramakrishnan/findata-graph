@@ -10,11 +10,12 @@ These tests exercise the new persistence model introduced in
   - ``rebuild=True`` drops+repopulates materialised tables in-place.
   - ``fresh=True`` deletes the file and rebuilds from scratch.
 
-All tests run against a tmp copy of the production SQLite DB so they
-don't mutate ``memory/research.db``. Each test uses its own
-``tmp_path/<name>.duckdb`` for isolation.
+All tests run against a tmp copy of the production SQLite DB (rebuilt
+from the tracked parquet restore axis since build-route P4 deleted
+``memory/research.db``) so they don't mutate production. Each test uses
+its own ``tmp_path/<name>.duckdb`` for isolation.
 
-Marked ``live`` (requires the production SQLite file to exist).
+Marked ``live`` (requires the restore axis to exist).
 """
 
 from __future__ import annotations
@@ -37,8 +38,13 @@ duckdb = pytest.importorskip("duckdb")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 
-if not DB_PATH.exists():
-    pytest.skip(f"skipping disk-graph tests — {DB_PATH} not present", allow_module_level=True)
+from tests._tmp_hygiene import LEGACY_SNAPSHOT_DIR  # noqa: E402
+
+if not any(LEGACY_SNAPSHOT_DIR.glob("*.parquet")):
+    pytest.skip(
+        f"skipping disk-graph tests — restore axis {LEGACY_SNAPSHOT_DIR} not present",
+        allow_module_level=True,
+    )
 
 from helpers.graph.query import (  # noqa: E402
     DUCKDB_PATH,
@@ -914,9 +920,14 @@ class TestProductionPath:
         # mode only; skip rather than fail while the operator's resident
         # server (db_swap standing infra) is up.
         from helpers.core import duckdb_shared as ds
+        from helpers.graph import query as gq
 
         disc = ds.load_discovery(None)
-        if ds.served_entry(disc, DUCKDB_PATH) is not None:
+        # Under xdist the module-level DUCKDB_PATH constant is the
+        # redirected shared-cache path; the real_graph_cache opt-out
+        # restores gq.DUCKDB_PATH to production, so consult the live
+        # attribute (the file mode connect() below uses it).
+        if ds.served_entry(disc, gq.DUCKDB_PATH) is not None:
             pytest.skip(
                 "graph.duckdb is served by a quack server — file-mode "
                 "connect() is refused by the split-brain guard by design "

@@ -507,7 +507,13 @@ def _attach_sqlite(
                 f"CREATE OR REPLACE SECRET fin_quack (TYPE quack, "
                 f"TOKEN {sql_lit(entry['token'])}, SCOPE {sql_lit(entry['uri'])})"
             )
-            stmt = f"ATTACH {sql_lit(entry['uri'])} AS fin (TYPE quack)"
+            # quack executor (2026-11-22): a wire ATTACH on a read-only
+            # DuckDB connection is refused unless declared READ_WRITE —
+            # `Not implemented Error: READ_ONLY is not currently supported
+            # for Quack databases - attach "fin" without the READ_ONLY
+            # option, or with (READ_WRITE)`. fin is read-only in intent;
+            # the declaration only satisfies the attach-mode check.
+            stmt = f"ATTACH {sql_lit(entry['uri'])} AS fin (TYPE quack, READ_WRITE)"
         else:
             stmt = f"ATTACH '{src}' AS fin (READ_ONLY)"
     else:
@@ -797,7 +803,14 @@ def connect(
     read-derived cache with explicit invalidation — see §18.
     """
     db_path = Path(db_path)
-    if not db_path.exists():
+    # Build-route P4 deleted the frozen SQLite research host; the canonical
+    # research store is the .duckdb sibling (the attach path resolves it via
+    # _research_source). Treat an existing sibling as present so the graph
+    # cache can build/attach from the DuckDB source.
+    if not (
+        db_path.exists()
+        or (db_path.suffix.lower() == ".db" and db_path.with_suffix(".duckdb").exists())
+    ):
         raise FileNotFoundError(f"SQLite DB not found: {db_path}")
 
     if duckdb_path is None:
@@ -842,6 +855,11 @@ def _check_generation_staleness(con, duckdb_path: Path, db_path: Path | None) ->
         for cand in (
             (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH)
         ):
+            # P4 cutover: the SQLite host is retired; resolve a missing
+            # .db candidate to its converted .duckdb sibling before the
+            # existence gate (the funnel itself already does this).
+            if cand.suffix.lower() == ".db" and not cand.exists() and cand.with_suffix(".duckdb").exists():
+                cand = cand.with_suffix(".duckdb")
             if not cand.exists():
                 continue
             try:
@@ -2813,6 +2831,17 @@ def _materialise_sector_membership(con: duckdb.DuckDBPyConnection) -> None:
     substrate both call it, whichever runs first materialises it.
     """
     try:
+        # Quack wire ATTACHes cannot run multi-stream scans (two+ fin.*
+        # joins in one query raise NotImplementedException), so stage the
+        # hyper store into session-local TEMP copies first.
+        con.execute(
+            "CREATE OR REPLACE TEMP TABLE _stg_hyper_edges AS "
+            "SELECT * FROM fin.hyper_edges"
+        )
+        con.execute(
+            "CREATE OR REPLACE TEMP TABLE _stg_hyper_incidences AS "
+            "SELECT * FROM fin.hyper_incidences"
+        )
         con.execute(
             """
             CREATE OR REPLACE TEMP TABLE _sector_resolved AS
@@ -2820,8 +2849,8 @@ def _materialise_sector_membership(con: duckdb.DuckDBPyConnection) -> None:
                    he.id AS edge_id,
                    COALESCE(hi.weight, 1.0) AS weight,
                    he.source_ref, he.valid_from, he.valid_to
-            FROM fin.hyper_edges he
-            JOIN fin.hyper_incidences hi ON hi.edge_id = he.id
+            FROM _stg_hyper_edges he
+            JOIN _stg_hyper_incidences hi ON hi.edge_id = he.id
             JOIN v_node c ON c.name = hi.entity_name AND c.kind = 'company'
             JOIN v_node s ON s.name = he.label AND s.kind = 'sector'
             WHERE he.edge_type = 'sector'
@@ -2873,6 +2902,17 @@ def _materialise_co_mention(con: duckdb.DuckDBPyConnection) -> None:
     (``CREATE OR REPLACE``).
     """
     try:
+        # Quack wire ATTACHes cannot run multi-stream scans (two+ fin.*
+        # joins in one query raise NotImplementedException), so stage the
+        # hyper store into session-local TEMP copies first.
+        con.execute(
+            "CREATE OR REPLACE TEMP TABLE _stg_hyper_edges AS "
+            "SELECT * FROM fin.hyper_edges"
+        )
+        con.execute(
+            "CREATE OR REPLACE TEMP TABLE _stg_hyper_incidences AS "
+            "SELECT * FROM fin.hyper_incidences"
+        )
         con.execute(
             """
             CREATE OR REPLACE TEMP TABLE _comention_resolved AS
@@ -2884,9 +2924,9 @@ def _materialise_co_mention(con: duckdb.DuckDBPyConnection) -> None:
                    'derive:hyperedges:newsletter_co_mention+quotes' AS source_ref,
                    CAST(NULL AS VARCHAR) AS valid_from,
                    CAST(NULL AS VARCHAR) AS valid_to
-            FROM fin.hyper_edges he
-            JOIN fin.hyper_incidences hi1 ON hi1.edge_id = he.id
-            JOIN fin.hyper_incidences hi2
+            FROM _stg_hyper_edges he
+            JOIN _stg_hyper_incidences hi1 ON hi1.edge_id = he.id
+            JOIN _stg_hyper_incidences hi2
               ON hi2.edge_id = he.id AND hi2.entity_name > hi1.entity_name
             JOIN v_node a ON a.name = hi1.entity_name AND a.kind = 'company'
             JOIN v_node b ON b.name = hi2.entity_name AND b.kind = 'company'

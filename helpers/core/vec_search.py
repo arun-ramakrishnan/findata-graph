@@ -94,12 +94,24 @@ EMBED_SQLITE_DB_PATH = _REPO_ROOT / "memory" / "embed_store.db"
 
 
 def _is_duckdb_conn(conn) -> bool:
-    """True for a live duckdb connection (adopted as the cache handle)."""
+    """True for a live duckdb connection (adopted as the cache handle).
+
+    Accepts a raw ``duckdb.DuckDBPyConnection``, the ``_DuckDBConn``
+    proxy (helpers.core.db_engine), and the quack-wire ``WireConnection``
+    (helpers.core.duckdb_shared) that writers receive from the canonical
+    connect() path."""
     try:
         import duckdb
     except ImportError:
         return False
-    return isinstance(conn, duckdb.DuckDBPyConnection)
+    if isinstance(conn, duckdb.DuckDBPyConnection):
+        return True
+    raw = getattr(conn, "raw", None)
+    if raw is not None and isinstance(raw, duckdb.DuckDBPyConnection):
+        return True
+    # WireConnection delegates to its inner duckdb conn via _con.
+    inner = getattr(raw, "_con", None)
+    return inner is not None and isinstance(inner, duckdb.DuckDBPyConnection)
 
 
 def open_cache_conn(*, read_only: bool = False):

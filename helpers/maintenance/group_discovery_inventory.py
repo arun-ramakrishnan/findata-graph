@@ -157,7 +157,16 @@ def _cli(argv=None) -> int:
 
     import duckdb
 
-    conn = duckdb.connect(args.db, **memory_cap_config())
+    # Build-route P4: the legacy memory/research.db host is deleted; the
+    # canonical research store is the .duckdb sibling. Resolve raw .db
+    # defaults to the sibling so this check never CREATES an empty duckdb
+    # file at the retired path.
+    db_path = Path(args.db)
+    if db_path.suffix.lower() == ".db":
+        duck = db_path.with_suffix(".duckdb")
+        if duck.exists():
+            db_path = duck
+    conn = duckdb.connect(str(db_path), **memory_cap_config())
     try:
         dyads, sectors = _load(conn)
         if not dyads:

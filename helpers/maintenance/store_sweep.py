@@ -35,8 +35,9 @@ ANALYZE / PRAGMAs are not DDL-that-implicit-begins, so nothing ever runs
 inside a transaction on the deferred house connection (empirically validated
 2026-10-14: VACUUM + ANALYZE + wal_checkpoint through connect() on a scratch
 db). Side effect worth knowing: connect() normalizes journal_mode to WAL —
-a one-time header change for ``md_lint_cache.db`` (currently ``delete``),
-which is the house doctrine, not an accident.
+a one-time header change observed on ``md_lint_cache.db`` (was
+``delete``) before build route P5 moved it to DuckDB — which is the
+house doctrine, not an accident.
 
 Usage::
 
@@ -79,15 +80,13 @@ _PRIMARIES = {"memory/research.db", "memory/graph.duckdb"}  # noqa: E402
 
 # These stores have distinct lifecycle owners and deliberately stay out of
 # db_maint's backup/reclaim estate. Keep the exception visible in each census.
-# The legacy FTS5 rollback sidecars carry the same doctrine: the rebuild
-# tools own them (rebuild_git_search.py / rebuild_script_search.py default to
-# the .duckdb paths and keep the .db files as rollback-only); adopting them
-# into SIDECAR_* would double-manage a file nothing rewrites.
+# The legacy FTS5 rollback sidecars carried the same doctrine; after build
+# route P4 they are DELETED (frozen research.db + doc/memory/script/git twins)
+# — rollback net is the tracked parquet axis + db-backup zstd, staged by
+# helpers/maintenance/build_route_p4.py.
 _OWNED_ELSEWHERE: dict[str, str] = {
     "memory/git_search.duckdb": "rebuilt by helpers/maintenance/rebuild_git_search.py; not snapshotted",
     "memory/note_vectors.duckdb": "derived vector mirror owned by helpers/core/vec_search.py",
-    "memory/git_search.db": "legacy FTS5 rollback owned by helpers/maintenance/rebuild_git_search.py (live path is memory/git_search.duckdb); not snapshotted",
-    "memory/script_search.db": "legacy FTS5 rollback owned by helpers/maintenance/rebuild_script_search.py (live path is memory/script_search.duckdb); not snapshotted",
 }
 
 MB = 1048576
@@ -285,10 +284,8 @@ _FILING_MB: dict[str, float] = {
     "memory/convo_search.duckdb": 1286.76,
     "memory/embed_store.duckdb": 424.01,
     "memory/note_search.duckdb": 216.76,
-    "memory/corpus.db": 58.81,
-    "memory/doc_search.db": 43.55,
-    "memory/memory_search.db": 6.64,
-    "memory/md_lint_cache.db": 0.32,
+    "memory/corpus.duckdb": 58.81,
+    "memory/md_lint_cache.duckdb": 0.32,
     "memory/embed_store.db": 527.07,
     "memory/script_search.duckdb": 17.26,
     "memory/doc_search.duckdb": 99.76,

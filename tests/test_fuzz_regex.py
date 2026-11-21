@@ -434,7 +434,8 @@ def test_bold_line_regex_scales_subquadratically():
 _BOLD_FAIL_PAD = 1000
 _BOLD_FAIL_RUNGS = (8, 32)  # 8,041 -> 32,161 bytes: a 4x length step
 _BOLD_FAIL_CAP_S = 2.0  # per rung; the old form needs >2 s on a 32 KB rung
-_BOLD_FAIL_ROUNDS = 5  # median round, per the test_performance.py idiom
+_BOLD_FAIL_ROUNDS = 7  # median round, per the test_performance.py idiom
+_BOLD_FAIL_TRIALS_PER_RUNG = 5  # min-of-N per rung: preemptions only add time
 _BOLD_FAIL_MAX_RATIO = 8.0  # linear is ~4.0; 2x headroom, cannot flap
 
 
@@ -450,20 +451,33 @@ def _time_bold_rung(segments: int) -> float:
     return time.perf_counter() - start
 
 
+def _best_bold_rung(segments: int) -> float:
+    """Fastest of N attempts at one rung.
+
+    Preemptions and scheduler jitter only ADD measured time; the minimum is
+    therefore the sample closest to the uncontended cost. Single-leg
+    preemption inside a round (one rung stalled, the other not) is what
+    inflates a ratio on a loaded box, and min-of-N makes it moot.
+    """
+    return min(_time_bold_rung(segments) for _ in range(_BOLD_FAIL_TRIALS_PER_RUNG))
+
+
 def _measure_bold_failing_ratio() -> float:
     """Median round ratio between the two rungs; both timed in the same round.
 
     Timing the rungs back-to-back inside a round (rather than timing each rung
     independently and dividing) is what makes the ratio robust to a loaded box:
     a stalled round inflates both legs, so the median round still reports the
-    underlying scaling. Same idiom as ``tests/test_performance.py``.
+    underlying scaling. Each leg is min-of-N (``_best_bold_rung``) so a stall
+    that hits only one leg cannot skew the ratio. Same idiom as
+    ``tests/test_performance.py``.
     """
     small, large = _BOLD_FAIL_RUNGS
     _time_bold_rung(small)  # warm-up: first hit pays regex-cache costs
     ratios = []
     for _ in range(_BOLD_FAIL_ROUNDS):
-        t_small = _time_bold_rung(small)
-        t_large = _time_bold_rung(large)
+        t_small = _best_bold_rung(small)
+        t_large = _best_bold_rung(large)
         ratios.append(t_large / max(t_small, 1e-9))
     return statistics.median(ratios)
 
@@ -615,7 +629,7 @@ def _s6_input(n: int, kind: str) -> str:
     return " " * n + "X"
 
 
-def _s6_min_ms(rx: re.Pattern, text: str, reps: int = 5) -> float:
+def _s6_min_ms(rx: re.Pattern, text: str, reps: int = 9) -> float:
     """min-of-reps wall time in ms (min discards scheduler/cache noise)."""
     best = float("inf")
     for _ in range(reps):

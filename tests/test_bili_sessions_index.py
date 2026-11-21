@@ -868,7 +868,10 @@ class TestStartupFastPath:
             "run_for_sid",
             lambda sid, only=None: seen.append(sid) or {"session": sid, "last_seen": "2026-11-16"},
         )
-        bs.main(["--top", "2"])
+        # The window default is 7d relative to TODAY — the seeded stamps are
+        # fixed calendar dates, so pin a wide --since to keep the test
+        # deterministic regardless of the run date.
+        bs.main(["--top", "2", "--since", "365d"])
         out = capsys.readouterr().out
         assert seen == ["ses_0", "ses_1"], "only the 2 newest sessions are built"
         assert "ses_2" not in out and "ses_3" not in out

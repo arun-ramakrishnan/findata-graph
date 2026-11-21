@@ -96,14 +96,26 @@ class TestAliasVetting:
     """Every pinned alias target must exist in the live entities table."""
 
     def test_alias_targets_exist(self):
-        db = PROJECT_ROOT / "memory" / "research.db"
+        roots = PROJECT_ROOT / "memory"
+        db = (
+            roots / "research.duckdb"
+            if (roots / "research.duckdb").exists()
+            else roots / "research.db"
+        )
         if not db.exists():
-            pytest.skip("research.db not present")
-        import sqlite3
+            pytest.skip("research store not present")
+        if db.suffix == ".duckdb":
+            from helpers.misc.duckdb_lock import open_read_only
 
-        conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
-        names = {r[0].lower() for r in conn.execute("SELECT name FROM entities").fetchall()}
-        conn.close()
+            conn = open_read_only(str(db))
+            names = {r[0].lower() for r in conn.execute("SELECT name FROM entities").fetchall()}
+            conn.close()
+        else:
+            import sqlite3
+
+            conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+            names = {r[0].lower() for r in conn.execute("SELECT name FROM entities").fetchall()}
+            conn.close()
         bad = {k: v for k, v in di._QUOTE_ALIASES.items() if v.lower() not in names}
         assert not bad, f"alias targets missing from entities: {bad}"
 

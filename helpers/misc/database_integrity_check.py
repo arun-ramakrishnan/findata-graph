@@ -188,6 +188,26 @@ _CHECKS: tuple[Check, ...] = (
         "error",
         "Derived Name Columns (FK-less)",
     ),
+    Check(
+        "orphan_incidences",
+        "check_orphan_incidences",
+        "error",
+        "Orphan Hyperedge Incidences",
+    ),
+    Check("orphan_graph_edges", "check_orphan_graph_edges", "error", "Orphan Graph Edges"),
+    Check(
+        "orphan_event_participants",
+        "check_orphan_event_participants",
+        "error",
+        "Orphan Event Participants",
+    ),
+    Check("orphan_ppr_results", "check_orphan_ppr_results", "error", "Orphan PPR Results"),
+    Check(
+        "dangling_agent_ids",
+        "check_dangling_agent_ids",
+        "warning",
+        "Dangling agent_id Rows",
+    ),
     Check("identifiers", "check_identifiers", "warning", "Identifiers (CIN + registry)"),
     Check("cin_nic2008", "check_cin_nic2008", "warning", "CIN nic5 <-> NIC-2008 (vintage)"),
     Check("graph_summary", "check_graph_summary", "warning", "Graph Summary"),
@@ -288,8 +308,16 @@ class DatabaseIntegrityChecker:
         """
         if self._conn is not None:
             return self._conn
+        # BUILD-route (P4): the SQLite research host is deleted; resolve to
+        # the converted .duckdb sibling when the .db path no longer exists.
         if not os.path.exists(self.db_path):
-            raise FileNotFoundError(f"Database not found: {self.db_path}")
+            _path = Path(self.db_path)
+            if _path.suffix.lower() == ".db":
+                _sibling = _path.with_suffix(".duckdb")
+                if _sibling.exists():
+                    self.db_path = str(_sibling)
+            if not os.path.exists(self.db_path):
+                raise FileNotFoundError(f"Database not found: {self.db_path}")
         # P0: route through central helper so FK/WAL/busy_timeout are canonical
         self._conn = db_engine.connect_funnel(self.db_path)
         return self._conn
@@ -781,6 +809,116 @@ class DatabaseIntegrityChecker:
             "bad_role": bad_role,
             "errors": errors,
         }
+
+    def check_orphan_incidences(self) -> dict:
+        """hyper_incidences rows whose edge_id or entity_name dangles.
+
+        First-party replacement for the FK CASCADE that the SQLite store
+        enforced and the canonical DuckDB store does not carry: an
+        incidence referencing a missing hyperedge or a missing entity is a
+        silent-orphan leak signal. Tolerates missing tables (zeros).
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        if not db_engine.table_exists(cur, "hyper_incidences", kind="table"):
+            return {"total": 0, "orphaned": 0, "errors": 0}
+        total = cur.execute("SELECT COUNT(*) FROM hyper_incidences").fetchone()[0]
+        orphaned = cur.execute(
+            "SELECT COUNT(*) FROM hyper_incidences hi "
+            "WHERE NOT EXISTS (SELECT 1 FROM hyper_edges he WHERE he.id = hi.edge_id) "
+            "OR NOT EXISTS (SELECT 1 FROM entities e WHERE e.name = hi.entity_name)"
+        ).fetchone()[0]
+        return {"total": total, "orphaned": orphaned, "errors": orphaned}
+
+    def check_orphan_graph_edges(self) -> dict:
+        """graph_edges rows with a dangling source/target entity name.
+
+        Mirrors the SQLite DDL (source/target → entities(name) CASCADE);
+        the canonical store has no FK, so this scan is load-bearing.
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        if not db_engine.table_exists(cur, "graph_edges", kind="table"):
+            return {"total": 0, "orphaned": 0, "errors": 0}
+        total = cur.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
+        orphaned = cur.execute(
+            "SELECT COUNT(*) FROM graph_edges ge "
+            "WHERE NOT EXISTS (SELECT 1 FROM entities e WHERE e.name = ge.source) "
+            "OR NOT EXISTS (SELECT 1 FROM entities e WHERE e.name = ge.target)"
+        ).fetchone()[0]
+        return {"total": total, "orphaned": orphaned, "errors": orphaned}
+
+    def check_orphan_event_participants(self) -> dict:
+        """event_participants rows with a dangling event_id or participant.
+
+        Mirrors the SQLite DDL (event_id → events(id) CASCADE, participant →
+        entities(name) CASCADE).
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        if not db_engine.table_exists(cur, "event_participants", kind="table"):
+            return {"total": 0, "orphaned": 0, "errors": 0}
+        total = cur.execute("SELECT COUNT(*) FROM event_participants").fetchone()[0]
+        orphaned = cur.execute(
+            "SELECT COUNT(*) FROM event_participants ep "
+            "WHERE NOT EXISTS (SELECT 1 FROM events ev WHERE ev.id = ep.event_id) "
+            "OR NOT EXISTS (SELECT 1 FROM entities e WHERE e.name = ep.participant)"
+        ).fetchone()[0]
+        return {"total": total, "orphaned": orphaned, "errors": orphaned}
+
+    def check_orphan_ppr_results(self) -> dict:
+        """ppr_results rows whose entity dangles (DDL: CASCADE-delete only)."""
+        conn = self.get_connection()
+        cur = conn.cursor()
+        if not db_engine.table_exists(cur, "ppr_results", kind="table"):
+            return {"total": 0, "orphaned": 0, "errors": 0}
+        total = cur.execute("SELECT COUNT(*) FROM ppr_results").fetchone()[0]
+        orphaned = cur.execute(
+            "SELECT COUNT(*) FROM ppr_results p "
+            "WHERE NOT EXISTS (SELECT 1 FROM entities e WHERE e.name = p.entity)"
+        ).fetchone()[0]
+        return {"total": total, "orphaned": orphaned, "errors": orphaned}
+
+    def check_dangling_agent_ids(self) -> dict:
+        """Fact rows whose agent_id references an unknown provenance_agents row.
+
+        The SQLite schema declared agent_id → provenance_agents(agent_id)
+        ON DELETE SET NULL; the canonical store has no FK, so a deleted
+        agent would leave dangling ids. No live agent deletion exists today,
+        hence warning severity.
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        if not db_engine.table_exists(cur, "provenance_agents", kind="table"):
+            return {"total": 0, "orphaned": 0, "errors": 0}
+        fact_tables = [
+            "graph_edges",
+            "events",
+            "quotes",
+            "company_metrics",
+            "hyper_edges",
+            "hyper_incidences",
+            "rpt_transactions",
+            "credit_ratings",
+        ]
+        total = 0
+        orphaned = 0
+        for table in fact_tables:
+            if not db_engine.table_exists(cur, table, kind="table"):
+                continue
+            try:
+                cols = [r[0] for r in cur.execute(f'DESCRIBE "{table}"').fetchall()]
+            except Exception:  # noqa: S110  # sqlite path has no DESCRIBE
+                cols = [r[1] for r in cur.execute(f"PRAGMA table_info('{table}')").fetchall()]
+            if "agent_id" not in cols:
+                continue
+            n = cur.execute(
+                f'SELECT COUNT(*) FROM "{table}" WHERE agent_id IS NOT NULL '  # noqa: S608  # table name is a fixed schema constant
+                "AND NOT EXISTS (SELECT 1 FROM provenance_agents pa WHERE pa.agent_id = agent_id)"
+            ).fetchone()[0]
+            total += 1
+            orphaned += n
+        return {"total": total, "orphaned": orphaned, "errors": orphaned}
 
     def check_quotes(self) -> dict:
         """Integrity of the ``quotes`` table (derive_insights capture layer).
@@ -2958,6 +3096,41 @@ class DatabaseIntegrityChecker:
             )
         lines.append("")
 
+        inc = results.get("orphan_incidences", {})
+        lines.append("## ORPHAN HYPEREDGE INCIDENCES (ERROR-level; gate-failing)")
+        lines.append(
+            f"total={inc.get('total', 0)} orphaned={inc.get('orphaned', 0)} -> errors={inc.get('errors', 0)}"
+        )
+        lines.append("")
+
+        ge = results.get("orphan_graph_edges", {})
+        lines.append("## ORPHAN GRAPH EDGES (ERROR-level; gate-failing)")
+        lines.append(
+            f"total={ge.get('total', 0)} orphaned={ge.get('orphaned', 0)} -> errors={ge.get('errors', 0)}"
+        )
+        lines.append("")
+
+        ep = results.get("orphan_event_participants", {})
+        lines.append("## ORPHAN EVENT PARTICIPANTS (ERROR-level; gate-failing)")
+        lines.append(
+            f"total={ep.get('total', 0)} orphaned={ep.get('orphaned', 0)} -> errors={ep.get('errors', 0)}"
+        )
+        lines.append("")
+
+        ppr = results.get("orphan_ppr_results", {})
+        lines.append("## ORPHAN PPR RESULTS (ERROR-level; gate-failing)")
+        lines.append(
+            f"total={ppr.get('total', 0)} orphaned={ppr.get('orphaned', 0)} -> errors={ppr.get('errors', 0)}"
+        )
+        lines.append("")
+
+        dag = results.get("dangling_agent_ids", {})
+        lines.append("## DANGLING agent_id ROWS (advisory; no live agent delete)")
+        lines.append(
+            f"fact_tables_checked={dag.get('total', 0)} dangling={dag.get('orphaned', 0)} -> errors={dag.get('errors', 0)}"
+        )
+        lines.append("")
+
         fuzzy = results.get("fuzzy_duplicates", {})
         lines.append("## FUZZY NAME SIMILARITY (advisory — likely-same-company pairs)")
         fuzzy_pairs = fuzzy.get("fuzzy_duplicate_pairs", [])
@@ -3256,6 +3429,40 @@ class DatabaseIntegrityChecker:
         for ticker, names in dup_groups.items():
             print(f"     {ticker}: {', '.join(names)}")
         print(f"   Uniqueness errors: {dup.get('errors', 0)}")
+        print()
+
+        inc = results.get("orphan_incidences", {})
+        print("🔗 ORPHAN HYPEREDGE INCIDENCES (ERROR-level; gate-failing):")
+        print(f"   Total incidences: {inc.get('total', 0)}")
+        print(f"   Orphaned (edge/entity missing): {inc.get('orphaned', 0)}")
+        print(f"   Incident errors: {inc.get('errors', 0)}")
+        print()
+
+        ge = results.get("orphan_graph_edges", {})
+        print("🌐 ORPHAN GRAPH EDGES (ERROR-level; gate-failing):")
+        print(f"   Total edges: {ge.get('total', 0)}")
+        print(f"   Orphaned (source/target not an entity): {ge.get('orphaned', 0)}")
+        print(f"   Graph edge errors: {ge.get('errors', 0)}")
+        print()
+
+        ep = results.get("orphan_event_participants", {})
+        print("🧑‍🤝‍🧑 ORPHAN EVENT PARTICIPANTS (ERROR-level; gate-failing):")
+        print(f"   Total participants: {ep.get('total', 0)}")
+        print(f"   Orphaned (event/participant missing): {ep.get('orphaned', 0)}")
+        print(f"   Participant errors: {ep.get('errors', 0)}")
+        print()
+
+        ppr = results.get("orphan_ppr_results", {})
+        print("📋 ORPHAN PPR RESULTS (ERROR-level; gate-failing):")
+        print(f"   Total ppr rows: {ppr.get('total', 0)}")
+        print(f"   Orphaned (entity missing): {ppr.get('orphaned', 0)}")
+        print(f"   PPR errors: {ppr.get('errors', 0)}")
+        print()
+
+        dag = results.get("dangling_agent_ids", {})
+        print("🏷️  DANGLING agent_id ROWS (advisory; no live agent delete):")
+        print(f"   Fact tables checked: {dag.get('total', 0)}")
+        print(f"   Dangling rows: {dag.get('orphaned', 0)}")
         print()
 
         print("🔍 FUZZY NAME SIMILARITY (advisory — likely-same-company pairs):")

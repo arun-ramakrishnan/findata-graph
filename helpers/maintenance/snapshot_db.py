@@ -5,10 +5,13 @@ Versioned snapshot of memory/research.db (+ memory/graph.duckdb).
 S6 cutover note (2026-11-21): the canonical research store is now
 memory/research.duckdb (``--db memory/research.duckdb`` takes the S4
 DuckDB snapshot/verify branches). The DEFAULT ``--db`` stays on the
-SQLite rollback anchor so the parquet-sqlite axis + ``--restore`` keep
-their engine contract — which means the git-tracked
-``snapshots/parquet/sqlite/`` leg FREEZES at the cutover point until it
-is re-pointed at the DuckDB store (pending.md, parquet-freeze ticket).
+SQLite rollback anchor so ``--restore`` keeps its SQLite-schema contract.
+The git-tracked ``snapshots/parquet/sqlite/`` axis keeps that name and
+schema, but (parquet slice, 2026-11-21) its DATA source now resolves
+through the S6 selector — canonical DuckDB by default, SQLite under
+``FINDATA_RESEARCH_ENGINE=sqlite`` — via ``_resolve_research_source``.
+The frozen-at-cutover state is gone once the tracked corpus is refreshed
+from the canonical.
 
 Two artifact families, two roles:
 
@@ -107,12 +110,43 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from helpers.core import duckdb_shared as ds  # noqa: E402
-from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention)
+from helpers.core.db import _sqlite_connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention; S1: _sqlite_connect bypasses the selector dispatch)
+from helpers.core.db_engine import ResearchEngine, is_research_store_path  # noqa: E402
 from helpers.core.env import REPO_ROOT  # noqa: E402  (folds _compute_root)
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 DEFAULT_DB = "memory/research.db"
 DEFAULT_OUT = "db-backup/research.snapshot.db.zst"
+
+# Parquet slice (parquet_snapshot_duckdb_reader.md S2–S4): the tracked
+# ``snapshots/parquet/sqlite/`` axis keeps its SQLite-SCHEMA restore
+# contract, but its DATA source follows the S6 selector. ``--db`` and
+# ``DEFAULT_DB`` stay the SQLite rollback anchor (no bare re-point — that
+# would break verify/restore): only the parquet export/verify legs resolve
+# the research store through the gate below.
+
+
+def _resolve_research_source(db_path: Path) -> Path:
+    """Parquet-axis source through the S6 selector gate.
+
+    Under the duckdb-first default a research-store ``.db`` resolves to its
+    converted ``.duckdb`` sibling when it exists; an explicit ``ENGINE=sqlite``
+    keeps the rollback anchor. The ``is_research_store_path`` gate means a
+    tmp fixture named ``research.db`` (or a csr ``--db`` path) is NEVER
+    hijacked onto another lane's cache. Non-research paths are unchanged.
+    """
+    sel = ResearchEngine.from_env()
+    resolved = sel.resolve_path(db_path)
+    if (
+        is_research_store_path(db_path)
+        and resolved != db_path
+        and resolved.suffix.lower() == ".duckdb"
+        and resolved.exists()
+    ):
+        return resolved
+    return db_path
+
+
 DEFAULT_DUCKDB = "memory/graph.duckdb"
 # D15 (2026-09-15): the SECOND DuckDB — external-source acquisition store.
 # Its manifest lives HERE, deliberately not in helpers/graph/query.py:
@@ -166,12 +200,15 @@ def create_snapshot(db_path: Path, out_path: Path, logger: logging.Logger) -> di
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tf:
         tmp_path = Path(tf.name)
     try:
-        src = connect(db_path, read_only=True)
+        # S1 (parquet_snapshot_duckdb_reader.md): binary snapshot sources/dests
+        # are SQLite by contract — bypass the selector dispatch, which would
+        # redirect a research-store path to the DuckDB canonical.
+        src = _sqlite_connect(db_path, read_only=True)
         # wal=False: PRAGMA journal_mode=WAL on the fresh empty dest breaks
         # the sqlite online-backup API into it ("attempt to write a readonly
         # database" — verified 2026-09-03). All other connect() pragmas are
         # backup-safe; WAL is set nowhere downstream of this temp file.
-        dest = connect(tmp_path, wal=False)
+        dest = _sqlite_connect(tmp_path, wal=False)
         try:
             with dest:
                 src.backup(dest)
@@ -275,7 +312,11 @@ def _verify_snapshot_duckdb(
     }
     if source_db and source_db.exists():
         try:
-            sconn = duckdb.connect(str(source_db), read_only=True, **memory_cap_config())
+            # Slice B funnel: a served store excludes file-mode opens —
+            # route through the wire attach (or io_lock ladder when idle).
+            from helpers.misc.duckdb_lock import open_read_only as _oro
+
+            sconn = _oro(str(source_db))
         except (duckdb.Error, OSError) as e:
             # Served/busy source: the RW-locked live store cannot be opened
             # for the row-count compare — degrade to integrity-only match
@@ -322,7 +363,7 @@ def verify_snapshot(snapshot_path: Path, source_db: Path | None, logger: logging
 
         decompress_file(snapshot_path, tmp_path)
 
-        conn = connect(tmp_path)
+        conn = _sqlite_connect(tmp_path)
         try:
             cur = conn.cursor()
             cur.execute("PRAGMA integrity_check")
@@ -343,7 +384,7 @@ def verify_snapshot(snapshot_path: Path, source_db: Path | None, logger: logging
     }
 
     if source_db and source_db.exists():
-        sconn = connect(source_db, read_only=True)
+        sconn = _sqlite_connect(source_db, read_only=True)
         try:
             scur = sconn.cursor()
             scur.execute("SELECT COUNT(*) FROM entities")
@@ -858,6 +899,9 @@ def _export_duckdb_tables(
     out_dir: Path,
     duckdb_path: Path,
     logger: logging.Logger,
+    *,
+    filters: dict[str, str] | None = None,
+    serial: bool = False,
 ) -> tuple[dict[str, dict], int]:
     """COPY each table to its parquet shard (parallel_parquet_export #435).
 
@@ -879,7 +923,11 @@ def _export_duckdb_tables(
     serially, and handed to workers through a queue.
     """
     _active_db = con.execute("SELECT current_database()").fetchone()[0]
-    workers = 1 if ds.is_served(duckdb_path) else min(4, os.cpu_count() or 1)
+    # Parquet slice (S2): the research-store export passes serial=True — a
+    # wire-served canonical only ever gets one COPY at a time (the graph
+    # mirror's wire law), and the apply-stamp filter below needs the live
+    # catalog anyway. Graph/sources/note exports keep the 4-worker pool.
+    workers = 1 if (serial or ds.is_served(duckdb_path)) else min(4, os.cpu_count() or 1)
     _cursor_q: queue.Queue[Any] = queue.Queue()
     for _ in range(workers):
         c = con.cursor()
@@ -902,8 +950,15 @@ def _export_duckdb_tables(
         # reason: zstd -3 sits in the same speed class while compressing
         # better. Readers (DuckDB scanner, pyarrow, --restore) are
         # codec-transparent.
+        src = f"SELECT * FROM {t}"  # noqa: S608  # t from fixed table inventory
+        if filters and t in filters:
+            # Research db_meta: drop the machine/HEAD-specific apply stamp
+            # at export, mirroring _sqlite_table_arrow's APPLY_STAMP_PREFIX
+            # exclusion on the SQLite side. The WHERE clause is a code
+            # constant, never caller input.
+            src += f" WHERE {filters[t]}"
         worker.execute(
-            f"COPY (SELECT * FROM {t} ORDER BY ALL) TO '{out_path}' (FORMAT PARQUET, COMPRESSION ZSTD)"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            f"COPY ({src} ORDER BY ALL) TO '{out_path}' (FORMAT PARQUET, COMPRESSION ZSTD)"  # noqa: S608  # interpolated parts are `?`-clauses / schema-constant identifiers / code-constant filters
         )
         return out_path.stat().st_size
 
@@ -1092,7 +1147,73 @@ def _sqlite_table_arrow(con: sqlite3.Connection, table: str) -> pa.Table:
     return pa.table(fields)
 
 
-def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logger) -> dict:
+def _export_research_duckdb(source: Path, out_dir: Path, logger: logging.Logger) -> dict:
+    """Export the DuckDB research canonical into the SQLite-schema parquet axis.
+
+    Parquet slice S2: DATA rows come from the canonical; the restore schema
+    stays the pinned ``_schema.sqlite.sql`` from the SQLite rollback anchor
+    (or the already-tracked file), so ``--restore`` keeps its SQLite-schema
+    contract. The roster is the tracked axis intersected with the live
+    tables — DuckDB-only operational tables (db_bump_log, *_meta) and the
+    SQLite-only FTS content shadow are NOT exported; an existing shadow
+    parquet is left in place (no prune — unlike the graph DuckDB export).
+
+    Wire-served stores use a single serial COPY (the graph-mirror wire law);
+    ``db_meta`` drops ``apply_%`` rows exactly as the SQLite export does.
+    """
+    from helpers.misc.duckdb_lock import open_read_only
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    con = open_read_only(str(source))
+    try:
+        live = set(_list_duckdb_tables(con))
+        tracked = {p.stem for p in out_dir.glob("*.parquet")}
+        roster = sorted((tracked or set(SQLITE_PARQUET_TABLES)) & live)
+        if not roster:
+            raise RuntimeError(f"No research tables to export from {source}")
+
+        schema_path = out_dir.parent / "_schema.sqlite.sql"
+        anchor = source.with_suffix(".db")
+        if anchor.exists() and is_research_store_path(anchor):
+            # S1: the rollback anchor is a research-store path by name but
+            # must open as SQLite — the selector would redirect it to the
+            # DuckDB sibling. Bypass the dispatch.
+            ac = _sqlite_connect(anchor, read_only=True)
+            try:
+                schema_path.write_text(_export_sqlite_schema(ac))
+            finally:
+                ac.close()
+            logger.info(f"  Parquet research: schema DDL → {schema_path} (SQLite rollback anchor)")
+        elif schema_path.exists():
+            logger.info(f"  Parquet research: schema DDL kept (pinned): {schema_path}")
+        else:
+            raise FileNotFoundError(
+                f"SQLite schema DDL not found for parquet axis: {schema_path} "
+                "(restore contract requires _schema.sqlite.sql; supply the "
+                "rollback anchor or the tracked file)"
+            )
+
+        results, total_bytes = _export_duckdb_tables(
+            con,
+            roster,
+            out_dir,
+            source,
+            logger,
+            filters={"db_meta": "key NOT LIKE 'apply_%'"},
+            serial=True,
+        )
+    finally:
+        con.close()
+    logger.info(
+        f"Parquet research (DuckDB) export: {len(results)} tables, "
+        f"{total_bytes:,} bytes total → {out_dir}"
+    )
+    return {"tables": results, "total_bytes": total_bytes, "dir": str(out_dir)}
+
+
+def export_parquet_sqlite(  # noqa: C901  # export loop with many per-type branches
+    sqlite_path: Path, out_dir: Path, logger: logging.Logger
+) -> dict:
     """Export SQLite data tables to individual Parquet files.
 
     Uses ``sqlite3`` + ``pyarrow`` (column-wise, no pandas —
@@ -1104,10 +1225,18 @@ def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logg
         logger.info(f"SQLite DB not found, skipping Parquet export: {sqlite_path}")
         return {"skipped": True}
 
+    # Parquet slice S2: a DuckDB research canonical takes the dedicated
+    # exporter; the function name and axis path stay stable for callers.
+    if sqlite_path.suffix.lower() == ".duckdb":
+        logger.info(f"Research source is DuckDB, exporting via canonical reader: {sqlite_path}")
+        return _export_research_duckdb(sqlite_path, out_dir, logger)
+
     import pyarrow.parquet as pq
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    con = connect(sqlite_path, read_only=True)
+    # S1: this branch is the SQLite-schema axis by contract — bypass the
+    # selector dispatch (a research-store path would redirect to DuckDB).
+    con = _sqlite_connect(sqlite_path, read_only=True)
     try:
         tables = _list_sqlite_tables(con)
     except Exception:
@@ -1128,7 +1257,7 @@ def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logg
         # helper carries all ordering/filter semantics, so artifacts are
         # byte-identical to the serial loop regardless of worker order.
         try:
-            worker_con = connect(sqlite_path, read_only=True)
+            worker_con = _sqlite_connect(sqlite_path, read_only=True)
         except Exception as e:  # noqa: BLE001  # match the serial skip contract
             logger.warning(f"  Parquet SQLite: skipped {t} ({e})")
             return None
@@ -1204,13 +1333,34 @@ def _verify_gate_stem(stem: str, live_tables: frozenset[str], pf: Path) -> str |
     return None
 
 
-def _verify_duckdb_counts(con, tname: str, pf: Path, stamp_meta: bool) -> tuple[int, int]:
+def _verify_duckdb_counts(
+    con,
+    tname: str,
+    pf: Path,
+    stamp_meta: bool,
+    apply_prefix: str | None = None,
+) -> tuple[int, int]:
     """Live vs snapshot row counts for one gated stem. Raises on live-side
-    errors — the caller records them as mismatches, never skips."""
+    errors — the caller records them as mismatches, never skips.
+
+    ``apply_prefix`` (parquet slice S3) mirrors the SQLite side's
+    APPLY_STAMP_PREFIX exclusion for the research ``db_meta`` table: apply
+    stamps are operational, not content, and must not produce a phantom
+    mismatch after an apply. Literal, not a bound param — prepared params
+    do not cross the wire on a Slice B attach.
+    """
     from helpers.graph.query import STAMP_OWNED_META_KEYS
 
     path_sql = str(pf).replace("'", "''")
-    if stamp_meta:
+    if apply_prefix is not None and tname == "db_meta":
+        like = f"{apply_prefix}%"
+        src = con.execute(
+            f"SELECT COUNT(*) FROM {tname} WHERE key NOT LIKE '{like}'"  # noqa: S608  # code-constant prefix
+        ).fetchone()
+        snap = con.execute(
+            f"SELECT COUNT(*) FROM '{path_sql}' WHERE key NOT LIKE '{like}'"  # noqa: S608  # path quote-doubled; code-constant prefix
+        ).fetchone()
+    elif stamp_meta:
         # Literal keys, not prepared params: prepared parameters do not
         # cross the wire when ``con`` is a Slice B wire attach, and the
         # InvalidInput would fail closed as a false mismatch.
@@ -1320,36 +1470,65 @@ def _sqlite_live_count(con: sqlite3.Connection, tname: str) -> int:
 def _verify_parquet_sqlite_side(
     parquet_dir: Path, sqlite_path: Path | None, logger: logging.Logger
 ) -> dict:
-    """SQLite half of the parquet verify (per-DB parallel workers)."""
+    """SQLite-schema axis half of the parquet verify (per-DB parallel workers).
+
+    Parquet slice S3: the axis keeps its name and ``sqlite/`` mismatch labels,
+    but a DuckDB research source is read through the Slice B funnel
+    (wire attach when served) and counted with ``_verify_duckdb_counts`` —
+    the same fail-closed, apply-stamp-excluding semantics as SQLite.
+    """
     import pyarrow.parquet as pq
 
     result: dict = {"tables_checked": 0, "mismatches": []}
     if sqlite_path and sqlite_path.exists():
         sqlite_pq_dir = parquet_dir / "sqlite"
         if sqlite_pq_dir.exists():
-            scon = connect(sqlite_path, read_only=True)
-            try:
-                live_tables = frozenset(
-                    r[0]
-                    for r in scon.execute(
-                        "SELECT name FROM sqlite_master WHERE type = 'table'"
-                    ).fetchall()
+            is_duck = Path(sqlite_path).suffix.lower() == ".duckdb"
+            if is_duck:
+                from helpers.misc.duckdb_lock import open_read_only
+
+                scon = open_read_only(str(sqlite_path))
+                live_sql = (
+                    "SELECT table_name FROM information_schema.tables "
+                    "WHERE table_schema = 'main' AND table_type = 'BASE TABLE'"
                 )
+            else:
+                scon = _sqlite_connect(sqlite_path, read_only=True)
+                live_sql = "SELECT name FROM sqlite_master WHERE type = 'table'"
+            try:
+                live_tables = frozenset(r[0] for r in scon.execute(live_sql).fetchall())
                 pq_files = sorted(sqlite_pq_dir.glob("*.parquet"))
                 for pf in pq_files:
                     tname = pf.stem
                     gate = _verify_gate_stem(tname, live_tables, pf)
                     if gate is not None:
+                        if is_duck and gate == "MISSING ON LIVE" and tname == "note_search_content":
+                            # SQLite-FTS content shadow: the DuckDB canonical
+                            # has no such table (FTS lives in the note sidecar),
+                            # but the parquet is retained in the axis so a
+                            # SQLite --restore can rebuild the FTS5 index.
+                            # Contract-legal absence, mirroring the graph
+                            # side's EPHEMERAL_TABLES skip.
+                            logger.info(
+                                "  Parquet verify: sqlite/note_search_content absent on "
+                                "the DuckDB live side (FTS content shadow; contract-legal)"
+                            )
+                            continue
                         result["mismatches"].append(f"sqlite/{tname}: {gate}")
                         continue
                     try:
-                        src_cnt = _sqlite_live_count(scon, tname)
+                        if is_duck:
+                            src_cnt, snap_cnt = _verify_duckdb_counts(
+                                scon, tname, pf, False, apply_prefix="apply_"
+                            )
+                        else:
+                            src_cnt = _sqlite_live_count(scon, tname)
+                            snap_cnt = pq.read_metadata(pf).num_rows
                     except (
                         Exception
                     ) as exc:  # fail closed: a live-side error is a verify result, not a skip
                         result["mismatches"].append(f"sqlite/{tname}: ERROR {type(exc).__name__}")
                         continue
-                    snap_cnt = pq.read_metadata(pf).num_rows
                     result["tables_checked"] += 1
                     if src_cnt != snap_cnt:
                         result["mismatches"].append(f"sqlite/{tname}: {snap_cnt}/{src_cnt}")
@@ -1392,7 +1571,11 @@ def verify_parquet_snapshot(
         # gets the bump-log citation here, in the --check leg, next to
         # the warning itself. DuckDB/sources sides have no bump log —
         # their drift is table-level by construction.
-        if sqlite_path is not None and any(m.startswith("sqlite/") for m in result["mismatches"]):
+        if (
+            sqlite_path is not None
+            and Path(sqlite_path).suffix.lower() != ".duckdb"
+            and any(m.startswith("sqlite/") for m in result["mismatches"])
+        ):
             logger.warning(
                 _bump_log_citation(
                     sqlite_path,
@@ -1463,13 +1646,25 @@ def _parquet_rows(path: Path) -> tuple[list[str], list[tuple]]:
     return names, list(zip(*[c.to_pylist() for c in cols]))
 
 
-def restore_sqlite_from_parquet(parquet_dir: Path, target: Path, logger: logging.Logger) -> dict:
+def restore_sqlite_from_parquet(
+    parquet_dir: Path,
+    target: Path,
+    logger: logging.Logger,
+    *,
+    drop_agent_triggers: bool = False,
+) -> dict:
     """Rebuild a SQLite DB at ``target`` from ``parquet_dir``/*.parquet.
 
     Applies ``_schema.sqlite.sql`` (from the snapshot dir's parent), loads
     every Parquet file, rebuilds the FTS5 index from its exported content
     shadow, runs ``PRAGMA foreign_key_check``, then atomically replaces
     ``target``. The caller is responsible for any overwrite guard.
+
+    ``drop_agent_triggers`` (test-donor use only): drops the
+    ``*_agent_id_registered_*`` triggers before loading so rows whose
+    ``agent_id`` is not registered in ``provenance_agents`` still load —
+    the canonical DuckDB store has no FK/trigger enforcement, so the
+    parquet axis may legitimately carry such rows.
     """
     schema_path = parquet_dir.parent / "_schema.sqlite.sql"
     if not schema_path.exists():
@@ -1478,14 +1673,33 @@ def restore_sqlite_from_parquet(parquet_dir: Path, target: Path, logger: logging
     tmp = target.with_name(target.name + ".restore-tmp")
     tmp.unlink(missing_ok=True)
 
-    con = connect(tmp)
+    # S1: the restore target is a fresh SQLite file by contract — bypass the
+    # selector dispatch (the tmp name could sit beside a research-store path).
+    con = _sqlite_connect(tmp)
     restored: dict[str, int] = {}
     try:
         con.executescript(schema_path.read_text())
+        # The sqlite snapshot schema declares the FTS5 virtual table but not
+        # its plain meta companion (created by rebuild_note_search.py on
+        # live stores) — restore it so test donors/templates expose the same
+        # table surface as production (near_duplicates, schema drift).
+        con.execute(
+            "CREATE TABLE IF NOT EXISTS note_search_meta ("
+            " file_path TEXT PRIMARY KEY,"
+            " mtime REAL NOT NULL,"
+            " content_hash TEXT NOT NULL"
+            ")"
+        )
         # executescript() commits and leaves scripted pragmas behind; the
         # load itself must not enforce FKs (table order is alphabetical).
         con.execute("PRAGMA foreign_keys=OFF")
         con.execute("PRAGMA journal_mode=OFF")  # fresh build: max speed
+        if drop_agent_triggers:
+            for (tname,) in con.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' "
+                "AND name LIKE '%_agent_id_registered_%'"
+            ).fetchall():
+                con.execute(f'DROP TRIGGER "{tname}"')
         schema_tables = frozenset(
             r[0]
             for r in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'").fetchall()
@@ -1715,7 +1929,8 @@ def _fts_shadow_present(store: Path, shadow_prefix: str) -> bool:
 def _read_sqlite_generation(db_path: Path) -> str | None:
     """Live SQLite generation from db_meta (None when unreadable)."""
     try:
-        con = connect(db_path, read_only=True)
+        # S1: SQLite by name — bypass the selector dispatch.
+        con = _sqlite_connect(db_path, read_only=True)
         try:
             row = con.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
         finally:
@@ -1770,7 +1985,7 @@ def _read_bump_log(db_path: Path) -> tuple[str, str, str, str] | None:
     so instead of inventing a cause.
     """
     try:
-        con = connect(db_path, read_only=True)
+        con = _sqlite_connect(db_path, read_only=True)
         try:
             row = con.execute(
                 "SELECT ts, caller, worktree, generation FROM db_bump_log"
@@ -1794,7 +2009,7 @@ def _has_bump_log_table(db_path: Path) -> bool:
     are different evidence and must not read identically.
     """
     try:
-        con = connect(db_path, read_only=True)
+        con = _sqlite_connect(db_path, read_only=True)
         try:
             row = con.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_bump_log'"
@@ -1867,17 +2082,26 @@ def _cmd_quick(
     clones have them).
     """
     ok = True
-    pairs = (
-        (
-            "sqlite",
-            _read_sqlite_generation(db_path),
-            _read_parquet_generation(parquet_base / "sqlite" / "db_meta.parquet"),
-        ),
+    pairs = []
+    # Build-route P4 retired the SQLite research host (memory/research.db
+    # deleted); when no sqlite host exists, the sqlite leg is skipped,
+    # not stale — the legacy backup is an archived artifact, not a live
+    # freshness contract. The duckdb leg is the live freshness contract.
+    sqlite_live = _read_sqlite_generation(db_path)
+    if sqlite_live is not None:
+        pairs.append(
+            (
+                "sqlite",
+                sqlite_live,
+                _read_parquet_generation(parquet_base / "sqlite" / "db_meta.parquet"),
+            )
+        )
+    pairs.append(
         (
             "duckdb",
             _read_duckdb_generation(duckdb_path),
             _read_parquet_generation(parquet_base / "duckdb" / "_build_meta.parquet"),
-        ),
+        )
     )
     for name, live, snap in pairs:
         match = live is not None and live == snap
@@ -1910,7 +2134,17 @@ def _cmd_check(
     # regardless of --format (which only gates the create path).
     # Each verify gracefully skips whatever isn't present.
     ok = True
-    r = verify_snapshot(out_path, db_path, logger)
+    # BUILD-route (P4): the SQLite rollback anchor is gone — resolve the
+    # binary source through the same selector gate as the parquet axis
+    # (canonical .duckdb sibling), and point the sink at the matching
+    # artifact name.
+    bin_src = _resolve_research_source(db_path)
+    bin_out = (
+        out_path.with_name(out_path.name.replace(".db.zst", ".duckdb.zst"))
+        if bin_src.suffix.lower() == ".duckdb"
+        else out_path
+    )
+    r = verify_snapshot(bin_out, bin_src, logger)
     ok = ok and r["match"]
     if with_duckdb:
         rd = verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)
@@ -1918,7 +2152,7 @@ def _cmd_check(
     rp = verify_parquet_snapshot(
         parquet_base,
         duckdb_path if with_duckdb else None,
-        db_path,
+        _resolve_research_source(db_path),  # parquet slice S4: selector-resolved axis source
         logger,
     )
     ok = ok and rp["match"]
@@ -2069,7 +2303,7 @@ def _snapshot_embed_store(db_path: Path, out_path: Path, logger: logging.Logger)
 
 
 def _snapshot_corpus(out_path: Path, logger: logging.Logger) -> None:
-    """Corpus cache sidecar (S1b): memory/corpus.db holds frontmatter +
+    """Corpus cache sidecar (S1b): memory/corpus.duckdb holds frontmatter +
     FULL NOTE BODIES for every vault note — the private-content class
     the git-side parquet snapshot deliberately excludes, so this zst
     is its only byte-exact copy (operator decision 2026-09-04).
@@ -2114,12 +2348,7 @@ def _create_binary_snapshot(
         return verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)["match"]
 
     with ThreadPoolExecutor(max_workers=4) as pool:
-        research = pool.submit(
-            lambda: (
-                create_snapshot(db_path, out_path, logger),
-                verify_snapshot(out_path, db_path, logger)["match"],
-            )[1]
-        )
+        research = pool.submit(_research_binary_worker, db_path, out_path, logger)
         embed = pool.submit(_snapshot_embed_store, db_path, out_path, logger)
         corpus = pool.submit(_snapshot_corpus, out_path, logger)
         futures = [research, embed, corpus]
@@ -2132,6 +2361,32 @@ def _create_binary_snapshot(
             f.result()
 
     return ok
+
+
+def _research_binary_worker(db_path: Path, out_path: Path, logger: logging.Logger) -> bool:
+    """Binary-format research leg — BUILD-route (P4) selector resolution.
+
+    The SQLite rollback anchor (``memory/research.db``) was deleted in
+    P4; the canonical research store is the converted ``.duckdb``
+    sibling. Follow the same selector gate as the parquet axis
+    (``_resolve_research_source``): snapshot the canonical sibling when
+    it exists, skip with a log when it does not (parity with the
+    embed/corpus/sources workers — never a failed run)."""
+    src = _resolve_research_source(db_path)
+    if not src.exists():
+        logger.info("Research store absent — binary snapshot skipped (%s)", src)
+        return True
+    if src.suffix.lower() == ".duckdb":
+        res_out = out_path.with_name(out_path.name.replace(".db.zst", ".duckdb.zst"))
+        create_duckdb_snapshot(src, res_out, logger)
+        # verify_snapshot dispatches on the source suffix to the
+        # entities/relations-shaped duckdb verify (the graph-shaped
+        # verify_duckdb_snapshot expects v_node/e_* tables).
+        return verify_snapshot(res_out, src, logger)["match"]
+    return (
+        create_snapshot(src, out_path, logger),
+        verify_snapshot(out_path, src, logger)["match"],
+    )[1]
 
 
 def _create_parquet_snapshot(  # noqa: C901  # parquet snapshot: per-side export ladder
@@ -2158,9 +2413,17 @@ def _create_parquet_snapshot(  # noqa: C901  # parquet snapshot: per-side export
     if parquet_base is None or parquet_sqlite_dir is None:
         raise ValueError("parquet format requires parquet paths")
 
+    # Parquet slice S4: the axis keeps its SQLite-schema restore contract but
+    # its data source follows the S6 selector (canonical DuckDB by default).
+    research_source = _resolve_research_source(db_path)
+    if research_source != db_path:
+        logger.info(f"Parquet research source: {research_source} (selector-resolved)")
+
     def _sqlite_parquet_worker() -> bool:
-        export_parquet_sqlite(db_path, parquet_sqlite_dir, logger)
-        return _verify_parquet_sqlite_side(parquet_base, db_path, logger)["mismatches"] == []
+        export_parquet_sqlite(research_source, parquet_sqlite_dir, logger)
+        return (
+            _verify_parquet_sqlite_side(parquet_base, research_source, logger)["mismatches"] == []
+        )
 
     def _duckdb_parquet_worker() -> bool:
         if with_duckdb:
@@ -2236,7 +2499,14 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     parser.add_argument(
-        "--db", default=DEFAULT_DB, help="Source SQLite DB (relative to repo root)."
+        "--db",
+        default=DEFAULT_DB,
+        help=(
+            "Source SQLite DB / rollback anchor (relative to repo root). The "
+            "parquet axis resolves its DATA source through the S6 selector "
+            "(canonical .duckdb sibling by default); --restore keeps this "
+            "SQLite-schema target."
+        ),
     )
     parser.add_argument(
         "--out", default=DEFAULT_OUT, help="Output .db.zst (relative to repo root)."

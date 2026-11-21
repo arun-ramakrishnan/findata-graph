@@ -125,7 +125,10 @@ def _seed_history(db: Path, series: dict[str, list[float]]) -> None:
     con.execute("CREATE TABLE legs (run_id INTEGER, leg TEXT, seconds REAL, status TEXT)")
     import datetime as dt
 
-    base = dt.datetime(2026, 11, 8, 12, 0, 0)
+    # Anchor to now so every seeded run falls inside the watch's 14-day
+    # window (a fixed historical base silently ages out of the window and
+    # collapses the baseline — time-dependent test bug, 2026-11-22).
+    base = dt.datetime.now()
     rid = 1
     for leg, vals in series.items():
         # newest first in vals; started_at descends with index

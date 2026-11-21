@@ -38,6 +38,17 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+*(none — both 2026-11-21 filings archived executed the same day.)*
+
+- *(archived 2026-11-21)* — `duckdb_build_route` (database/, filed +
+  executed 2026-11-21, completed.md #552 — SQLite retirement BUILD route:
+  P1 cascade rewrites under the zero-FK canonical store, P2 verified
+  native DuckDB FTS, P3 integrity orphan checks, P4 frozen-store deletion
+  + backup-coverage audit, P5 corpus/md_lint cache moves).
+- *(archived 2026-11-21)* — `parquet_snapshot_duckdb_reader` (database/,
+  filed + executed 2026-11-21, completed.md #553 — S1 selector-aware house
+  connect + dual-engine writer helpers; S2–S5 parquet snapshot axis
+  engine-aware export/verify/defaults with pinned restore contract).
 - *(archived 2026-11-20)* — `hgx_unlock_lanes_and_emeans` (graph/, filed +
   executed 2026-11-20, completed.md #549 — HGX unlock: `hypergraphx[ml]`
   (sklearn 1.9.1) + faiss-cpu 1.16.0 installed; HySC / core-periphery /

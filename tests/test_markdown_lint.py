@@ -17,7 +17,7 @@ import pytest  # noqa: E402
 @pytest.fixture(autouse=True)
 def _tmp_cache(tmp_path, monkeypatch):
     """Hermeticity: every test gets an empty sidecar, never memory/."""
-    monkeypatch.setattr(ml, "_CACHE_DB", tmp_path / "md_lint_cache.db")
+    monkeypatch.setattr(ml, "_CACHE_DB", tmp_path / "md_lint_cache.duckdb")
 
 
 # cli2 default-formatter shapes the digest regex must parse (severity word
@@ -249,14 +249,14 @@ def test_deleted_file_is_pruned(monkeypatch, tmp_path):
     assert ml.main([]) == 0
     conn = ml._cache_open()
     assert conn is not None
-    rows = {r[0] for r in conn.execute("SELECT path FROM verdicts")}
+    rows = {r[0] for r in conn.execute("SELECT path FROM verdicts").fetchall()}
     assert rows == {str(a), str(b)}
 
     corpus[:] = [a]  # b vanished from the walk
     assert ml.main([]) == 0
     conn = ml._cache_open()
     assert conn is not None
-    rows = {r[0] for r in conn.execute("SELECT path FROM verdicts")}
+    rows = {r[0] for r in conn.execute("SELECT path FROM verdicts").fetchall()}
     assert rows == {str(a)}
 
 

@@ -220,3 +220,23 @@ def test_is_duckdb_conn_detects_raw_duckdb_module(duckdb_store):
         assert is_duckdb_conn(sqlite) is False
     finally:
         sqlite.close()
+
+
+def test_duckdb_conn_context_manager_keeps_conn_open(duckdb_store):
+    """Regression (2026-11-21): ``_DuckDBConn.__exit__`` previously called
+    ``close()`` — each ``with conn:` block silently killed the connection,
+    so the next statement raised ``Connection already closed!`` (seen in
+    derive_hyperedges S0 prune loop). It must match ``sqlite3.Connection``:
+    commit on clean exit and leave the connection OPEN."""
+    duck = connect_funnel(duckdb_store)
+    try:
+        with duck:
+            duck.execute("INSERT INTO entities (name, entity_type) VALUES ('X', 'company')")
+        # connection remains usable after the with-block
+        rows = duck.execute("SELECT name FROM entities ORDER BY name").fetchall()
+        assert any(r[0] == "X" for r in rows)
+    finally:
+        # roll the test row back out so the fixture stays clean for siblings
+        duck.execute("DELETE FROM entities WHERE name = 'X'")
+        duck.commit()
+        duck.close()

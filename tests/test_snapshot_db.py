@@ -671,7 +671,9 @@ def test_verify_sqlite_erroring_stem_fails_closed(tmp_path, monkeypatch):
         def close(self):
             real.close()
 
-    monkeypatch.setattr(snapshot_db, "connect", lambda *a, **k: _CountFails())
+    # S1: the verify leg opens the SQLite side via _sqlite_connect (the
+    # private, selector-bypassing opener) — patch that symbol.
+    monkeypatch.setattr(snapshot_db, "_sqlite_connect", lambda *a, **k: _CountFails())
     pq.write_table(pa.table({"name": ["x"]}), pq_dir / "entities.parquet")
     res = snapshot_db._verify_parquet_sqlite_side(pq_dir.parent, sdb, _log)
     assert any("ERROR" in m for m in res["mismatches"]), res

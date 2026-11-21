@@ -51,12 +51,14 @@ def _sector_edge_id(conn: sqlite3.Connection, sector: str, *, create: bool) -> i
         return int(row[0])
     if not create:
         return None
-    cur = conn.execute(
+    conn.execute(
         "INSERT INTO hyper_edges (edge_type, label, source_ref) VALUES (?, ?, ?)",
         (SECTOR_HYPER_TYPE, sector, "sector_membership"),
     )
-    assert cur.lastrowid is not None  # ty: narrow  # noqa: S101  # INSERT always sets it
-    return int(cur.lastrowid)
+    return conn.execute(
+        "SELECT id FROM hyper_edges WHERE edge_type = ? AND label = ?",
+        (SECTOR_HYPER_TYPE, sector),
+    ).fetchone()[0]
 
 
 def _refresh_member_count(conn: sqlite3.Connection, edge_id: int) -> None:

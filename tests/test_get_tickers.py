@@ -669,10 +669,28 @@ class TestVssRunIndex:
 
     @staticmethod
     def _live_dims(db_path, default=384):
-        """Width of the first stored company vector (384 granite / 512 gemma)."""
-        import sqlite3
+        """Width of the first stored company vector (384 granite / 512 gemma).
 
+        Build-route P4: the canonical research store is DuckDB; keep the
+        sqlite fallback for legacy fixture files only.
+        """
         from helpers.core.vec_codec import load_vec
+
+        try:
+            from helpers.misc.duckdb_lock import open_read_only
+
+            con = open_read_only(str(db_path))
+            try:
+                row = con.execute("SELECT embedding FROM company_embeddings LIMIT 1").fetchone()
+            except Exception:
+                return default
+            finally:
+                con.close()
+            vec = load_vec(row[0]) if row else None
+            return len(vec) if vec else default
+        except Exception:  # noqa: S110  # missing embedding is a valid absence
+            pass
+        import sqlite3
 
         con = sqlite3.connect(str(db_path))
         try:
@@ -707,9 +725,11 @@ class TestVssRunIndex:
         self._parity(db, vec_fn, ["Alpha"], None)
 
     def test_parity_live_table_readonly(self):
-        live = HELPERS.parents[1] / "memory" / "research.db"
+        roots = HELPERS.parents[1] / "memory"
+        candidate = roots / "research.duckdb"
+        live = candidate if candidate.exists() else roots / "research.db"
         if not live.exists():
-            pytest.skip("no live research.db")
+            pytest.skip("no live research store")
         import hashlib
 
         # Read the LIVE width instead of pinning 384: the company surface

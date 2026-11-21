@@ -591,6 +591,15 @@ commit, referenced by nothing). Entry numbers point at
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 
+- [`duckdb_build_route.md`](database/duckdb_build_route.md) — SQLite
+  retirement BUILD route: P1 cascade rewrites under the zero-FK canonical
+  store, P2 verified native DuckDB FTS, P3 integrity orphan checks, P4
+  frozen-store deletion + full backup-coverage audit (all stores covered),
+  P5 corpus/md_lint cache moves — completed.md #552
+- [`parquet_snapshot_duckdb_reader.md`](database/parquet_snapshot_duckdb_reader.md) —
+  selector-aware house connect + dual-engine writer helpers; parquet
+  snapshot axis engine-aware export/verify/defaults with restore contract
+  pinned — completed.md #553
 - [`duckdb_watchlist_hardening.md`](database/duckdb_watchlist_hardening.md) —
   recorded the DuckDB watchlist (G1 post-restore note store = uncaught
   `CatalogException: Scalar Function with name match_bm25 does not exist!`;

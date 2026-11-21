@@ -48,6 +48,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.countries import COUNTRY_VOCABULARY  # noqa: E402
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.vec_search import _is_duckdb_conn  # noqa: E402
 from helpers.graph.sector_membership import put_sector_membership  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 from helpers.core.frontmatter import (  # noqa: E402
@@ -343,31 +344,56 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     if not db_path.is_absolute():
         db_path = _REPO_ROOT / db_path
     if not db_path.exists():
-        print(f"ERROR: database not found: {db_path}", file=sys.stderr)
-        return 1
+        # build-route P4 deleted the SQLite host; resolve the DuckDB sibling.
+        if db_path.suffix.lower() == ".db" and db_path.with_suffix(".duckdb").exists():
+            db_path = db_path.with_suffix(".duckdb")
+        else:
+            print(f"ERROR: database not found: {db_path}", file=sys.stderr)
+            return 1
 
     conn = connect(db_path)  # FK ON + WAL via canonical helper
     try:
-        # Ensure table exists (matches production schema: PK + FK with
-        # both cascades, established by an earlier one-shot migration).
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS entity_tags (
-                entity_name TEXT NOT NULL,
-                tag         TEXT NOT NULL,
-                PRIMARY KEY (entity_name, tag),
-                FOREIGN KEY (entity_name) REFERENCES entities(name)
-                    ON DELETE CASCADE ON UPDATE CASCADE
-            );
-            CREATE INDEX IF NOT EXISTS idx_entity_tags_tag ON entity_tags(tag);
-            CREATE TABLE IF NOT EXISTS note_tags (
-                note_path TEXT NOT NULL,
-                tag       TEXT NOT NULL,
-                PRIMARY KEY (note_path, tag)
-            );
-            CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag);
-            """
-        )
+        # Ensure table exists. SQLite keeps PK + FK with both cascades
+        # (legacy donor); DuckDB parse-rejects CASCADE/SET NULL and the
+        # canonical duckdb store has zero FK constraints, so the DuckDB
+        # DDL carries no FK at all (cascade semantics are re-enacted in
+        # code via swap_rewrite_flows).
+        if _is_duckdb_conn(conn):
+            conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS entity_tags (
+                    entity_name TEXT NOT NULL,
+                    tag         TEXT NOT NULL,
+                    PRIMARY KEY (entity_name, tag)
+                );
+                CREATE INDEX IF NOT EXISTS idx_entity_tags_tag ON entity_tags(tag);
+                CREATE TABLE IF NOT EXISTS note_tags (
+                    note_path TEXT NOT NULL,
+                    tag       TEXT NOT NULL,
+                    PRIMARY KEY (note_path, tag)
+                );
+                CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag);
+                """
+            )
+        else:
+            conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS entity_tags (
+                    entity_name TEXT NOT NULL,
+                    tag         TEXT NOT NULL,
+                    PRIMARY KEY (entity_name, tag),
+                    FOREIGN KEY (entity_name) REFERENCES entities(name)
+                        ON DELETE CASCADE ON UPDATE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_entity_tags_tag ON entity_tags(tag);
+                CREATE TABLE IF NOT EXISTS note_tags (
+                    note_path TEXT NOT NULL,
+                    tag       TEXT NOT NULL,
+                    PRIMARY KEY (note_path, tag)
+                );
+                CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag);
+                """
+            )
 
         # S1b corpus fast path — one walk+pool shared across maint --full
         if args.corpus and _HAS_CORPUS:
@@ -463,19 +489,24 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                         bulk,
                     )
                 # E5a: derive sector_classification from the note's sector/* tag so
-                # the column and the tag table stay in sync. IS NOT (not !=) handles
-                # NULL correctly AND skips rows where the value already matches — a
-                # no-op sync writes nothing. Entities without a sector tag keep their
-                # existing value (non-destructive).
+                # the column and the tag table stay in sync. IS DISTINCT FROM
+                # (not !=) handles NULL correctly AND skips rows where the value
+                # already matches — a no-op sync writes nothing. Entities without a
+                # sector tag keep their existing value (non-destructive). DuckDB
+                # parse-rejects plain `IS NOT <expr>` (only IS [NOT] NULL /
+                # IS [NOT] DISTINCT FROM are valid); IS DISTINCT FROM is the
+                # engine-neutral spelling with identical semantics (SQLite >= 3.39).
                 sector_changed = 0
                 if sector_updates:
                     cur = conn.cursor()
                     cur.executemany(
                         "UPDATE entities SET sector_classification = ? "
-                        "WHERE name = ? AND sector_classification IS NOT ?",
+                        "WHERE name = ? AND sector_classification IS DISTINCT FROM ?",
                         [(canonical, name, canonical) for canonical, name in sector_updates],
                     )
-                    sector_changed = cur.rowcount or 0
+                    # DuckDB wire connections report rowcount -1 for UPDATE
+                    # (connection-level rowcount not tracked); clamp to 0.
+                    sector_changed = max(cur.rowcount or 0, 0)
                 # D17 residual (2026-10-27 Zetwerk orphan): the incidence
                 # store is canonical membership, but only create_entity /
                 # move_sector used to write it — a note gaining its sector

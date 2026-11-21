@@ -35,6 +35,9 @@ from helpers.maintenance.migrate_to_graph_edges import (  # noqa: E402
     EVENTS_DDL,
     EVENTS_INDEXES,
 )
+from helpers.graph.derive_event_participants import (  # noqa: E402
+    EVENT_PARTICIPANTS_DDL,
+)
 from helpers.graph import derive_hyperedges as dh  # noqa: E402
 from helpers.maintenance import purge_stranded_companies as ps  # noqa: E402
 
@@ -58,6 +61,21 @@ def conn(tmp_path) -> sqlite3.Connection:
     c.execute(EVENTS_DDL)
     for idx in EVENTS_INDEXES:
         c.execute(idx)
+    c.execute(EVENT_PARTICIPANTS_DDL)
+    # Empty tables for the remaining orphan-predicate refs; a real store
+    # has these from their own migrations, but the fixture only builds the
+    # compaction-relevant core.
+    c.execute(
+        "CREATE TABLE IF NOT EXISTS entity_tags ("
+        " entity_name TEXT NOT NULL, tag TEXT NOT NULL,"
+        " PRIMARY KEY (entity_name, tag))"
+    )
+    c.execute(
+        "CREATE TABLE IF NOT EXISTS ppr_results ("
+        " id INTEGER PRIMARY KEY, entity TEXT NOT NULL, period TEXT,"
+        " ppr TEXT, value_raw TEXT, source_ref TEXT, properties TEXT,"
+        " created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+    )
     # The orphan predicate references the relations table (or pre-retirement
     # fallback); an empty table satisfies it in tests.
     c.execute(

@@ -70,6 +70,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.vec_search import _is_duckdb_conn  # noqa: E402
 from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
 
 # --------------------------------------------------------------------------- #
@@ -395,8 +396,29 @@ def derive_edges(
 # Persistence                                                                 #
 # --------------------------------------------------------------------------- #
 def ensure_co_mention_editions_schema(conn) -> None:
-    """Create the ``co_mention_editions`` staging table when missing."""
-    conn.execute(CO_MENTION_EDITIONS_DDL)
+    """Create the ``co_mention_editions`` staging table when missing.
+
+    SQLite keeps the FK + both cascades (legacy donor); DuckDB
+    parse-rejects CASCADE/SET NULL and the canonical duckdb store has
+    zero FK constraints, so the DuckDB DDL carries no FK at all
+    (cascade semantics are re-enacted in code via
+    swap_rewrite_flows).
+    """
+    if _is_duckdb_conn(conn):
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS co_mention_editions (
+                edition_title TEXT    NOT NULL,
+                entity_name   TEXT    NOT NULL,
+                newsletter    TEXT    NOT NULL,
+                source_ref    TEXT    NOT NULL,
+                created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (edition_title, entity_name)
+            )
+            """
+        )
+    else:
+        conn.execute(CO_MENTION_EDITIONS_DDL)
     conn.commit()
 
 

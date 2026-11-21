@@ -382,7 +382,7 @@ def _shim_sync_tags(p, mp, args):
     # Forward the step's flags (notably --apply since guard unification —
     # dropping them made the chain exercise a dry-run where production
     # writes), but keep dropping --corpus: the shared corpus cache
-    # (memory/corpus.db) is repo-global and must not be polluted from the
+    # (memory/corpus.duckdb) is repo-global and must not be polluted from the
     # tmp project; the plain walk covers the chain behavior under test.
     forwarded = [a for a in args if a != "--corpus"]
     mp.setattr(sys, "argv", ["sync_tags.py", "--db", str(p.db), *forwarded])

@@ -289,17 +289,27 @@ def _render_relations(L: list[str], kept: list[Fact]) -> None:
 # --------------------------------------------------------------------------- #
 # R2 deep-relations rollups (graph_relational_depth): per-semantics card facts
 # --------------------------------------------------------------------------- #
-def _sqlite_ro(path: Path) -> sqlite3.Connection | None:
-    if not Path(path).exists():
-        return None
-    return _db_connect(path, read_only=True)
+def _research_store_ro(path: Path) -> Any | None:
+    """Open the research store read-only, engine-neutral.
+
+    BUILD-route (P4): the SQLite research host is deleted — resolve to the
+    converted ``.duckdb`` sibling when the ``.db`` path no longer exists.
+    """
+    if Path(path).exists():
+        return _db_connect(path, read_only=True)
+    dup = Path(path).with_suffix(".duckdb")
+    if dup.exists():
+        from helpers.core import db_engine
+
+        return db_engine.connect_funnel(str(dup))
+    return None
 
 
-def _q(scon: sqlite3.Connection, sql: str, params: tuple = ()) -> list:
-    """Read with absent-table tolerance: a pre-R3 research.db answers []."""
+def _q(scon: Any, sql: str, params: tuple = ()) -> list:
+    """Read with absent-table tolerance: a pre-R3 research store answers []."""
     try:
         return scon.execute(sql, params).fetchall()
-    except sqlite3.OperationalError:
+    except Exception:  # noqa: S110  # absent-table tolerance (both engines)
         return []
 
 
@@ -320,7 +330,7 @@ def _cohort_warnings(scon: sqlite3.Connection, tables: tuple[str, ...]) -> list[
 
     try:
         return [message for _table, _reason, message in stale_cohorts(scon, tables)]
-    except sqlite3.Error:  # pre-S2 store: no meta table to consult
+    except Exception:  # pre-S2 store: no meta table to consult (both engines)
         return []
 
 
@@ -556,7 +566,7 @@ def _deep_section(
     """R2 deep-relations lines; None/missing research_db skips (empty)."""
     if research_db is None:
         return []
-    scon = _sqlite_ro(Path(research_db))
+    scon = _research_store_ro(Path(research_db))
     if scon is None:
         return []
     try:

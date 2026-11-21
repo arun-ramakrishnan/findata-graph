@@ -298,6 +298,15 @@ def main() raises:
     # ---------------------------------------------------------- connection
     var dbmod = Python.import_module("helpers.core.db")
     var conn = dbmod.connect("memory/research.db")
+    # S4: mirror the Python original's engine-conditional predicates — under
+    # DuckDB the research store's DATE columns cannot hold '', so the
+    # `<> ''` guards are SQLite-only and must be dropped there.
+    var engmod = Python.import_module("helpers.core.db_engine")
+    var is_ddb = Python.evaluate(
+        "lambda c: int(__import__('helpers.core.db_engine', "
+        "fromlist=['is_duckdb_conn']).is_duckdb_conn(c))"
+    )(conn)
+    var ddb_flag = to_i(is_ddb) == 1
     # ------------------------------------------- 1. entities + file paths
     var t0 = perf_counter_ns()
     # `ticker` selected 2026-10-14: the fileless-entity exemption below
@@ -1223,12 +1232,24 @@ def main() raises:
 
     # -------------------------------------------- 7. validity window
     t0 = perf_counter_ns()
-    var vw_rows = conn.execute(
+    var vw_sql = String(
         "SELECT edge_type, COUNT(), SUM(CASE WHEN valid_from IS NOT NULL "
-        "AND valid_from <> '' THEN 1 ELSE 0 END), SUM(CASE WHEN valid_to "
-        "IS NOT NULL AND valid_to <> '' THEN 1 ELSE 0 END) FROM graph_edges "
-        "GROUP BY edge_type ORDER BY edge_type"
-    ).fetchall()
+    )
+    if ddb_flag:
+        vw_sql += "THEN 1 ELSE 0 END), SUM(CASE WHEN valid_to "
+    else:
+        vw_sql += (
+            "AND valid_from <> '' THEN 1 ELSE 0 END), SUM(CASE WHEN valid_to "
+        )
+    if ddb_flag:
+        vw_sql += "IS NOT NULL THEN 1 ELSE 0 END) FROM graph_edges "
+    else:
+        vw_sql += (
+            "IS NOT NULL AND valid_to <> '' THEN 1 ELSE 0 END) FROM"
+            " graph_edges "
+        )
+    vw_sql += "GROUP BY edge_type ORDER BY edge_type"
+    var vw_rows = conn.execute(vw_sql).fetchall()
     var vw_canon = List[String]()
     var vw_warn = 0
     for i in range(vw_rows.__len__()):
@@ -1416,7 +1437,7 @@ def main() raises:
                     "generation not an int: "
                     + String(repr_fn(gen_row[0]).__str__())
                 )
-        var uv = to_i(conn.execute("PRAGMA user_version").fetchone()[0])
+        var uv = to_i(engmod.schema_version(conn))
         var exp_uv = to_i(dbmod.EXPECTED_USER_VERSION)
         if uv != exp_uv:
             dbm_err += 1
