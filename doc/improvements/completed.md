@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-10-17
-**Total completed**: 325 items
+**Total completed**: 327 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -16777,3 +16777,83 @@ archived `status: executed`).
   `notes_like_entity`, `edition_companies`) uses GROUP BY best-section-per-note
   and cannot route through HNSW; index exists for future direct top-k.
   `migrate_to_graph_edges.py` DDL unchanged (SQLite target).
+
+## 556. Search-lane HNSW rollout S0 — lanes already carry cosine legs; two decorative HNSW indexes removed
+
+Filed 2026-11-22; executed 2026-11-22 (`search_lane_hnsw_rollout` proposal,
+archived `status: executed`).
+
+- **S0 verdict (per lane)**: every lane already stores embeddings and
+  serves a cosine leg — script 881/881 and memory 416/416 BLOB-encoded
+  f32 with the rust/numpy/pure backend selector (0.34 ms / 0.04 ms
+  measured), git 619 + 1,860 body-chunk blobs, doc a whole-corpus SQL
+  cosine sweep over its doc_vectors mirror (21.84 ms @ 4,830×512), note
+  19,356 vectors in the note_vectors.duckdb sidecar. Hybrid is already
+  the CLI default (`--bm25` opts out) with shared `--query-vector`
+  fan-out — the parent proposal's S3 acceptance shape existed under
+  different names; its populated-but-unindexed figures were stale on
+  filing.
+- **Routing matrix (DuckDB 2.0.1, vss loaded)**: only the #555 house
+  combination routes — plain-l2 `USING HNSW` + `ORDER BY array_distance
+  ASC LIMIT k` (top5 = exact). The `metric='cosine'` WITH form routes
+  nothing in any query form, so both live indexes (idx_doc_vectors_emb,
+  idx_note_search_vec_emb) were decorative: the doc leg is whole-corpus
+  by design (fusion needs every doc's cos_rank) and the only production
+  knn caller (app.py:1009) uses k=None. #555's "note HNSW already
+  shipped" inherited the same false belief.
+- **Fixes**: index creation removed from the doc mirror builder
+  (`rebuild_doc_search.py`, with the now-dead apply-window vss
+  INSTALL/LOAD) and from `helpers/core/vec_search.py` (_create_index
+  gone; the int-k leg stays a correct unindexed top-k scan);
+  `tests/test_doc_query_duckdb.py` pin flipped to index-absent. Live
+  stores migrated: doc via `make search-fresh APPLY=1
+  ARGS=--allow-stale` (HEAD diverged mid-arc), note via
+  `sync_vec_table(full=True)`; both indexes gone, mirrors intact, both
+  knn legs verified (int-k top-1 sim 1.0 self-match, k=None all rows).
+- **Reopen trigger** (both lanes): a bounded top-k vector consumer
+  appears → create the plain-l2 index and route array_distance (mirror
+  vectors are unit-norm, so l2 ≡ cosine). Script/memory/git: no action.
+  Evidence + pre-existing observations (note --full skips the vec-sync
+  phase; probe-side grammar-order trap) in
+  `bench_data/search_lane_hnsw_s0/verdicts.md`.
+
+Gates: targeted only (test_doc_query_duckdb + test_vec_search +
+test_rebuild_note_search 70 passed; test_api_search knn/vec 6 passed);
+full gates pending operator go.
+
+## 557. Note rebuild: the native DuckDB core never synced the vector mirror/matrix — plus a deferred batch-embed patch misalignment
+
+Filed 2026-11-22; executed 2026-11-22 (search_lane_hnsw_s0 follow-up;
+evidence in bench_data/search_lane_hnsw_s0/verdicts.md).
+
+- **Root cause**: the DuckDB-native note rebuild core
+  (rebuild_note_duckdb — the ONLY production path since the research.db
+  P4 delete) inherited NEITHER the vector-mirror sync NOR the f32
+  matrix refresh: git log -S shows sync_vec_table was introduced once,
+  in the legacy sqlite path, and the native core was written without
+  it. A --full rebuilt embeddings while note_vectors.duckdb stayed
+  untouched (the quirk flagged in #556's arc); the mirror/matrix stayed
+  correct only because the corpus had not drifted since their Nov 16
+  build. app.py's matrix staleness gate was the only thing standing
+  between this gap and stale served vectors.
+- **Fix A (sync parity)**: the native full writer and the incremental
+  delta writer now call sync_vec_table + _refresh_embed_matrix in the
+  legacy branch's shape — full=True re-mirrors the whole column;
+  incrementals prefix-delete changed/deleted files and upsert current
+  rows; carried rows are untouched; the matrix refresh is hash-gated.
+- **Fix B (deferred patch misalignment)**: the batch-embed patch loop
+  indexed vecs[i] with the ROW index instead of the batch position —
+  correct only when deferral was contiguous from row 0 (full rebuilds),
+  silently broken on partial deferral (incrementals): changed rows were
+  left NULL-embedded in the STORE (searchable but unembeddable) until a
+  full rebuild healed them. Patched positionally
+  (enumerate(zip(idxs, texts))); a targeted test pins store-embedding
+  parity after an incremental delta.
+- **Tests**: test_rebuild_note_search_duckdb grows full-path sync
+  assertions (mirror rows, matrix rewritten, index-free law) and the
+  incremental-delta sync test; 64 passed across the three note/vec
+  suites. Live --full verified end-to-end (sidecar rewritten, index
+  absent, 19,356/19,356 parity, matrix hash-gated no-op on unchanged
+  content).
+
+Gates: targeted only; full gates pending operator go.

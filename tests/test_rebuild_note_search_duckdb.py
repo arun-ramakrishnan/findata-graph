@@ -217,3 +217,64 @@ class TestRebuildDuckDB:
         stats = rns.rebuild(duckdb_path, write=False)
         assert stats["index_stale"] is True
         assert len(stats["stale_new"]) == 3
+
+    def test_full_rebuild_syncs_vector_mirror_and_matrix(
+        self, seeded_tree, tmp_path, monkeypatch, fake_local
+    ):
+        """S0 follow-up (2026-11-22): the native core inherited neither the
+        vector-mirror sync nor the f32 matrix refresh — only the legacy
+        sqlite path ever synced, so a --full rebuilt embeddings while the
+        sidecar stayed untouched (bench_data/search_lane_hnsw_s0/
+        verdicts.md). Both derived stores follow the rebuild now, and the
+        mirror stays index-free (search_lane_hnsw_rollout S0)."""
+        from helpers.core import vec_search as VS
+
+        duckdb_path = tmp_path / "note_search.duckdb"
+        monkeypatch.setattr(rns, "resolve_embedder", lambda: (_pseudo_embed, 64, "pseudo-test"))
+        stats = rns.rebuild(duckdb_path, write=True)
+        assert stats["indexed"] == 4
+        assert stats["vec_rows"] == 4
+        assert stats["matrix_rows"] == 4
+        con = VS._open_ro(VS.VEC_INDEX_DB_PATH)
+        try:
+            assert con.execute("SELECT COUNT(*) FROM note_search_vec").fetchone()[0] == 4
+            # Index-free law (search_lane_hnsw_rollout S0): no HNSW index.
+            assert con.execute("SELECT index_name FROM duckdb_indexes()").fetchall() == []
+        finally:
+            con.close()
+
+    def test_incremental_rebuild_syncs_vector_delta(
+        self, seeded_tree, tmp_path, monkeypatch, fake_local
+    ):
+        """The incremental carry path mirrors the delta too: a touched file
+        prefix-deletes its mirror sections and re-upserts current ones;
+        carried files leave their vectors untouched."""
+        from helpers.core import vec_search as VS
+
+        duckdb_path = tmp_path / "note_search.duckdb"
+        monkeypatch.setattr(rns, "resolve_embedder", lambda: (_pseudo_embed, 64, "pseudo-test"))
+        rns.rebuild(duckdb_path, write=True)
+
+        # Touch the sector note -> content hash changes -> delta path.
+        changed = rns.FINDATA / "Sectors" / "Agriculture.md"
+        changed.write_text(_SECTOR + "\nchanged", encoding="utf-8")
+        stats = rns.rebuild(duckdb_path, write=True, incremental=True)
+        assert stats["mode"] == "incremental"
+        assert stats["vec_rows"] >= 1
+        # The changed row must be EMBEDDED in the store, not just mirrored:
+        # the deferred patch loop misaligned vecs[i] (row index) on partial
+        # deferral and left changed rows NULL-embedded until a full rebuild.
+        con = rns.connect_note_db(duckdb_path)
+        try:
+            n_emb = con.execute(
+                "SELECT COUNT(*) FROM note_search WHERE embedding IS NOT NULL"
+            ).fetchone()[0]
+        finally:
+            con.close()
+        assert n_emb == stats["indexed"]
+        con = VS._open_ro(VS.VEC_INDEX_DB_PATH)
+        try:
+            n_mirror = con.execute("SELECT COUNT(*) FROM note_search_vec").fetchone()[0]
+        finally:
+            con.close()
+        assert n_mirror == stats["indexed"]

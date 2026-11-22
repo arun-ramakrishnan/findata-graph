@@ -1521,11 +1521,13 @@ def _rebuild_doc_vectors_mirror(conn) -> int:
     """Drop + recreate the ``doc_vectors`` cosine mirror from stored
     embeddings (S6, duckdb_fts_sql_topk_regression).
 
-    Derived state, rebuilt wholesale every apply: the persisted vss HNSW
-    index cannot absorb incremental inserts. Reads the packed f32 blobs
-    back and reloads them as one Arrow batch. Absent when nothing is
-    embedded (query leg falls back to the Python scan). Returns the
-    mirror row count."""
+    Derived state, rebuilt wholesale every apply (reads the packed f32
+    blobs back and reloads them as one Arrow batch). Index-free by
+    measurement (2026-11-22): the cosine leg is a whole-corpus scored
+    sweep by design (fusion needs every doc's rank), so no HNSW index
+    can ever be routed here — see the note at the former index site.
+    Absent when nothing is embedded (query leg falls back to the Python
+    scan). Returns the mirror row count."""
     conn.execute("DROP TABLE IF EXISTS doc_vectors")
     packed = conn.execute(
         "SELECT id, embedding FROM doc_search WHERE embedding IS NOT NULL ORDER BY id"
@@ -1553,16 +1555,13 @@ def _rebuild_doc_vectors_mirror(conn) -> int:
         conn.execute("INSERT INTO doc_vectors SELECT * FROM _doc_vec_stage")
     finally:
         conn.unregister("_doc_vec_stage")
-    # S3 (duckdb_watchlist_hardening): HNSW cosine index on the mirror —
-    # best-effort; without the extension the mirror still serves the
-    # full-scan path.
-    try:
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_doc_vectors_emb ON doc_vectors "
-            "USING HNSW (embedding) WITH (metric='cosine', ef_construction=128)"
-        )
-    except duckdb.Error:  # noqa: S110  # index is optional hardening
-        pass
+    # NO HNSW index here (removed 2026-11-22, search_lane_hnsw_rollout S0):
+    # the cosine leg scores the WHOLE mirror (fusion needs every doc's
+    # cos_rank), and the routing matrix on 2.0.1 shows the metric='cosine'
+    # WITH form routes nothing anyway — only a plain-l2 index + an
+    # ORDER BY array_distance(...) ASC LIMIT k plan routes. Reopen trigger:
+    # a bounded top-k doc-vector consumer appears → create the plain-l2
+    # index (vectors are unit-norm) and route array_distance.
     return len(vectors)
 
 
@@ -1643,16 +1642,9 @@ def _write_doc_store(
             delta_rows.append((sid, *row, _compose_searchtext(row)))
     _bulk_insert_doc_rows(conn, delta_rows)
 
-    # Derived state — wholesale every apply (~1.3 s HNSW + ~2.5 s FTS at
-    # 4.6k rows: fixed seconds bought for not re-embedding the corpus).
-    # The vss bind law: LOAD vss BEFORE any window that touches the
-    # HNSW-bearing mirror, else 'unknown index type HNSW'.
-    try:
-        conn.execute("INSTALL vss")
-        conn.execute("LOAD vss")
-        conn.execute("SET hnsw_enable_experimental_persistence = true")
-    except duckdb.Error:
-        pass
+    # Derived state — wholesale every apply (~2.5 s FTS at 4.6k rows: fixed
+    # seconds bought for not re-embedding the corpus). The mirror is
+    # index-free (2026-11-22): no vss LOAD needed in this window anymore.
     _rebuild_doc_vectors_mirror(conn)
     _refresh_fts_shadow(conn)
 

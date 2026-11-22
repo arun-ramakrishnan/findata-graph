@@ -168,7 +168,6 @@ _HNSW_PRAGMAS = (
 )
 
 # HNSW build knob (matches the convo lane's idx_convo_search_emb).
-HNSW_EF_CONSTRUCTION = 128
 
 # Dims of an existing mirror column, parsed from the catalog
 # ("FLOAT[512]" etc.).
@@ -397,22 +396,19 @@ def _vec_literal(vec: Sequence[float], dims: int) -> str:
 
 
 def _create_schema(con, dims: int) -> None:  # noqa: ANN001 - duckdb connection
-    """(Re)create the mirror table at "dims" (no index yet).
+    """(Re)create the mirror table at "dims".
 
-    Index is created AFTER the data load (bulk insert into an indexed table
-    would maintain it per row); wrong-dim vectors fail loudly at the CAST.
+    Index-free by measurement (2026-11-22, search_lane_hnsw_rollout S0):
+    the only production knn caller uses k=None (whole-corpus hybrid, a
+    vectorized cosine sweep an HNSW index can never serve), and the
+    routing matrix on DuckDB 2.0.1 shows the metric='cosine' WITH form
+    routes nothing anyway — only a plain-l2 index plus an ORDER BY
+    array_distance(...) ASC LIMIT k plan routes. Wrong-dim vectors fail
+    loudly at the CAST.
     """
     con.execute(f"DROP TABLE IF EXISTS {VEC_TABLE}")
     con.execute(
         f"CREATE TABLE {VEC_TABLE} (row_key VARCHAR PRIMARY KEY, embedding FLOAT[{int(dims)}])"
-    )
-
-
-def _create_index(con) -> None:  # noqa: ANN001 - duckdb connection
-    con.execute(
-        f"CREATE INDEX IF NOT EXISTS idx_{VEC_TABLE}_emb ON {VEC_TABLE} "
-        "USING HNSW (embedding) WITH (metric='cosine', "
-        f"ef_construction={HNSW_EF_CONSTRUCTION})"
     )
 
 
@@ -507,7 +503,10 @@ def _write_mirror(  # noqa: C901  # copy-on-write: incremental vs fresh branches
                         payload,
                     )
                 written = len(payload)
-            _create_index(con)
+            # NO HNSW index (removed 2026-11-22 — see _create_schema docstring).
+            # Reopen trigger: a bounded top-k note-vector consumer appears
+            # → create a plain-l2 index and route ORDER BY array_distance
+            # ASC LIMIT k (mirror vectors are unit-norm, so l2 ≡ cosine).
             con.close()
             con = None
             os.replace(tmp, path)
@@ -565,7 +564,7 @@ def vec_available(conn: sqlite3.Connection, dims: int, *, lazy_backfill: bool = 
 # 14.5k section rows silently pushed every whole-corpus hybrid search onto
 # the flat-matrix fallback (note sectioning, 2026-09-06). The DuckDB mirror
 # has no such cap: k=None runs a vectorized whole-table cosine scan and
-# k=<int> uses the HNSW index -- no silent truncation at any corpus size.
+# k=<int> runs an unindexed top-k scan -- no silent truncation at any size.
 
 
 def _whole_corpus_similarities(con, vec: list[float], dims: int) -> dict[str, float] | None:
@@ -632,8 +631,9 @@ def knn_similarities(
     is a subset of the corpus, and a bounded k would zero out page docs that
     fall outside the global top-k, silently changing their scores. DuckDB's
     vectorized whole-table cosine handles this at corpus scale in
-    milliseconds. An explicit int k uses the HNSW index top-k; asking for
-    more rows than exist returns all of them.
+    milliseconds. An explicit int k runs an unindexed top-k scan (correct;
+    no HNSW index — see the _create_schema note); asking for more rows
+    than exist returns all of them.
     """
     if len(q_vec) != dims:
         return None
@@ -650,9 +650,8 @@ def knn_similarities(
         if k is None:
             out = _whole_corpus_similarities(con, vec, dims)
         else:
-            # The HNSW leg keeps the inline literal (the proven form for
-            # ORDER-BY positions, 2026-11-05 trial forensics) -- binding the
-            # vector here risks the index plan.
+            # The top-k leg keeps the inline literal (the proven form for
+            # ORDER-BY positions, 2026-11-05 trial forensics).
             vec_lit = _vec_literal(vec, dims)
             hits = con.execute(
                 "SELECT row_key, array_cosine_distance(embedding, " + vec_lit + ") AS dist "

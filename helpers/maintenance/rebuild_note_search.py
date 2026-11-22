@@ -1020,10 +1020,16 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
             except Exception as e:  # noqa: BLE001  # degrade -> same as legacy
                 print(f"[notes] warn: batch embed failed ({e})", file=sys.stderr)
                 vecs = []
-            for i, text in zip(idxs, texts):
-                if i >= len(vecs):
+            # vecs is aligned to the TEXTS batch order, not the row index:
+            # patch by batch POSITION. The old vecs[i] (row index) misaligned
+            # whenever deferral was partial — the incremental case, where
+            # only the changed file's rows are deferred at non-zero row
+            # indexes — so changed rows were silently left NULL-embedded
+            # (searchable but unembeddable) until a full rebuild healed them.
+            for pos, (i, _text) in enumerate(zip(idxs, texts)):
+                if pos >= len(vecs):
                     continue
-                vec = vecs[i]
+                vec = vecs[pos]
                 if vec is None:
                     continue
                 row = rows[i]
@@ -1105,7 +1111,10 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
                     [
                         ("embed_model", model_label),
                         ("embed_dims", str(embed_dims)),
-                        ("row_count", str(conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0])),
+                        (
+                            "row_count",
+                            str(conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]),
+                        ),
                     ],
                 )
             # Rebuild FTS if any delta.
@@ -1115,6 +1124,24 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
                 except duckdb.Error:
                     pass
                 conn.execute("PRAGMA create_fts_index('note_search', 'id', 'searchtext')")
+                # A1/S2 parity with the legacy host path (see the full
+                # branch note): mirror the same delta into the vector
+                # sidecar + the aligned f32 matrix. Changed files are
+                # prefix-deleted first so dropped sections leave no stale
+                # vectors; carried rows are untouched (their embeddings
+                # did not move). The matrix refresh is hash-gated —
+                # unchanged rows are no-ops.
+                stats["vec_rows"] = sync_vec_table(
+                    conn,
+                    embed_dims,
+                    upsert_rows=[
+                        (vec_row_key(r), r[5])
+                        for fp in changed_files
+                        for r in rows_by_path.get(fp, [])
+                    ],
+                    delete_files=list(changed_files) + list(deleted_files),
+                )
+                stats["matrix_rows"] = _refresh_embed_matrix(conn)
             stats["carried_files"] = len(current_meta) - len(changed_files)
             stats["changed_files"] = len(changed_files)
             stats["deleted_files"] = len(deleted_files)
@@ -1124,6 +1151,14 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
             stats["carried_files"] = 0
             stats["changed_files"] = len(current_meta)
             stats["deleted_files"] = 0
+            # A1/S2 parity with the legacy host path (added 2026-11-22,
+            # search_lane_hnsw_s0 follow-up): the native core inherited
+            # NEITHER the vector-mirror sync NOR the f32 matrix refresh —
+            # only the legacy sqlite path ever synced, so a --full rebuilt
+            # embeddings and left the sidecar/matrix untouched. full=True
+            # re-mirrors the whole column; the matrix refresh is hash-gated.
+            stats["vec_rows"] = sync_vec_table(conn, embed_dims, full=True)
+            stats["matrix_rows"] = _refresh_embed_matrix(conn)
 
         stats["indexed"] = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
         if cache is not None:

@@ -139,7 +139,9 @@ def test_stale_detects_new_file(seeded, fake_local):
 def test_rebuild_builds_doc_vectors_mirror(seeded, fake_local):
     """S6: the rebuild writes a colocated doc_vectors mirror so the hybrid
     cosine leg can run vectorized (same rows as doc_search's embedded set).
-    S3: the mirror carries an HNSW cosine index (watchlist hardening)."""
+    Index-free since 2026-11-22 (search_lane_hnsw_rollout S0): the cosine
+    leg scores the whole mirror for fusion ranks, so no HNSW index can
+    route — pin the absence so the decorative index stays gone."""
     rds.rebuild_duckdb(seeded, embed_fn=fake_local.embed_document)
     conn = rds.connect_doc_db(seeded)
     try:
@@ -153,7 +155,7 @@ def test_rebuild_builds_doc_vectors_mirror(seeded, fake_local):
         idx = conn.execute(
             "SELECT index_name FROM duckdb_indexes() WHERE table_name='doc_vectors'"
         ).fetchall()
-        assert any(r[0] == "idx_doc_vectors_emb" for r in idx), idx
+        assert idx == [], idx
     finally:
         conn.close()
 
