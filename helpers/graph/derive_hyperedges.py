@@ -544,6 +544,55 @@ def _load_counterparty_aliases(path: Path | None = None) -> dict[str, str]:
     return aliases
 
 
+def _apply_counterparty_resolutions(conn, resolved: list[tuple[str, str]]) -> None:
+    """Apply resolved counterparty names onto ``events.counterparty_entity``.
+
+    DuckDB 2.x FK law: events is referenced by event_participants, so the
+    parent rows cannot be UPDATEd while children exist. Clear the children,
+    patch the parents, restore the children (the participants derive
+    rebuilds them wholesale anyway — measured 2026-11-22, the two-edition
+    gate arc). The dance is gated on the child table existing: test
+    fixtures run the legacy sqlite path without it, where plain UPDATE is
+    legal.
+    """
+    try:
+        conn.execute("SELECT 1 FROM event_participants LIMIT 1")
+        has_participants = True
+    except Exception:  # noqa: BLE001  # sqlite fixture: no table
+        has_participants = False
+    eids = [int(eid) for _cp, eid in resolved]
+    saved = (
+        {
+            eid: conn.execute(
+                "SELECT participant, role, source_ref FROM event_participants WHERE event_id = ?",
+                (eid,),
+            ).fetchall()
+            for eid in eids
+        }
+        if has_participants
+        else {}
+    )
+    for eid in eids:
+        if has_participants:
+            conn.execute("DELETE FROM event_participants WHERE event_id = ?", (eid,))
+    for cp, eid in resolved:
+        conn.execute(
+            "UPDATE events SET counterparty_entity = "
+            "(SELECT name FROM entities WHERE name = ? "
+            "   OR lower(name) = lower(?) "
+            "   OR replace(coalesce(normalized_name,''),'_',' ') = "
+            "      replace(?,'_',' ')) WHERE id = ?",
+            (cp, cp, cp, int(eid)),
+        )
+    for eid, rows in saved.items():  # empty when has_participants is False
+        for participant, role, source_ref in rows:
+            conn.execute(
+                "INSERT OR IGNORE INTO event_participants "
+                "(event_id, participant, role, source_ref) VALUES (?, ?, ?, ?)",
+                (eid, participant, role, source_ref),
+            )
+
+
 def resolve_counterparties(conn, *, dry_run: bool = True) -> tuple[int, int, list[str]]:
     """S9: resolve ``events.counterparty`` -> ``counterparty_entity`` (FK).
 
@@ -587,15 +636,7 @@ def resolve_counterparties(conn, *, dry_run: bool = True) -> tuple[int, int, lis
                 unresolved.append(cp)
     if not dry_run and resolved:
         with conn:
-            for cp, eid in resolved:
-                conn.execute(
-                    "UPDATE events SET counterparty_entity = "
-                    "(SELECT name FROM entities WHERE name = ? "
-                    "   OR lower(name) = lower(?) "
-                    "   OR replace(coalesce(normalized_name,''),'_',' ') = "
-                    "      replace(?,'_',' ')) WHERE id = ?",
-                    (cp, cp, cp, int(eid)),
-                )
+            _apply_counterparty_resolutions(conn, resolved)
     # Worklist rewrite is independent of `resolved`: a run can have
     # unresolved-only rows (nothing auto-resolves), or none at all while
     # the stale worklist still lists entries — either way an apply must
@@ -1534,6 +1575,23 @@ def prune_stale_event_edges(
         return stats
     qmarks = ",".join("?" * len(stale))
     with conn:
+        # DuckDB 2.x FK law: hyper_incidences references hyper_edges(id) —
+        # clear the children before the referenced parents. The pre-cutover
+        # comment expected an FK cascade that sqlite never enforced and
+        # DuckDB does not support (measured 2026-11-22, gate arc).
+        doomed = [
+            r[0]
+            for r in conn.execute(
+                f"SELECT id FROM hyper_edges WHERE edge_type = 'event' AND label IN ({qmarks})",  # noqa: S608  # ?-placeholders only, values parameterized
+                stale,
+            ).fetchall()
+        ]
+        if doomed:
+            qm2 = ",".join("?" * len(doomed))
+            conn.execute(
+                f"DELETE FROM hyper_incidences WHERE edge_id IN ({qm2})",  # noqa: S608  # ?-placeholders only, values parameterized
+                doomed,
+            )
         conn.execute(
             f"DELETE FROM hyper_edges WHERE edge_type = 'event' AND label IN ({qmarks})",  # noqa: S608  # ?-placeholders only, values parameterized
             stale,
@@ -1571,6 +1629,21 @@ def prune_stale_group_edges(conn, wanted_labels: set[str], *, dry_run: bool) -> 
         return stats
     qmarks = ",".join("?" * len(stale))
     with conn:
+        # DuckDB 2.x FK law: clear hyper_incidences children before the
+        # referenced parents (same shape as prune_stale_event_edges).
+        doomed = [
+            r[0]
+            for r in conn.execute(
+                f"SELECT id FROM hyper_edges WHERE edge_type = 'group' AND label IN ({qmarks})",  # noqa: S608  # ?-placeholders only, values parameterized
+                stale,
+            ).fetchall()
+        ]
+        if doomed:
+            qm2 = ",".join("?" * len(doomed))
+            conn.execute(
+                f"DELETE FROM hyper_incidences WHERE edge_id IN ({qm2})",  # noqa: S608  # ?-placeholders only, values parameterized
+                doomed,
+            )
         conn.execute(
             f"DELETE FROM hyper_edges WHERE edge_type = 'group' AND label IN ({qmarks})",  # noqa: S608  # ?-placeholders only, values parameterized
             stale,
@@ -1717,20 +1790,39 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
                         props_json = json.dumps(props, sort_keys=True)
                         # refresh properties on existing hyperedges too
                         # (upstream_types was [] for industry before S8 —
-                        # backfills converge stale props in one pass)
-                        conn.execute(
-                            "UPDATE hyper_edges SET properties = ?"
-                            "WHERE edge_type = ? AND label = ? AND properties != ?",
-                            (props_json, hyper_type, label, props_json),
-                        )
+                        # backfills converge stale props in one pass).
+                        # Best-effort: DuckDB 2.x FK law refuses ANY row
+                        # rewrite of hyper_edges while hyper_incidences
+                        # reference it — the skip leaves stale metadata on
+                        # populated edges until a full S0-prune re-derive
+                        # (measured 2026-11-22, the two-edition gate arc).
+                        try:
+                            conn.execute(
+                                "UPDATE hyper_edges SET properties = ?"
+                                "WHERE edge_type = ? AND label = ? AND properties != ?",
+                                (props_json, hyper_type, label, props_json),
+                            )
+                        except Exception as e:  # noqa: BLE001  # best-effort restamp
+                            print(
+                                f"WARNING: hyperedge props restamp skipped for "
+                                f"{hyper_type}/{label} (referenced by incidences): {e}",
+                                file=sys.stderr,
+                            )
                         if facets:
                             vf = facets.get("valid_from", {}).get(label)
                             if vf:
-                                conn.execute(
-                                    "UPDATE hyper_edges SET valid_from = ? "
-                                    "WHERE edge_type = ? AND label = ? AND valid_from IS NOT ?",
-                                    (vf, hyper_type, label, vf),
-                                )
+                                try:
+                                    conn.execute(
+                                        "UPDATE hyper_edges SET valid_from = ? "
+                                        "WHERE edge_type = ? AND label = ? AND valid_from IS NOT ?",
+                                        (vf, hyper_type, label, vf),
+                                    )
+                                except Exception as e:  # noqa: BLE001  # best-effort restamp
+                                    print(
+                                        f"WARNING: hyperedge valid_from restamp skipped for "
+                                        f"{hyper_type}/{label} (referenced by incidences): {e}",
+                                        file=sys.stderr,
+                                    )
                         if is_new:
                             source_ref = f"derive:hyperedges:{_upstream(hyper_type)}"
                             vf_new = facets.get("valid_from", {}).get(label) if facets else None

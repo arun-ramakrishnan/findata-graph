@@ -16955,3 +16955,9 @@ ingest through the full chain).
   936 new / 479 stale, cited_in 2040 edges, participants 2786 rows).
 
 Gates: targeted chain only; full gates parked (operator).
+- **Companion proposal (DEFERRED)**: `archive/database/
+  fk_referenced_row_immutability.md` — the design-level answer to this
+  limitation (drop the constraining FKs on entities/hyper_edges/events,
+  keep the provenance FK, gate-enforce; transaction-semantics audit of the
+  db_engine wrapper as first slice). Parked with reopen triggers; the six
+  fixes above are correct under either resolution.

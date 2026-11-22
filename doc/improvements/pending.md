@@ -1257,6 +1257,19 @@ Open items below keep their revisit triggers inline; executed work is compressed
   therefore has no substrate; the #554 VARIANT adoption stays scoped to
   the properties columns. Reopen only if a provenance column is ever
   introduced as JSON-TEXT.
+- **Referenced-row write immutability (DuckDB 2.x FK limitation) —
+  DEFERRED 2026-11-22** (`archive/database/fk_referenced_row_immutability.md`,
+  absorbed by completed.md #560): DuckDB 2.x refuses any UPDATE/DELETE of a
+  FK-referenced row (the non-key-column case is an upstream
+  false-positive), making entities/hyper_edges/events effectively
+  write-immutable — the root cause behind the six #560 writer fixes. The
+  design recommendation (drop the constraining FKs on the three hot
+  tables, keep the provenance FK per the connect() law, move enforcement
+  to the integrity gate as error-severity orphan checks) is parked with
+  the operator; FIRST slice of any execution is a transaction-semantics
+  audit of the db_engine wrapper (`with conn:` does not roll back on
+  exception — measured the same day). Reopen when the operator unparks it
+  or a DuckDB pin fixes the non-key-UPDATE false positive.
 - **Multilingual concall/transcript ingest — PARKED 2026-10-31, no
   source pinned** (operator): the strategic multilingual play (gemma
   11/12 vs granite 4/12 has had no consumer since #363) needs a
