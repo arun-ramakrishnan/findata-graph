@@ -60,30 +60,33 @@ def apply_typed_edges(
 
     inserted = 0
     try:
-        # Bundle U3: in dry-run mode, bulk-fetch existing (source, target)
-        # pairs for this edge_type ONCE instead of per-edge SELECT (was N
-        # round-trips; now 1). Checked in-memory during the loop.
-        existing: set[tuple[str, str]] | None = None
-        if dry_run:
-            existing = {
-                (r[0], r[1])
-                for r in conn.execute(
-                    "SELECT source, target FROM graph_edges "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-                    f"WHERE edge_type = '{edge_type}'"
-                ).fetchall()
-            }
+        # Bundle U3: bulk-fetch existing (source, target) pairs for this
+        # edge_type ONCE instead of per-edge SELECT (was N round-trips; now
+        # 1). Checked in-memory during the loop — in BOTH modes since the
+        # DuckDB cutover: the duckdb graph_edges DDL carries no
+        # UNIQUE(source, target, edge_type), so INSERT OR IGNORE never
+        # ignores and apply mode must dedupe in code (the sqlite donor
+        # still enforces the triple; measured 2026-11-22, gate arc).
+        existing: set[tuple[str, str]] | None = {
+            (r[0], r[1])
+            for r in conn.execute(
+                "SELECT source, target FROM graph_edges "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                f"WHERE edge_type = '{edge_type}'"
+            ).fetchall()
+        }
         # Bundle U2: wrap the loop in `with conn:` for atomic commit/rollback.
         with conn:
             for source, target, props, source_ref in edges:
+                if (source, target) in existing:
+                    continue
                 if dry_run:
-                    if (source, target) not in (existing or set()):
-                        inserted += 1
+                    inserted += 1
                     continue
                 props_json = json.dumps(props, ensure_ascii=False, sort_keys=True)
                 cur = conn.execute(
                     """
                     INSERT OR IGNORE INTO graph_edges
-                        (source, target, edge_type, properties, source_ref, symmetric)
+                        (source, target, edge_type, properties, source_ref, "symmetric")
                     VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (source, target, edge_type, props_json, source_ref, symmetric),

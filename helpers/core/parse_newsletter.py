@@ -1276,6 +1276,14 @@ def main(argv: list[str] | None = None):  # noqa: C901
     print()
 
     # Stage 5: validate
+    # Release the parent's store handle BEFORE the stage-5 validators: they
+    # run as SUBPROCESSES that take their own rw locks on the same store —
+    # a held parent conn makes every direct connect fail with
+    # "Conflicting lock is held" (measured 2026-11-22, the two-edition
+    # ingest sitting: sync_sector_wikilinks died at connect in every apply
+    # after the first). The trailing closes below become no-ops.
+    if args.apply:
+        conn.close()
     ok = run_validation(args.apply)
     if not ok:
         if args.apply:

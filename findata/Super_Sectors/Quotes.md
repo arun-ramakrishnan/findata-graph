@@ -330,10 +330,18 @@ sources:
   resource: /findata/The_Chatter/OpenAI_LIC_Mphasis.md
   title: 'The Chatter: OpenAI, LIC, Mphasis, Mahindra & More'
   last_modified: '2026-11-08'
+- id: Hitachi_Glenmark_Titagarh
+  resource: /findata/The_Chatter/Hitachi_Glenmark_Titagarh.md
+  title: 'The Chatter: Sunil Mittal, Hitachi, Glenmark, Titagarh Rail, Wakefit & More'
+  last_modified: '2026-11-22'
+- id: IBM_Tata_Tech
+  resource: /findata/The_Chatter/IBM_Tata_Tech.md
+  title: 'The Chatter: PM Modi, CEA, FICCI, IBM, Tata Tech & More'
+  last_modified: '2026-11-22'
 generated:
   by: derive_insights.py/v1
-  at: '2026-11-08T05:25:04Z'
-stale_after: '2027-05-07'
+  at: '2026-11-22T14:24:46Z'
+stale_after: '2027-05-21'
 ---
 # Quotes
 
@@ -1016,6 +1024,28 @@ market prices …"
 
 > "Three things have happened during this quarter - (I) increased competitive intensity in FMCG space has impacted our gross margins; (II) surge in wages of entry level positions due to demand / supply mismatch of skilled workforce; and (III) continued investments $i$ improving o…"
 > — Mr. Neville Noronha, CEO \& MD [^chatter-Risks_Rewards_and_Revelations]
+
+- *[Indian Hotels Company]*
+
+- **Indian Hotels Company Strong demand growth continues to outpace new hotel supply, driving industryleading RevPAR growth**
+
+> "The hospitality cycle remains firmly in an up-swing. Industry-wide in FY-25, room-nig sold grew about 6 percent while available supply increased 'under 3 percent'. That gap matters: demand keeps outrunning new rooms, which is why RevPAR at IHCL rose 12 percent for the full yea…"
+> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
+
+- **Selective approach to new hotel expansions, focusing only on asset-light or strategi projects offering high returns**
+
+> "Pure green-field—buying land, securing approvals, building from scratch—still does no clear our IRR hurdle in most metros. Where it works is when land comes on a long lease favourable terms or when it leverages state-driven tourism hubs like Ekta Nagar (Gujara there we expect …"
+> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
+
+- **Increased willingness of Indian consumers to pay premium prices boosts IHCL's profitability**
+
+> "Indian consumers have become far more willing to pay for premium experiences; we no estimate 'well north of a million' people who will spend materially on hotels and restaurants. That lets us push rate-led RevPAR-flow-through on rate increases can be $\&$ 90 percent-while occu…"
+> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
+
+- **Leisure tourism recovery lagging; IHCL invests actively to accelerate broader forei; tourist arrivals**
+
+> "Technically, foreign tourist arrivals are not yet back to pre-Covid, so we now talk about 'foreign arrivals' more broadly. Business-related inflows-from global capability centres auto OEMs, post-G20 follow-ups-are rising steadily, but pure leisure remains below 20 IHCL is spen…"
+> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
 
 - *[R R Kabel]*
 
@@ -113911,3 +113941,29 @@ Currently, spot prices are 145 per kg for fishmeal."
 > — Ananth Narayan Gopalakrishnan, Former Whole-Time Member, SEBI
 
 *Source: The Chatter — OpenAI LIC Mphasis*
+
+## The Chatter — Hitachi Glenmark Titagarh
+
+**AI correction, not AI end:** the dot-com analogy — excess bursts, the technology itself only grows stronger; the casualties will be intermediary neocloud players reselling capacity, and disciplined large-scale incumbents emerge stronger (as Google, Microsoft and Apple did after 2000).
+**India is insulated and positioned:** cumulative AI data-centre commitments remain modest vs the US, political pushback is halting builds in parts of America, and geopolitical rules keep Western compute out of China — capital and inference demand redirect toward India.
+**Sovereign AI compute:** Airtel's decisive edge is connectivity — terrestrial fibre and subsea cables that competing data centres themselves rely on — plus GPU purchasing power; the goal is enterprise compute, inference and token generation at national scale, with Indian data staying in Indian hands.
+**Airtel Money NBFC:** with 400 million customers and usage-pattern data, lending to new-to-credit consumers traditional lenders overlook (the Africa fintech franchise is the template; Airtel Payments Bank cannot lend directly).
+**Satellite guardrails:** foreign constellations (Starlink, Amazon) are welcome competition once security kill switches, control centres and lawful interception sit on Indian soil — OneWeb's ground stations at Mehsana and Kochi are already security-cleared.
+
+> "It mirrors the dot-com bubble—everyone warned about excess; it eventually burst, yet the internet itself only grew stronger. Similarly, artificial intelligence and superintelligence are permanent."
+> — Sunil Bharti Mittal, Chairman, Bharti Airtel
+
+*Source: The Chatter — Hitachi Glenmark Titagarh*
+
+## The Chatter — IBM Tata Tech
+
+**PM Modi (FICCI AGM) — 'India First' capex:** industry should anchor long-term investment in self-reliance — pharma must build domestic API/bulk-drug depth behind its 'Pharmacy of the World' formulations lead; steel and aluminium must move from exporting ore to making specialised grades domestically; agri-processing (processed food's share of agri-exports up from 13% to 20%+) and Global South machinery exports are the flagged opportunities.
+**CEA Nageswaran — resilience data:** extreme poverty down to 2.6% ($3/day 2021 PPP) and moderate poverty from 57% to 16% (2011-2023); growth held above 7% through six supply shocks; Q1 GDP grew 7.8% with manufacturing at 9.2% and net exports contributing 3.1 points (40%) of it; the export trajectory approaches $1 trillion on the way to a $4.2 trillion economy.
+**Commerce Secretary Agrawal — trade timing:** the US-India bilateral deal is negotiated but signing waits on Washington's new tariff architecture; India-UK FTA operationalisation is targeted for March 2027; electronics exports cross $60 billion with non-smartphone categories growing faster (real value addition, rules-of-origin compliant); 100+ trade reforms executing and granular product-level import data will be released to catalyse domestic manufacturing.
+**Defence Secretary Singh — manufacturing depth:** an AMCA private-sector winner (first-ever private-led fighter production line) will be announced within about a month; defence capex is up another 20% on last year's 22%, with ₹2 lakh crore+ of contracts signed per year; the goal is 2-3 military-aircraft producers, multiple missile and ammunition makers, and hundreds of drone companies for surge capacity.
+**MNRE Secretary Sarangi — green stack:** a polysilicon subsidy scheme is under negotiation with the Finance Ministry (the missing link in solar manufacturing); green-molecule offtake near 4 lakh tonnes of green-hydrogen equivalent (Reliance-Samsung C&T among them); 67 lakh rooftop-solar households become prosumers with peer-to-peer trading on the India Energy Stack within a couple of years.
+
+> "Tell me, my friends in industry, what kind of nation exports ore only to import bread? Ask yourselves that question."
+> — Narendra Modi, Prime Minister of India
+
+*Source: The Chatter — IBM Tata Tech*

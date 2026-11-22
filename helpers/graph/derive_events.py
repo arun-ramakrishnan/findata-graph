@@ -999,6 +999,7 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> ReplaceRes
                 _EVENT_CONTENT_COLS,
                 _INSERT_SQL,
                 new_rows,
+                children=(("event_participants", "event_id"),),
             )
     finally:
         if own_conn:

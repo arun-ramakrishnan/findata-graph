@@ -18,7 +18,7 @@ created: '2026-09-07'
 last_modified: '2026-09-25'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-22T14:24:48Z'
 stale_after: '2027-03-24'
 sources:
 - id: Echoes_from_the_Boardroom
@@ -86,7 +86,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **EDELWEISS TRUSTEESHIP CO LTD AC- EDELWEISS MF AC-EDELWEISS SMALL CAP FUND** — holds 0.0%
 - **HDFC LIFE INSURANCE COMPANY LIMITED** — holds 0.0%
 - **HSBC MUTUAL FUND - HSBC SMALL CAP FUND** — holds 0.0%
-- **ICICI PRUDENTIAL LIFE INSURANCE COMPANY LIMITED** — holds 0.0%
+- **ICICI Prudential Life Insurance** — holds 0.0%
 - **Late Shiv Ratan Agarwal** — holds 0.0%
 - **NIPPON LIFE INDIA TRUSTEE LTD- A/C NIPPON INDIA FOCUS FUND** — holds 0.0%
 

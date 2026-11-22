@@ -961,11 +961,21 @@ def ensure_quotes_catchall(conn) -> dict:
         created["entity"] = True
     else:
         # Legacy rows (pre-2026-09-07) were entity_type='sector' at
-        # findata/Misc/Quotes.md — re-type + re-home in place.
-        conn.execute(
-            "UPDATE entities SET entity_type='super_sector', file_path=? WHERE name=?",
-            (note_rel, _CATCH_ALL_ENTITY),
-        )
+        # findata/Misc/Quotes.md — re-type + re-home in place. Only touch
+        # the row when it actually differs: DuckDB 2.x refuses ANY update
+        # on a table referenced by FKs (entities is referenced by
+        # graph_edges/hyper_incidences/quotes/...), so a unconditional
+        # idempotent restamp crashes on the converged row (measured
+        # 2026-11-22, the two-edition ingest sitting).
+        cur_row = conn.execute(
+            "SELECT entity_type, file_path FROM entities WHERE name = ?",
+            (_CATCH_ALL_ENTITY,),
+        ).fetchone()
+        if cur_row and (cur_row[0] != "super_sector" or cur_row[1] != note_rel):
+            conn.execute(
+                "UPDATE entities SET entity_type='super_sector', file_path=? WHERE name=?",
+                (note_rel, _CATCH_ALL_ENTITY),
+            )
     today = _dt.date.today().isoformat()
     note = PROJECT_ROOT / "findata" / "Super_Sectors" / "Quotes.md"
     if not note.exists():

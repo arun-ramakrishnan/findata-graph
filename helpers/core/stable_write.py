@@ -96,6 +96,8 @@ def stable_prefix_replace(
     cols: tuple[str, ...],
     insert_sql: str,
     new_rows: list[tuple],
+    *,
+    children: tuple[tuple[str, str], ...] = (),
 ) -> ReplaceResult:
     """Prefix-scoped replace preserving id/created_at of unchanged rows.
 
@@ -109,9 +111,21 @@ def stable_prefix_replace(
     the content columns compared for matching and must appear in
     ``insert_sql``'s parameter order. Returns the ``ReplaceResult``
     breakdown; ``result.total`` is the derived row count under the prefix.
+
+    ``children`` names (child_table, parent_id_col) pairs whose rows are
+    deleted before the stale parents: DuckDB 2.x refuses to delete (or
+    update) a parent row that a FK references, so a derived parent with
+    child rows (events ← event_participants) must clear them first — the
+    child derive pass rebuilds the rows against the new parent ids
+    (measured 2026-11-22, the two-edition ingest sitting).
     """
     result, to_insert, stale_ids = _plan(conn, table, prefix, cols, new_rows)
     if stale_ids:
+        for child_table, child_col in children:
+            conn.executemany(
+                f"DELETE FROM {child_table} WHERE {child_col} = ?",  # noqa: S608  # schema-constant identifiers
+                [(i,) for i in stale_ids],
+            )
         conn.executemany(
             f"DELETE FROM {table} WHERE id = ?",  # noqa: S608  # schema-constant table name
             [(i,) for i in stale_ids],

@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-10-17
-**Total completed**: 329 items
+**Total completed**: 330 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -16911,3 +16911,47 @@ archived `status: executed`; kernel not built).
 
 Gates: read-only pre-flight (one bench run); no code changes; md-lint +
 search-fresh only.
+
+## 560. DuckDB 2.x engine-neutral writer gaps — six ingest/derive pipeline fixes (two-edition ingest sitting)
+
+Filed 2026-11-22; executed 2026-11-22. Found while processing the latest two
+Reports/ editions through the markdown_parse procedure (post-cutover first
+ingest through the full chain).
+
+- **DuckDB 2.x FK limitation (the root law)**: a table referenced by ANY
+  foreign key cannot be UPDATED or DELETEd at all — row rewrites re-key the
+  PK and the referencing constraint refuses. Every pre-cutover writer that
+  restamped or replaced rows in `entities` / `hyper_edges` / `events`
+  broke on first post-cutover run.
+- **Fixes**: (1) `helpers/graph/sector_membership.py` — the n_members and
+  source_ref restamps on `hyper_edges` (referenced by hyper_incidences) are
+  now best-effort with a stderr warning; derive's convergence owns the
+  authoritative restamp. (2) `helpers/core/parse_newsletter.py` — the
+  orchestrator releases its store handle BEFORE the stage-5 validator
+  subprocesses (each takes its own rw lock; a held parent conn failed every
+  direct connect with Conflicting-lock). (3) `helpers/graph/
+  derive_insights.py` — the Quotes catch-all legacy re-type is now
+  conditional (skip the no-op UPDATE on the converged referenced row).
+  (4) `helpers/graph/_edge_writer.py` — `symmetric` quoted in the
+  graph_edges INSERT (reserved keyword in DuckDB 2.x; ParserException
+  pre-fix). (5) `helpers/core/stable_write.py` — stable_prefix_replace
+  grew a `children=` param (delete derived child rows before stale
+  referenced parents); derive_events passes event_participants/event_id.
+  (6) `helpers/graph/derive_event_participants.py` — the module DDL
+  aligned with the canonical tracked schema (drop the sqlite-era
+  ON DELETE/UPDATE CASCADE clauses — a 2.x parse error even under IF NOT
+  EXISTS — and event_id INTEGER → BIGINT, matching events.id).
+- **Trigger for the sitting**: Hitachi_Glenmark_Titagarh + IBM_Tata_Tech
+  processed end-to-end (converted, parsed, hand-curated edition blocks on
+  8 company notes + 2 D17 stub first-notes + 2 Quotes catch-all blocks,
+  derive chain green). The person-section traps (Sunil Bharti Mittal,
+  Narendra Modi, V. Anantha Nageswaran, Santosh Kumar Sarangi) were
+  routed to the Quotes catch-all per procedure — the orchestrator's
+  auto-created person entities were deleted and the graph mirror rebuilt.
+- **Validation**: full validator chain green post-fix (sync_sector_wikilinks
+  1216 links, sync_tags 1433 tags, verify_notes 0 errors, integrity exit 0
+  at 100.0% validation rate, frontmatter_schema exit 0); derive chain
+  green (insights 1418 new quotes / 1131 metrics, relations exit 0, events
+  936 new / 479 stale, cited_in 2040 edges, participants 2786 rows).
+
+Gates: targeted chain only; full gates parked (operator).

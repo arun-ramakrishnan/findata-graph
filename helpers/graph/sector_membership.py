@@ -74,10 +74,23 @@ def _refresh_member_count(conn: sqlite3.Connection, edge_id: int) -> None:
     except TypeError, ValueError:
         props = {}
     props["n_members"] = int(n)
-    conn.execute(
-        "UPDATE hyper_edges SET properties = ? WHERE id = ?",
-        (json.dumps(props, sort_keys=True), edge_id),
-    )
+    try:
+        conn.execute(
+            "UPDATE hyper_edges SET properties = ? WHERE id = ?",
+            (json.dumps(props, sort_keys=True), edge_id),
+        )
+    except Exception as e:  # noqa: BLE001  # best-effort derived nicety
+        # DuckDB 2.x FK limitation: hyper_incidences references
+        # hyper_edges(id), and ANY row rewrite of a referenced table is
+        # refused once incidences exist — a populated sector edge can
+        # never be UPDATEd here. n_members is restamped by derive's
+        # convergence pass; skip instead of crashing the membership
+        # write (measured 2026-11-22, the two-edition ingest sitting).
+        print(
+            f"WARNING: n_members restamp skipped for hyper_edge {edge_id} "
+            f"(referenced by incidences): {e}",
+            file=sys.stderr,
+        )
 
 
 def put_sector_membership(
@@ -112,10 +125,17 @@ def put_sector_membership(
     )
     created = cur.rowcount > 0
     if not preserve_source_ref:
-        conn.execute(
-            "UPDATE hyper_edges SET source_ref = ? WHERE id = ? AND source_ref != ?",
-            (source_ref, edge_id, source_ref),
-        )
+        try:
+            conn.execute(
+                "UPDATE hyper_edges SET source_ref = ? WHERE id = ? AND source_ref != ?",
+                (source_ref, edge_id, source_ref),
+            )
+        except Exception as e:  # noqa: BLE001  # same FK limitation as _refresh_member_count
+            print(
+                f"WARNING: source_ref convergence skipped for hyper_edge {edge_id} "
+                f"(referenced by incidences): {e}",
+                file=sys.stderr,
+            )
     if created:
         _refresh_member_count(conn, edge_id)
     return created

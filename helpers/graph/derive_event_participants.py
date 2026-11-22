@@ -70,16 +70,19 @@ EVENT_ROLE_BY_TYPE: dict[str, tuple[str | None, str | None]] = {
 
 EVENT_PARTICIPANTS_DDL = """
 CREATE TABLE IF NOT EXISTS event_participants (
-    event_id    INTEGER NOT NULL
-                  REFERENCES events(id) ON DELETE CASCADE ON UPDATE CASCADE,
-    participant TEXT    NOT NULL
-                  REFERENCES entities(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    event_id    BIGINT NOT NULL REFERENCES events(id),
+    participant TEXT NOT NULL REFERENCES entities(name),
     role        TEXT    NOT NULL,
     source_ref  TEXT    NOT NULL,
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (event_id, participant, role)
 )
 """
+# DuckDB 2.x parser: FOREIGN KEY constraints cannot use CASCADE / SET NULL /
+# SET DEFAULT — the sqlite-era ON DELETE/UPDATE CASCADE clauses are a parse
+# error even under IF NOT EXISTS (measured 2026-11-22). The canonical tracked
+# DDL (schema/duckdb/research.sql) never carried them; the writer deletes
+# each event's rows wholesale before re-inserting, so cascades are unused.
 
 EVENT_PARTICIPANTS_INDEXES = (
     "CREATE INDEX IF NOT EXISTS idx_event_participants_participant "
