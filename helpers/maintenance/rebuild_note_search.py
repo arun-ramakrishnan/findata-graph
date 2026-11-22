@@ -246,6 +246,7 @@ def _newsletter_title(text: str) -> str:
 # another model would serve a wrong vector space). The QUERY side follows
 # the stored stamp, not the env. Env: NOTES_EMBEDDER=auto|gemma|granite.
 NOTES_EMBEDDER_ENV = "NOTES_EMBEDDER"
+DELTA_FULL_FALLBACK_THRESHOLD = float(os.environ.get("NOTES_DELTA_FULL_FALLBACK_THRESHOLD", "0.8"))
 
 _PSEUDO_DIMS = 64
 
@@ -878,11 +879,24 @@ def _read_note_info(conn, key: str) -> str | None:
     return row[0] if row else None
 
 
+def _read_note_meta(conn) -> dict[str, tuple[float, str]]:
+    try:
+        return {
+            r[0]: (r[1], r[2])
+            for r in conn.execute(
+                "SELECT file_path, mtime, content_hash FROM note_search_meta"
+            ).fetchall()
+        }
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
     db_path: Path | str | None = None,
     *,
     write: bool = True,
     embed_fn=None,
+    incremental: bool = True,
 ) -> dict:
     """Build/rebuild the DuckDB-native note_search store (S1).
 
@@ -891,8 +905,8 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
     lookups; writes one ``note_search`` table + meta/info stamp tables, then
     builds the native FTS index over ``searchtext``. The embed cache lives
     in this sidecar (duckdb host conn == cache conn, S0 fold).
-    Replacement rebuild (delete-all + insert) — incremental carry is a later
-    slice (the corpus is ~16k rows; full rebuild is seconds).
+    Incremental carry (P2.1/P2.2): mtime fast path + content-hash diff, with a
+    threshold fallback to a full replacement rebuild when the delta grows large.
     ``write=False`` (--check): freshness verdict only — no DDL, no writes,
     no embedder resolution, no entity lookups (hash-only verdict).
     """
@@ -946,6 +960,31 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
         else:
             embed_fn = embed_fn  # injected test embedder
 
+        # P2.2 fast path: in incremental mode, preload the meta table and the
+        # existing rows so _collect_rows can carry over mtime-unchanged files
+        # without reading/cleaning/embedding them.
+        existing: dict[str, tuple[float, str]] = {}
+        reuse: dict[str, tuple[float, list[tuple]]] | None = None
+        carried: set[str] | None = None
+        stamp = _read_note_info(conn, "embed_model")
+        _sm = _read_note_meta(conn)
+        can_carry = (
+            bool(incremental)
+            and bool(_sm)
+            and (model_label is None or stamp is None or model_label == stamp)
+        )
+        if can_carry:
+            existing = _sm
+            reuse = {}
+            for r in conn.execute(
+                "SELECT doc_type, file_path, title, sector, content, embedding, "
+                "section_title, anchor, ticker, edge_context FROM note_search"
+            ).fetchall():
+                prev = existing.get(r[1])
+                if prev is not None:
+                    reuse.setdefault(r[1], (prev[0], []))[1].append(tuple(r))
+            carried = set()
+
         # Entity-lookup host: the legacy sqlite rollback file when present
         # (tests repoint DEFAULT_DB), else the canonical DuckDB research store
         # (sqlite host deleted in build-route P4). A zero-byte tombstone
@@ -956,7 +995,7 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
             else connect()
         )
         rows, doc_paths = _collect_rows(
-            research, embed_fn=embed_fn, reuse=None, carried=None, deferred=deferred
+            research, embed_fn=embed_fn, reuse=reuse, carried=carried, deferred=deferred
         )
         if deferred is not None:
             from helpers.core import gemma_embedder, local_embedder
@@ -997,7 +1036,94 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
         stats["total_rows"] = len(all_rows)
         stats["embedded"] = sum(1 for r in all_rows if r[5])
 
-        _write_note_store(conn, all_rows, meta_info, model_label, embed_dims)
+        # Current meta = file-content fingerprints (matches _write_note_store /
+        # _check_freshness_note_duckdb scheme: _text_hash over file bytes).
+        current_meta: dict[str, tuple[float, str]] = dict(meta_info)
+        rows_by_path: dict[str, list[tuple]] = {}
+        for r in all_rows:
+            rows_by_path.setdefault(r[1], []).append(r)
+
+        # Decide mode.
+        if can_carry:
+            deleted_files = sorted(set(existing) - set(current_meta))
+            changed_files = []
+            for rel_posix, (mtime, chash) in current_meta.items():
+                prev = existing.get(rel_posix)
+                if prev is None or prev[1] != chash:
+                    changed_files.append(rel_posix)
+            # Threshold fallback: if delta too large, fold carried into delta
+            # and switch to full write path.
+            touched = len(changed_files) + len(deleted_files)
+            total = len(current_meta) or 1
+            if total > 0 and (touched / total) >= DELTA_FULL_FALLBACK_THRESHOLD:
+                # re-collect carried rows without reuse
+                can_carry = False
+                carried = None
+                reuse = None
+                # re-run collect without reuse (rows currently include carried
+                # from reuse, which is fine; but changed detection now treats all
+                # as changed). Force all current files as changed.
+                changed_files = list(current_meta.keys())
+                deleted_files = sorted(set(existing) - set(current_meta))
+                # also mark carried (still present) as changed so they get
+                # re-written with stable ids? For simplicity keep as-is.
+            mode = "incremental" if can_carry else "full"
+        else:
+            deleted_files = []
+            changed_files = list(current_meta.keys())
+            mode = "full"
+
+        stats["mode"] = mode
+
+        if can_carry:
+            # Delta write: remove deleted + changed files' rows, insert changed.
+            for fp in deleted_files:
+                conn.execute("DELETE FROM note_search WHERE file_path = ?", (fp,))
+                conn.execute("DELETE FROM note_search_meta WHERE file_path = ?", (fp,))
+            for fp in changed_files:
+                conn.execute("DELETE FROM note_search WHERE file_path = ?", (fp,))
+                doc_rows = rows_by_path.get(fp, [])
+                if doc_rows:
+                    conn.executemany(
+                        "INSERT INTO note_search "
+                        "(id, doc_type, file_path, title, sector, content, embedding, "
+                        "section_title, anchor, ticker, edge_context, searchtext) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        [(_stable_note_row_id(r), *r, _compose_searchtext(r)) for r in doc_rows],
+                    )
+                if fp in current_meta:
+                    mtime, chash = current_meta[fp]
+                    conn.execute(
+                        "INSERT OR REPLACE INTO note_search_meta VALUES (?, ?, ?)",
+                        (fp, mtime, chash),
+                    )
+            # Update meta for carried (already present) — no-op.
+            # Stamp model + row_count.
+            if model_label is not None:
+                conn.executemany(
+                    "INSERT OR REPLACE INTO note_search_info VALUES (?, ?)",
+                    [
+                        ("embed_model", model_label),
+                        ("embed_dims", str(embed_dims)),
+                        ("row_count", str(conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0])),
+                    ],
+                )
+            # Rebuild FTS if any delta.
+            if deleted_files or changed_files:
+                try:
+                    conn.execute("PRAGMA drop_fts_index('note_search')")
+                except duckdb.Error:
+                    pass
+                conn.execute("PRAGMA create_fts_index('note_search', 'id', 'searchtext')")
+            stats["carried_files"] = len(current_meta) - len(changed_files)
+            stats["changed_files"] = len(changed_files)
+            stats["deleted_files"] = len(deleted_files)
+        else:
+            # Full replacement write.
+            _write_note_store(conn, all_rows, meta_info, model_label, embed_dims)
+            stats["carried_files"] = 0
+            stats["changed_files"] = len(current_meta)
+            stats["deleted_files"] = 0
 
         stats["indexed"] = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
         if cache is not None:
@@ -1115,7 +1241,7 @@ def rebuild(  # noqa: C901
 ) -> dict:
     """Rebuild the note_search FTS index. Returns a stats dict."""
     if Path(db_path).suffix.lower() == ".duckdb":
-        return rebuild_note_duckdb(db_path, write=write, embed_fn=embed_fn)
+        return rebuild_note_duckdb(db_path, write=write, embed_fn=embed_fn, incremental=incremental)
     from datetime import datetime
 
     from helpers.maintenance.maint_timing import current as _mt_timer

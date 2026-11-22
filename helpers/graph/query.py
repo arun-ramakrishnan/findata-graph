@@ -2429,15 +2429,13 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
     it into _build_meta as ``note_embed_dims`` for the warm-path drift
     check in _is_warm.
     """
-    try:
-        r = con.execute(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='note_search'"
-        ).fetchone()
-        # S2: same fin-attached sqlite_master probe as _materialise_embeddings
-        # — verified engine-agnostic on the DuckDB cache conn (2026-11-19).
-        table_exists = r is not None and r[0] > 0
-    except Exception:
-        table_exists = False
+    # S2 cleanup: use the shared engine-agnostic probe (helpers.core.db_engine.table_exists)
+    # instead of a raw sqlite_master SELECT that only resolves on SQLite and relies
+    # on the try/except to degrade on DuckDB. Same semantics: True only when a base
+    # table named note_search is attached to this connection.
+    from helpers.core.db_engine import table_exists as _table_exists
+
+    table_exists = _table_exists(con, "note_search", kind="table")
 
     dims = 0
     rows: list[tuple[str, str | None, str | None, bytes]] = []
