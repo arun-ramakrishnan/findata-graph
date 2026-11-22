@@ -124,7 +124,7 @@ def _mojo_null_invoke(
     return got
 
 
-def _mojo_null(
+def _mojo_null(  # noqa: C901  # kernel-invocation fallback ladder: each failure mode exits a distinct branch
     edges: list[list[str]],
     *,
     orders: tuple[int, ...],

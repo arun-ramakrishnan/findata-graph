@@ -815,6 +815,24 @@ Open items below keep their revisit triggers inline; executed work is compressed
   kernel, not more rayon. `Rust/bench/cosine_gate.py` now also covers the
   shapes where Rust loses (see pending.md:745-761 for the ANN note).**
 
+- **Mojo CSR-BFS kernel for the shortest_path_bfs leg — CLOSED
+  UNNEEDED 2026-11-22 (completed.md #559, `mojo_csr_bfs_kernel`
+  pre-flight)**: the proposal's motivating number (98.8% of the 12.0 s
+  leg budget, 2026-11-21 survey) was dissolved by the SAME DAY's bench
+  reshape — the first post-reshape run measures **2.28 s total (19%
+  utilization)** with cases 0.6 ms (default), 150.3 ms (lane
+  exhaustion), 85.8 ms (SQL fallback), all passing. The kernel's only
+  residual value is ~2.3× on the rare unreachable-pair query (spike:
+  61-65 ms vs 147-149 ms, subprocess included) — not enough to clear
+  the wiring cost (new kernel + dispatch + parity + fallback contract +
+  promotion arc) under the no-new-moves-without-a-measured-wall
+  doctrine; the l1 Brandes Tier-1 item was already declined as
+  Rust-owned. Reopen trigger: the lane-exhaustion case regressing
+  toward its 250 ms budget under real load, or a consumer needing
+  faster unreachable-pair answers. The l1_kernels-style budget
+  recalibration of the 12.0 s entry is the operator's call (perf legs
+  park; recommend recalibrating on the next natural perf arc).
+
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it
   requires a weight column of type `BIGINT`; variants A/B produce identical

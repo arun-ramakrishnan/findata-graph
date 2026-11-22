@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-10-17
-**Total completed**: 328 items
+**Total completed**: 329 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -16881,3 +16881,33 @@ proposal, archived `status: executed`).
   if a provenance column is ever introduced as JSON-TEXT.
 
 Gates: read-only census, no code changes; md-lint + search-fresh only.
+
+## 559. Mojo CSR-BFS kernel — pre-flight NO-GO (the bench reshape dissolved the budget risk)
+
+Filed 2026-11-22; executed 2026-11-22 (`mojo_csr_bfs_kernel` proposal,
+archived `status: executed`; kernel not built).
+
+- **Pre-flight**: the motivating 98.8%-of-budget figure (11.9 s / 12.0 s,
+  2026-11-21 survey) predates the SAME DAY's bench reshape — gate-timing
+  history confirms no post-reshape gate run existed (newest entry
+  2026-11-19). The first post-reshape measurement, run for this arc:
+  **2.28 s total wall (19% of the 12.0 s leg budget)** — default
+  0.6 ms, lane-exhaustion unreachable 150.3 ms (budget 250 ms), SQL
+  fallback 85.8 ms (budget 2 s), all passing.
+- **Verdict: NO-GO.** The kernel's only residual win is ~2.3× on the
+  rare unreachable-pair query (spike 61-65 ms vs 147-149 ms, subprocess
+  included) — insufficient against the wiring cost (new kernel +
+  dispatch + parity + fallback contract + promotion arc) under the
+  no-new-moves-without-a-measured-wall doctrine; same
+  third-implementation logic that declined the l1 Brandes Tier-1 item
+  (Rust-owned via graph_kernels). Tier-2 Hy-MMSBM fit_s stays
+  measure-first watch.
+- **Left standing**: the acceleration-menu re-baseline in the
+  proposal's §1 is the authoritative menu state; the 12.0 s budget
+  recalibration is recommended for the next natural perf arc (operator
+  call — perf legs park); reopen trigger in pending.md (lane-exhaustion
+  case regressing toward 250 ms under load, or a faster
+  unreachable-pair consumer).
+
+Gates: read-only pre-flight (one bench run); no code changes; md-lint +
+search-fresh only.
