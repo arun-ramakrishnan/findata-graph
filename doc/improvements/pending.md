@@ -1225,6 +1225,20 @@ Open items below keep their revisit triggers inline; executed work is compressed
   growth); a sub-50 ms interactive consumer fusing convo vector
   results; or LanceDB 1.0 + a lexical leg passing the assessment's
   parity protocol (would dissolve the FTS5 carve-out class).
+- **FI-1 provenance JSON → VARIANT — CLOSED NO-GO 2026-11-22
+  (completed.md #558, `variant_provenance_fi1` census)**: the
+  twice-deferred item's premise had no live substrate — the estate-wide
+  census (55 provenance-bearing columns across all ten DuckDB stores,
+  driver + table in `bench_data/fi1_provenance_census/`) found ZERO
+  JSON-shaped ones. Every provenance column is a plain VARCHAR scalar:
+  convo_search.provenance carries snap-marker strings, and
+  agent_id/source_ref/source_tier are relational scalars under the FK
+  to provenance_agents; no json_extract read path touches any of them
+  (the only nearby hit selects source_ref as a column beside a
+  properties extraction). The "read-heavy long-tail key access" trigger
+  therefore has no substrate; the #554 VARIANT adoption stays scoped to
+  the properties columns. Reopen only if a provenance column is ever
+  introduced as JSON-TEXT.
 - **Multilingual concall/transcript ingest — PARKED 2026-10-31, no
   source pinned** (operator): the strategic multilingual play (gemma
   11/12 vs granite 4/12 has had no consumer since #363) needs a

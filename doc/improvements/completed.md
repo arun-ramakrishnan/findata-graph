@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-10-17
-**Total completed**: 327 items
+**Total completed**: 328 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -16857,3 +16857,27 @@ evidence in bench_data/search_lane_hnsw_s0/verdicts.md).
   content).
 
 Gates: targeted only; full gates pending operator go.
+
+## 558. FI-1 provenance JSON → VARIANT — S0 census, verdict NO-GO
+
+Filed 2026-11-22; executed 2026-11-22 (`variant_provenance_fi1`
+proposal, archived `status: executed`).
+
+- **Census**: all ten DuckDB stores enumerated via a banked rerunnable
+  driver (bench_data/fi1_provenance_census/census.py → census.md);
+  55 provenance-bearing columns found, ZERO JSON-shaped. Every
+  provenance column is a plain VARCHAR scalar — convo_search.provenance
+  carries snap-marker strings (37 distinct / 257,751 rows), and
+  agent_id/source_ref/source_tier are relational scalars under the FK
+  to provenance_agents. The estate's real JSON columns (properties) are
+  already VARIANT via #554.
+- **No read-path substrate**: zero json_extract calls touch any
+  provenance column; the "read-heavy long-tail key access" trigger has
+  nothing to read. FI-1's premise was a design-phase assumption with no
+  live counterpart — both deferrals (duckdb_pure_stack.md:60,
+  graph_hnsw_next.md:84) predate any store that matched it.
+- **Verdict: NO-GO** — S1 (migration) and S2 (structured provenance)
+  never fire. FI-1 closed in pending.md with a dated note; reopen only
+  if a provenance column is ever introduced as JSON-TEXT.
+
+Gates: read-only census, no code changes; md-lint + search-fresh only.
