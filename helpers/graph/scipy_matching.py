@@ -30,7 +30,7 @@ from scipy.sparse.csgraph import (
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
-DEFAULT_DB_PATH = _REPO_ROOT / "memory" / "research.db"
+DEFAULT_DB_PATH = _REPO_ROOT / "memory" / "research.duckdb"
 
 from helpers.core.db import connect  # noqa: E402
 

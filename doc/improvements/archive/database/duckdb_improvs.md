@@ -322,6 +322,14 @@ N1. VARIANT type for graph_edges.properties [EVALUATED — NOT ADOPTED]
   long-tail property keys (quote, stake, seller) appears.
   Action: none. Documented in doc/graph_design.txt v1.7 changelog.
 
+  RE-EVALUATION (2026-11-22, DuckDB 2.0.1): both revisit conditions
+  met — (a) perf gap closed (VARIANT now 0.83× faster on struct/arrow
+  access and raw scan, json_extract_string now works on VARIANT), (b)
+  read surface grew to 7+ keys across ~10 call sites. ADOPTED:
+  properties columns migrated to VARIANT on research.duckdb (5 tables) and
+  graph.duckdb (19 e_* tables); tracked DDL updated; schema-dump clean.
+  See doc/improvements/proposals/database/variant_properties.md.
+
 N2. FTS extension for entity typeahead [EVALUATE]
   DuckDB's FTS extension (SQLite-FTS5-style inverted index) could replace
   the current entity-name typeahead (app.py `_resolve_entity_or_404` does

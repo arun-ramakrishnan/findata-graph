@@ -50,6 +50,7 @@ import datetime as _dt  # noqa: E402  # after sys.path bootstrap
 import json  # noqa: E402
 import sqlite3  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
+from typing import Any  # noqa: E402
 
 import duckdb  # noqa: E402
 

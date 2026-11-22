@@ -169,7 +169,7 @@ def test_s3b_already_admissible_passthrough():
 
 
 def test_live():
-    dbp = Path("memory/research.db")
+    dbp = Path("memory/research.duckdb")
     if not dbp.exists():
         raise AssertionError("live DB missing for test_live")
     inc = sm.load_supplier_incidence(str(dbp))

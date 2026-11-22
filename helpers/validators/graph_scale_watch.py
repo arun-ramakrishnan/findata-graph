@@ -304,6 +304,18 @@ def _dyadic_line(rows: int, directed: int) -> int:
     return 0
 
 
+def _resolve_research_db(research: Path) -> Path:
+    """BUILD-route P4: the legacy memory/research.db host is deleted; the
+    canonical research store is the .duckdb sibling. Resolve a raw .db
+    default to the sibling so the chains-cap watch does not SKIP on a
+    migrated tree."""
+    if research.suffix.lower() == ".db":
+        duck = research.with_suffix(".duckdb")
+        if duck.exists():
+            return duck
+    return research
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--check", action="store_true", help="advisory gate leg mode")
@@ -339,7 +351,7 @@ def main(argv: list[str] | None = None) -> int:
     # failure — this tripwire exists so the next crossover is a
     # notification, not an archaeology find (the 3,000 crossover went
     # live unrecorded and was only caught by a session census).
-    research = Path(args.research_db)
+    research = _resolve_research_db(Path(args.research_db))
     n: int | None = None
     if not research.exists():
         print(f"chains-cap-watch: SKIP — {research} not found")

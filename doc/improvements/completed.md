@@ -16718,3 +16718,29 @@ proposal, archived `status: executed`).
 - Outcome: “nothing should resolve to the sqlite default now” (operator
   directive) — delivered; the freeze-or-build call resolved to BUILD and
   the sqlite estate was deleted under completed.md entry 552.
+
+## 554. VARIANT for `properties` columns — N1 re-evaluation on DuckDB 2.0.1 (research + graph stores)
+
+Filed 2026-11-22; executed 2026-11-22 (`variant_properties` proposal,
+archived `status: executed`).
+
+- **Migration**: `properties` column `VARCHAR → VARIANT` on 5 research.duckdb
+  base tables (`company_metrics`, `events`, `graph_edges`, `hyper_edges`,
+  `quotes`) and 19 derived `e_*` tables in graph.duckdb via
+  `ALTER TABLE … ALTER COLUMN properties TYPE VARIANT` (auto-casts existing
+  values). Dependent views/indexes/FK tables dropped and recreated; row
+  counts preserved. Tracked DDL regenerated (`schema/duckdb/research.sql`,
+  `schema/duckdb/graph.sql`); `make schema-check` clean; `test_schema_drift`
+  4 pass. Backup at `/mnt/data/tmp/opencode/research.duckdb.pre-variant.bak`.
+- **Re-evaluation**: N1 previously NOT ADOPTED on DuckDB 1.5.4 (2.6–3.1×
+  slower, `json_extract_string` broken, +75% storage). On 2.0.1 all three
+  blockers flipped: `json_extract_string` works, struct access 0.83× faster,
+  storage 1.0× (equal). Write paths rely on DuckDB auto-cast (explicit
+  `::VARIANT` casts reverted to keep SQLite test compatibility).
+- **Verification**: `test_database_integrity_check` 97 pass;
+  `test_derive_indices` + `test_answerability_probe` + `test_merger_hyperedges`
+  92 pass; `test_graph_disk` 32 pass; quack servers restarted (graph :9494,
+  research :9495); connect_shared smoke verified `json_extract` on VARIANT.
+- **Follow-ups**: `migrate_to_graph_edges.py` DDL left as TEXT (SQLite
+  target); explicit casts deferred (auto-cast sufficient); e_* regeneration
+  verified via integrity check.

@@ -326,8 +326,8 @@ def _verify_snapshot_duckdb(
             result["match"] = integrity == "ok"
             return result
         try:
-            src_entities = sconn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]  # ty: ignore[not-subscriptable]  # COUNT always returns a row
-            src_relations = sconn.execute("SELECT COUNT(*) FROM relations").fetchone()[0]  # ty: ignore[not-subscriptable]  # COUNT always returns a row
+            src_entities = sconn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]  # COUNT always returns a row
+            src_relations = sconn.execute("SELECT COUNT(*) FROM relations").fetchone()[0]  # COUNT always returns a row
         finally:
             sconn.close()
         result.update(source_entities=src_entities, source_relations=src_relations)
@@ -902,6 +902,7 @@ def _export_duckdb_tables(
     *,
     filters: dict[str, str] | None = None,
     serial: bool = False,
+    cast_variant_to_json: bool = False,
 ) -> tuple[dict[str, dict], int]:
     """COPY each table to its parquet shard (parallel_parquet_export #435).
 
@@ -950,7 +951,15 @@ def _export_duckdb_tables(
         # reason: zstd -3 sits in the same speed class while compressing
         # better. Readers (DuckDB scanner, pyarrow, --restore) are
         # codec-transparent.
-        src = f"SELECT * FROM {t}"  # noqa: S608  # t from fixed table inventory
+        if cast_variant_to_json:
+            _cols = [r[0] for r in worker.execute(f'DESCRIBE "{t}"').fetchall()]  # noqa: S608
+            _select = ", ".join(
+                f'"{c}"::VARCHAR AS "{c}"' if c == "properties" else f'"{c}"'
+                for c in _cols
+            )
+            src = f"SELECT {_select} FROM {t}"  # noqa: S608  # t from fixed table inventory
+        else:
+            src = f"SELECT * FROM {t}"  # noqa: S608  # t from fixed table inventory
         if filters and t in filters:
             # Research db_meta: drop the machine/HEAD-specific apply stamp
             # at export, mirroring _sqlite_table_arrow's APPLY_STAMP_PREFIX
@@ -1201,6 +1210,7 @@ def _export_research_duckdb(source: Path, out_dir: Path, logger: logging.Logger)
             logger,
             filters={"db_meta": "key NOT LIKE 'apply_%'"},
             serial=True,
+            cast_variant_to_json=True,
         )
     finally:
         con.close()
