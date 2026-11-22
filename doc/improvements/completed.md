@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-10-17
-**Total completed**: 324 items
+**Total completed**: 325 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -16744,3 +16744,36 @@ archived `status: executed`).
 - **Follow-ups**: `migrate_to_graph_edges.py` DDL left as TEXT (SQLite
   target); explicit casts deferred (auto-cast sufficient); e_* regeneration
   verified via integrity check.
+
+## 555. Graph-lane HNSW productionization (v_embeddings + v_note_embeddings)
+
+Filed 2026-11-22; executed 2026-11-22 (`graph_hnsw_production` proposal,
+archived `status: executed`).
+
+- **Index**: `CREATE INDEX … USING HNSW` on `v_embeddings(embedding)` and
+  `v_note_embeddings(emb)` (both FLOAT[512]) at the materialise site
+  (`_create_hnsw_indexes`), with `hnsw_enable_experimental_persistence=true`;
+  idempotent DROP+CREATE; best-effort skip on non-fixed-size/empty tables.
+  Index names `idx_v_embeddings_emb` / `idx_v_note_embeddings_emb` match the
+  served-path references. Production rebuild created both indexes.
+- **Quack coordination**: stop-server build window + restart; server session
+  already INSTALL/LOAD vss + SET experimental persistence (pre-existing).
+- **Re-routing**: `_semantic_neighbors_cosine` switched from
+  `array_cosine_distance` (brute) to `array_distance` (l2) with score
+  conversion `1 - d²/2`; vectors are unit-norm so ordering is identical.
+  HNSW engages (EXPLAIN shows `Hnsw Index Scan`).
+- **Bank re-baseline**: recall@10 = 200/200 = 1.0000 on v_embeddings vs
+  exact brute-force. Direct top-k benchmark at repo scale (19,356 rows):
+  HNSW 9.99 ms vs brute 45.93 ms (4.6×). v_embeddings (1,213 rows): 9.88 ms
+  vs 11.56 ms (1.2×).
+- **Cleanup**: removed the long-standing "Re-evaluate HNSW index macros"
+  deferred entry from `pending.md` (the 1.5.x/2.0.0 blocker history is now
+  superseded by this productionization). Patch lane also calls
+  `_create_hnsw_indexes` after both embeddings tables materialise.
+- **Verification**: `test_graph_disk` 32 pass, `test_semantic_neighbors` 25
+  pass, `test_fuzz_semantic` 3 pass, `test_graph_rebuild_fast_path` 12 pass;
+  quack servers healthy (graph :9494, research :9495).
+- **Follow-ups**: note-lane aggregate KNN (`similar_notes`,
+  `notes_like_entity`, `edition_companies`) uses GROUP BY best-section-per-note
+  and cannot route through HNSW; index exists for future direct top-k.
+  `migrate_to_graph_edges.py` DDL unchanged (SQLite target).

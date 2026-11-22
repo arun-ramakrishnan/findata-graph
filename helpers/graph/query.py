@@ -1598,6 +1598,7 @@ def _patch_dirty_tables(tmp_duckdb_path: Path, db_path: Path) -> bool:
         if "note_embeddings" in dirty:
             con.execute("DROP TABLE IF EXISTS v_note_embeddings")
             _materialise_note_embeddings(con)
+        _create_hnsw_indexes(con)
         if vertices_dirty or any_edge_dirty:
             _drop_centrality_stamps(con)
         _mark_warm(con, db_path)
@@ -1664,6 +1665,7 @@ def _build_graph(
     _materialise_edges(con)
     _materialise_hyper(con)
     _materialise_note_embeddings(con)
+    _create_hnsw_indexes(con)
     # centrality_rebuild_contract: last, on the fully materialised edge
     # set — but only on the explicit stamp lane. Data-only rebuilds
     # drop the stale stamp instead (see the docstring).
@@ -2477,6 +2479,47 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
             """
         )
     return dims
+
+
+def _create_hnsw_indexes(con: duckdb.DuckDBPyConnection) -> None:
+    """Create persistent HNSW indexes on the vector tables (graph_hnsw_production S1).
+
+    Best-effort: skips tables that are missing or whose embedding column is
+    not a fixed-size FLOAT[N] (HNSW refuses FLOAT[] lists). Sets the
+    experimental-persistence flag first so the index survives reopen.
+    Idempotent: DROP INDEX IF EXISTS then CREATE.
+    """
+    try:
+        con.execute("SET hnsw_enable_experimental_persistence=true")
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARNING: could not enable hnsw experimental persistence: {exc}", file=sys.stderr)
+    for table, col in (("v_embeddings", "embedding"), ("v_note_embeddings", "emb")):
+        try:
+            exists = con.execute(
+                "SELECT 1 FROM information_schema.tables "
+                "WHERE table_schema='main' AND table_name=?",
+                [table],
+            ).fetchone()
+            if not exists:
+                continue
+            # fixed-size FLOAT[N] only
+            typ = con.execute(
+                "SELECT data_type FROM information_schema.columns "
+                "WHERE table_schema='main' AND table_name=? AND column_name=?",
+                [table, col],
+            ).fetchone()
+            if not typ or not str(typ[0]).upper().startswith("FLOAT["):
+                continue
+            n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]  # ty: ignore[not-subscriptable]
+            if n == 0:
+                continue
+            idx = f"idx_{table}_emb" if col in ("embedding", "emb") else f"idx_{table}_{col}_hnsw"
+            con.execute(f"DROP INDEX IF EXISTS {idx}")
+            con.execute(
+                f"CREATE INDEX {idx} ON {table} USING HNSW ({col})"
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(f"WARNING: HNSW index on {table} skipped: {exc}", file=sys.stderr)
 
 
 # centrality_rebuild_contract: the ten stamped tables. A data-only
@@ -4734,8 +4777,11 @@ def _semantic_neighbors_cosine(
     ).fetchone()
     if row is None or not row[0]:
         return []
+    # HNSW routes on array_distance (l2) with the default l2 metric; cosine
+    # distance does not engage idx_v_embeddings_emb. Vectors are unit-norm so
+    # l2 ordering == cosine ordering; score converts via cos = 1 - d*d/2.
     cd = (
-        "array_cosine_distance(CAST(embedding AS FLOAT["
+        "array_distance(CAST(embedding AS FLOAT["
         + str(dim)
         + "]), CAST("
         + _vec_literal(row[0], dim)
@@ -4743,11 +4789,10 @@ def _semantic_neighbors_cosine(
         + str(dim)
         + "]))"
     )
-    # d < 2 is cos > 0 on unit vectors — the old filter_cond, pushed into
-    # the routed WHERE (probe: the query stays on Hnsw Index Scan).
+    # d < sqrt(2) is cos > 0 on unit vectors — pushed into the routed WHERE.
     rows = con.execute(
         "SELECT id, " + cd + " AS d FROM v_embeddings "  # noqa: S608  # interpolated: numeric literal + int dims only
-        "WHERE company_name != ? AND " + cd + " < 2 "
+        "WHERE company_name != ? AND " + cd + " < 1.4142135623730951 "
         "ORDER BY " + cd + " ASC LIMIT " + str(int(k)),
         [company],
     ).fetchall()
@@ -4765,7 +4810,7 @@ def _semantic_neighbors_cosine(
     for i, d in rows:
         m = by_id.get(i)
         if m is not None:
-            out.append((m[0], m[1], 1 - float(d)))
+            out.append((m[0], m[1], 1 - float(d) * float(d) / 2))
     return out
 
 
