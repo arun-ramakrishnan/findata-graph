@@ -1235,7 +1235,7 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
         if "sqlite3.connect" in text:
             try:
                 toks = list(tokenize.generate_tokens(io.StringIO(text).readline))
-            except (IndentationError, SyntaxError, tokenize.TokenError):
+            except IndentationError, SyntaxError, tokenize.TokenError:
                 # Parse-fragile file (rare); fall back to the text scan.
                 toks = []
             if toks:
@@ -1246,7 +1246,12 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
                     if idx + 2 >= len(toks):
                         continue
                     dot, name = toks[idx + 1], toks[idx + 2]
-                    if dot.type == tokenize.OP and dot.string == "." and name.type == tokenize.NAME and name.string == "connect":
+                    if (
+                        dot.type == tokenize.OP
+                        and dot.string == "."
+                        and name.type == tokenize.NAME
+                        and name.string == "connect"
+                    ):
                         line_no = tok.start[0]
                         if line_no not in seen:
                             seen.add(line_no)

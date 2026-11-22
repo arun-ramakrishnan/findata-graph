@@ -326,8 +326,12 @@ def _verify_snapshot_duckdb(
             result["match"] = integrity == "ok"
             return result
         try:
-            src_entities = sconn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]  # COUNT always returns a row
-            src_relations = sconn.execute("SELECT COUNT(*) FROM relations").fetchone()[0]  # COUNT always returns a row
+            src_entities = sconn.execute("SELECT COUNT(*) FROM entities").fetchone()[
+                0
+            ]  # COUNT always returns a row
+            src_relations = sconn.execute("SELECT COUNT(*) FROM relations").fetchone()[
+                0
+            ]  # COUNT always returns a row
         finally:
             sconn.close()
         result.update(source_entities=src_entities, source_relations=src_relations)
@@ -954,8 +958,7 @@ def _export_duckdb_tables(
         if cast_variant_to_json:
             _cols = [r[0] for r in worker.execute(f'DESCRIBE "{t}"').fetchall()]  # noqa: S608
             _select = ", ".join(
-                f'"{c}"::VARCHAR AS "{c}"' if c == "properties" else f'"{c}"'
-                for c in _cols
+                f'"{c}"::VARCHAR AS "{c}"' if c == "properties" else f'"{c}"' for c in _cols
             )
             src = f"SELECT {_select} FROM {t}"  # noqa: S608  # t from fixed table inventory
         else:

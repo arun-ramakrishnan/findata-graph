@@ -913,9 +913,7 @@ def _staleness_verdict(conn) -> list[str]:
     banner for humans.
     """
     entity_last = conn.execute("SELECT MAX(last_updated) FROM entities").fetchone()[0]
-    analytics_last = conn.execute(
-        "SELECT MAX(computed_at) FROM graph_analytics"
-    ).fetchone()[0]
+    analytics_last = conn.execute("SELECT MAX(computed_at) FROM graph_analytics").fetchone()[0]
     entity_jd = _staleness_julianday(entity_last)
     analytics_jd = _staleness_julianday(analytics_last)
     if entity_jd is None or analytics_jd is None:

@@ -44,6 +44,31 @@ if str(PROJECT_ROOT) not in sys.path:
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import DEFAULT_DB_PATH  # noqa: E402
 
+
+def _attach_src_sql(db_path: str | Path | None) -> str:
+    """ATTACH statement for the HIF read path.
+
+    P4 deleted the sqlite anchor (`DEFAULT_DB_PATH` → memory/research.db is
+    a tombstone — a bare sqlite3.connect silently re-creates it as a
+    0-byte file, which then poisons the snapshot schema export), so the
+    default read path resolves to the canonical DuckDB sibling; explicit
+    ``.db`` paths (test donors) keep the TYPE SQLITE attach (measured
+    2026-11-22, the two-edition gate arc).
+    """
+    path = Path(db_path) if db_path else DEFAULT_DB_PATH
+    if db_path is None and path.suffix == ".db" and not path.exists():
+        # P4 tombstone default: the .db anchor is gone — read the canonical
+        # DuckDB sibling instead.
+        path = path.with_suffix(".duckdb")
+    try:
+        is_sqlite = path.read_bytes()[:15] == b"SQLite format 3"
+    except OSError:
+        is_sqlite = False
+    if is_sqlite:
+        return f"ATTACH '{path}' AS src (TYPE SQLITE, READ_ONLY)"
+    return f"ATTACH '{path}' AS src (READ_ONLY)"
+
+
 NODES_FN = "hif_nodes.parquet"
 EDGES_FN = "hif_edges.parquet"
 INCIDENCES_FN = "hif_incidences.parquet"
@@ -72,7 +97,7 @@ def write_hif_parquet(
     ph = ", ".join("?" for _ in sources)
     con = duckdb.connect()
     try:
-        con.execute(f"ATTACH '{db_path or DEFAULT_DB_PATH}' AS src (TYPE SQLITE, READ_ONLY)")
+        con.execute(_attach_src_sql(db_path))
         nodes = con.sql(
             "SELECT DISTINCT hi.entity_name AS id, "
             "       '{\"entity_type\": \"' || e.entity_type || '\"}' AS attrs "
@@ -164,7 +189,7 @@ def validate_hif_roundtrip(
     ph = ", ".join("?" for _ in sources)
     con = duckdb.connect()
     try:
-        con.execute(f"ATTACH '{db_path or DEFAULT_DB_PATH}' AS src (TYPE SQLITE, READ_ONLY)")
+        con.execute(_attach_src_sql(db_path))
 
         def _store_count(q: str) -> int:
             row = con.execute(q, sources).fetchone()

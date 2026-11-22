@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-10-17
-**Total completed**: 330 items
+**Total completed**: 331 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -16961,3 +16961,48 @@ Gates: targeted chain only; full gates parked (operator).
   keep the provenance FK, gate-enforce; transaction-semantics audit of the
   db_engine wrapper as first slice). Parked with reopen triggers; the six
   fixes above are correct under either resolution.
+
+## 561. Gate arc: the full battery over the two-edition ingest — DuckDB 2.x FK-law wave 2 + the research.db tombstone incident
+
+Filed 2026-11-22; executed 2026-11-22 (gate arc per doc/procedures/gates.md;
+covers #555-#560, all previously targeted-only).
+
+- **Preflight**: slot-1 search-fresh + convo-fresh APPLYs; make maint
+  FAILED 3/4 on `rederive-hyper` (the FK law, again) — fixed: derive_hyperedges
+  gained the resolve_counterparties children-dance (gated on
+  event_participants existing for sqlite test fixtures), child-clears
+  before the event/group stale-label prunes, and best-effort
+  props/valid_from restamps; maint then PASS 10/10.
+- **Baseline**: make qa 10/15 (23 failed + 65 errors), advisory/perf
+  short-circuited by the chain. Root causes behind the pytest block:
+  (a) the DuckDB 2.x FK law, wave 2 — `resolve_counterparties` UPDATE
+  events (children-dance added), `_edge_writer` unquoted `symmetric`
+  (ParserException) + **apply-mode pair dedupe** (the duckdb graph_edges
+  DDL carries NO UNIQUE(source, target, edge_type), so INSERT OR IGNORE
+  never ignored — 2,027 duplicate cited_in rows accumulated; deduped
+  keep-first, writer filters existing pairs), `stable_prefix_replace`
+  children param (derive_events/event_participants), the participants DDL
+  aligned (no CASCADE, BIGINT); (b) **the research.db tombstone incident**:
+  a bare sqlite3.connect probe silently re-created the P4-deleted
+  0-byte anchor → maint's snapshot exported its empty schema over the
+  pinned 31-table _schema.sqlite.sql → every sqlite-axis restore (donor
+  tests, corpus walker) refused. Tombstone deleted; DDL restored from git
+  history; hyper_hif re-pointed at the canonical DuckDB sibling (magic-
+  sniffed attach, sqlite donors keep TYPE SQLITE).
+- **Advisory reds fixed** (user: fix reds even if from earlier arcs):
+  lint-audit C901s (_mojo_null noqa + resolve_counterparties split into
+  _apply_counterparty_resolutions), rust-deny foldhash duplicate
+  (deny.toml skip-tree; remaining getrandom/hashbrown/hashlink dupes are
+  report-only). Parked: convo-fresh-check (chronic by design),
+  gate-timing-watch (loaded-box confound), fuzz (passes targeted — battery
+  noise).
+- **Validation**: all 23+65 baseline failures re-validated targeted green;
+  maint 10/10; make snapshot + hif-export green; integrity 100.0% exit 0;
+  static-checks/snapshot-check exit 0; lint-audit + rust-deny exit 0.
+
+Gates: make qa 10/15 baseline → 15/15 post-fix (targeted-validated);
+make advisory 18/28 (6 named reds: 2 fixed, convo-fresh-check parked by
+design, gate-timing-watch confound-parked, fuzz noise, ty-tests
+warnings-class); make perf — PARKED (contended: load1 4.54 > 4 cores);
+advisory report file shows cross-tree sections (pdf-ocr-obsidian shares
+outputs/) — digest partially unreliable, noted.

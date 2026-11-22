@@ -25,7 +25,9 @@ multiple-versions = "warn"
 wildcards = "warn"
 deny = []
 skip = []
-skip-tree = []
+# foldhash lands at two minors via rayon and foldtree's independent pins;
+# both are hash-map internals with no API surface we touch.
+skip-tree = [{ name = "foldhash" }]
 
 [licenses]
 version = 2

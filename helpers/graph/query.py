@@ -858,7 +858,11 @@ def _check_generation_staleness(con, duckdb_path: Path, db_path: Path | None) ->
             # P4 cutover: the SQLite host is retired; resolve a missing
             # .db candidate to its converted .duckdb sibling before the
             # existence gate (the funnel itself already does this).
-            if cand.suffix.lower() == ".db" and not cand.exists() and cand.with_suffix(".duckdb").exists():
+            if (
+                cand.suffix.lower() == ".db"
+                and not cand.exists()
+                and cand.with_suffix(".duckdb").exists()
+            ):
                 cand = cand.with_suffix(".duckdb")
             if not cand.exists():
                 continue
@@ -2515,9 +2519,7 @@ def _create_hnsw_indexes(con: duckdb.DuckDBPyConnection) -> None:
                 continue
             idx = f"idx_{table}_emb" if col in ("embedding", "emb") else f"idx_{table}_{col}_hnsw"
             con.execute(f"DROP INDEX IF EXISTS {idx}")
-            con.execute(
-                f"CREATE INDEX {idx} ON {table} USING HNSW ({col})"
-            )
+            con.execute(f"CREATE INDEX {idx} ON {table} USING HNSW ({col})")
         except Exception as exc:  # noqa: BLE001
             print(f"WARNING: HNSW index on {table} skipped: {exc}", file=sys.stderr)
 
@@ -2876,8 +2878,7 @@ def _materialise_sector_membership(con: duckdb.DuckDBPyConnection) -> None:
         # joins in one query raise NotImplementedException), so stage the
         # hyper store into session-local TEMP copies first.
         con.execute(
-            "CREATE OR REPLACE TEMP TABLE _stg_hyper_edges AS "
-            "SELECT * FROM fin.hyper_edges"
+            "CREATE OR REPLACE TEMP TABLE _stg_hyper_edges AS SELECT * FROM fin.hyper_edges"
         )
         con.execute(
             "CREATE OR REPLACE TEMP TABLE _stg_hyper_incidences AS "
@@ -2947,8 +2948,7 @@ def _materialise_co_mention(con: duckdb.DuckDBPyConnection) -> None:
         # joins in one query raise NotImplementedException), so stage the
         # hyper store into session-local TEMP copies first.
         con.execute(
-            "CREATE OR REPLACE TEMP TABLE _stg_hyper_edges AS "
-            "SELECT * FROM fin.hyper_edges"
+            "CREATE OR REPLACE TEMP TABLE _stg_hyper_edges AS SELECT * FROM fin.hyper_edges"
         )
         con.execute(
             "CREATE OR REPLACE TEMP TABLE _stg_hyper_incidences AS "
