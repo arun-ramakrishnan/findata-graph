@@ -1133,7 +1133,7 @@ def reconcile_majority_ownership(  # noqa: C901
             inserts,
         )
         conn.executemany(
-            "UPDATE graph_edges SET properties=?, valid_from=?, source_ref=? WHERE id=?",
+            "UPDATE graph_edges SET properties = ?, valid_from=?, source_ref=? WHERE id=?",
             updates,
         )
         conn.executemany("DELETE FROM graph_edges WHERE id=?", [(r,) for r in retracts])

@@ -103,7 +103,7 @@ def backfill_sidecar_temporal(dry_run: bool = True, conn=None) -> tuple[int, int
             )
             if not dry_run:
                 conn.execute(
-                    "UPDATE graph_edges SET valid_from = ?, properties = ? "
+                    "UPDATE graph_edges SET valid_from = ?, properties = ?"
                     "WHERE id = ? AND (valid_from IS NULL OR valid_from = '')",
                     (
                         valid_from,

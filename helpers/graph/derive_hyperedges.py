@@ -1719,7 +1719,7 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
                         # (upstream_types was [] for industry before S8 —
                         # backfills converge stale props in one pass)
                         conn.execute(
-                            "UPDATE hyper_edges SET properties = ? "
+                            "UPDATE hyper_edges SET properties = ?"
                             "WHERE edge_type = ? AND label = ? AND properties != ?",
                             (props_json, hyper_type, label, props_json),
                         )
