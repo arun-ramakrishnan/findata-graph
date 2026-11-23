@@ -883,6 +883,22 @@ commit, referenced by nothing). Entry numbers point at
   4 parked) — seven `!` exceptions at `.gitignore:57+` under the criterion
   comment; no eval-gate bullet (data files, no query-visible semantics) —
   completed.md #547
+- [`misc_fix_gate_arc_maintenance.md`](tooling/misc_fix_gate_arc_maintenance.md) —
+  the post-#565 maintenance sweep (stgit patch `misc_fix`, 43 files): F1
+  gate-query index heal (all 9 tables constraint-less since 11-19, 137 NULL
+  run_id runs; `_index_schema_defects`/`_heal_index_schema` + backup +
+  parse_state rewind; `recent`/`failures` truthful again); F2 hyper_derive
+  18.34 → 4.58 s (batched engine-neutral SQL; budget 12.0); F3 DuckDB cap
+  as a law — `memory_cap_config()` = 2 GB + TMPDIR `temp_directory`, all
+  115 connect sites capped incl. bench/research (operator struck the
+  exemption) + `tests/duckdb_cap.py` conftest default, guard
+  `check_duckdb_memory_cap` in the validator + pytest twin, census 0
+  uncapped, 6632-pass full suite under the cap; F4 stamp-centrality
+  creep root-caused to the all-universe dijkstra pass → integer hop
+  histograms 70.0 → 46.1 s jobs=4 (parity asserted); F5 script-index
+  `_iter_statements` (statement-list walk) 6.24 → 0.72 s, pending.md :58
+  CLOSED; F6 master_query notes leg → note_search.duckdb —
+  completed.md #566
 - [`group_growth_gate.md`](tooling/group_growth_gate.md) —
   growth monitor promoted to blocking qa leg `group-growth-check`:
   `gate_check` fails on family-hit loss / removed merge flags / gone

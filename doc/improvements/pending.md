@@ -44,6 +44,20 @@ Open items below keep their revisit triggers inline; executed work is compressed
   0.00 s graph steps as a watch row. Trigger: next maint-adjacent
   arc or operator go; single-slice fix, no proposal needed per the
   multi-slice bar.
+  Watch item update 2026-11-23 (scratch profile on a store copy, live
+  files untouched): the real-run stamp cost IS the all-universe pass —
+  `scipy_bridge.full_universe_stats` is ~57–60 s of a 63 s build +
+  stamp, everything else ≈ 6 s. Not node growth: n = 22,840 / 69,913
+  edges today against the same ~22k scale of the 27.5 s 2026-09-26
+  baseline. `_full_universe_worker` no longer reduces whole-shard
+  float matrices (1–4 GB temporaries per fork) but 256-row blocks via
+  an integer hop histogram: 70.0 → 46.1 s at jobs=4, 121.4 → 61.3 s
+  at jobs=2, parity asserted (closeness bit-identical, harmonic
+  max diff 1.8e-12). The remainder is scipy's heap `dijkstra` (~98 s
+  CPU, ≈ 4.3 ms per source); the next lever is a compiled queue-BFS
+  hop-histogram kernel in `graph_kernels` (Rust/PyO3 rung, fired for
+  BFS-shaped work) — operator's call. A real-run re-time of
+  `stamp-centrality` is still owed (maint chain is operator-owned).
 
 - **Parquet snapshot leg does not read the DuckDB research store — DONE
   2026-11-21** (multi-slice proposal `parquet_snapshot_duckdb_reader`,
@@ -55,7 +69,8 @@ Open items below keep their revisit triggers inline; executed work is compressed
   frozen sqlite store was deleted and the axis now reads DuckDB
   exclusively.
 
-- **DuckDB rebuild deferred candidates — OPEN** (from
+- **DuckDB rebuild deferred candidates — CLOSED 2026-11-23 (all three
+  shipped; was: OPEN)** (from
   `duckdb_rebuild_incremental_carry`, completed.md #528; measured
   2026-11-16, all three non-blocking): (1) delta-apply on a
   100%-changed corpus ran **26.9 s vs 17.0 s full** — threshold
@@ -64,9 +79,17 @@ Open items below keep their revisit triggers inline; executed work is compressed
   (2) ~~CachedEmbed point-lookup preload~~ **DONE 2026-11-19**
   (`CachedEmbed.preload()`, opt-in, wired at both doc rebuild
   sites; one 44 ms scan replaces 4,807 × 0.91 ms point lookups);
-  (3) `--allow-stale` stamped legs still apply as full rebuilds
-  (script one-off 84 s mid-arc). Trigger: any `make search-fresh`
-  APPLY leg regressing past its 2026-11-16 baseline.
+  (3) ~~`--allow-stale` stamped legs still apply as full rebuilds
+  (script one-off 84 s mid-arc)~~ **ROOT-CAUSED + FIXED 2026-11-23**:
+  `--allow-stale` only lifts the apply-stamp guard
+  (`rebuild_common.stale_apply_reason`) and never forces a full
+  rebuild. The script leg's real cost was `ast.walk` over every Python
+  unit in `_import_candidates` (1.44 M nodes, 6.2 s of a ~10 s
+  apply); it now walks statement lists only (`_iter_statements`) with
+  identical import sets: `_import_candidates` 6.24 → 0.72 s,
+  `_collect_units` 8.43 → 2.70 s under cProfile. Re-open trigger: any
+  `make search-fresh` APPLY leg regressing past its 2026-11-16
+  baseline.
 
 - **Entity-alias fold round 2 — EXECUTED 2026-11-08** (menu+rulings:
   `bench_data/entity_alias_triage/round2/`). Operator ruled the 19

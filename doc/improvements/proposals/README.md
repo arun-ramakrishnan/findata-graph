@@ -38,7 +38,17 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-*(none — both 2026-11-21 filings archived executed the same day.)*
+*(none — the 2026-11-23 sweep was recorded executed the same day.)*
+
+- *(archived 2026-11-23)* — `misc_fix_gate_arc_maintenance` (tooling/,
+  filed + executed 2026-11-23, completed.md #566 — the post-#565
+  maintenance sweep in stgit patch `misc_fix`: gate-query index heal
+  (constraint wipe, NULL run_id era), hyper_derive 18.34 → 4.58 s batched
+  engine-neutral SQL (budget 12.0), the DuckDB 2 GB + TMPDIR cap as a law
+  across all 115 connect sites with a validator + conftest guard, the
+  stamp-centrality hop-histogram worker (70 → 46 s jobs=4), the script-index
+  statement-list walk (pending.md :58 CLOSED), and the master_query notes
+  mapping fix).
 
 - *(archived 2026-11-21)* — `duckdb_build_route` (database/, filed +
   executed 2026-11-21, completed.md #552 — SQLite retirement BUILD route:

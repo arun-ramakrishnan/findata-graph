@@ -17194,3 +17194,70 @@ staleness → slot-2 APPLYs; make perf — PARKED twice (refusals: load1
 the since-fixed stale production cache and 8 budget-fails untrusted
 under contention). Battery 1's abort and both contention classes are
 recorded here rather than silently absorbed.
+
+## 566. misc_fix maintenance sweep — gate-index heal, DuckDB cap + TMPDIR law, hyper-derive batching, stamp/apply speedups
+
+Follow-up arc to #565, executed 2026-11-23 the same day (proposal record:
+`archive/tooling/misc_fix_gate_arc_maintenance.md`; stgit patch
+`misc_fix`, 43 files). Ranked survey → operator work order ("5, then 1/2,
+then 4, at last 3") + rulings: hyper_derive budget 12 s; no cap
+exemptions (bench/research included); DuckDB spill dirs must use TMPDIR;
+cap guard in the validator.
+
+- **F1 gate_query blindness**: all 9 tables of outputs/gate_runs.duckdb
+  had lost constraints/defaults (137 NULL run_id runs since 11-19 13:48;
+  2,363 legs; 101,743 tests rows; `recent`/`failures` reported PASS for
+  failed runs). `_index_schema_defects` + `_heal_index_schema` (backup,
+  table rebuild from SCHEMA DDL, NULL-era purge, parse_state rewind,
+  sequence restart; apply refuses without `--full`; auto-refresh skips
+  with a warning) — live-healed: 1395 keyed runs preserved, 137
+  re-indexed, backup `.pre-heal-20261123T183254.bak` kept; `recent` and
+  `failures` truthful again. CTAS-wipe regression tests. Trigger of the
+  original wipe unpinned (not duckdb 2.x, not ADD COLUMN).
+- **F2 hyper_derive 18.34 s (budget 4.0)**: row-at-a-time SQL after the
+  2.x cutover (15,954 executes ≈1.06 ms). Batched rewrite of
+  `compact_membership`/`apply_hyperedges` (chunked VALUES `_SQL_CHUNK=500`,
+  temp-table anti-join, engine-neutral UPDATE-FROM + `IS DISTINCT FROM`,
+  `_is_duckdb_conn` branch) → **4.58 s**, old-vs-new dry-run output
+  identical; budget re-baselined 12.0 (operator ruling). 41 tests both
+  engines.
+- **F3 DuckDB cap as a law**: `memory_cap_config()` =
+  `memory_limit` 2 GB + `temp_directory()` (TMPDIR/TEMP/TMP →
+  gettempdir; in-memory default was cwd-relative `.tmp`). All 103
+  production/maintenance/bench/research connect sites capped (the
+  bench/research exemption struck by the operator), parquet_textconv
+  inline (bare git script), `tests/duckdb_cap.py` conftest default
+  (caller config wins; lives in a module because the hermeticity guard
+  wraps on top). Guard = `check_duckdb_memory_cap` in
+  helpers/validators/static_checks.py (CHECKS after SQLite helper usage)
+  + pytest twin driving the same AST classifier; allowlist escape hatch
+  empty. Census 115 sites → 0 uncapped. Full non-live suite with the
+  conftest cap: 6632 passed / 12 skipped / exit 0.
+- **F4 stamp-centrality creep** (59→114.6 s): root-caused to
+  `scipy_bridge.full_universe_stats` (forked dijkstra, shard-sized float
+  temporaries; projection n=22,840 unchanged since the 27.5 s baseline —
+  not node growth). `_full_universe_worker` → 256-row blocks reduced to
+  integer hop histograms: jobs=4 70.0 → 46.1 s (×1.52), jobs=2 ×1.98,
+  parity asserted (closeness bit-identical, harmonic 1.8e-12, structure
+  scalars identical). 71 tests. Remainder is scipy heap dijkstra (~98 s
+  CPU); compiled BFS kernel = operator's call (pending.md :799 rung).
+- **F5 script-index apply**: `_import_candidates` walked 1.44 M AST nodes
+  (6.2 s of a ~10 s apply) — `--allow-stale`-forces-full-rebuild
+  hypothesis disproved (it only lifts the apply-stamp guard). New
+  `_iter_statements` (statement lists only; import set identical,
+  proven against ast.walk on every compound form + repo samples):
+  6.24 → 0.72 s, `_collect_units` 8.43 → 2.70 s, warm-cache apply ~4.2 s.
+  pending.md :58 CLOSED.
+- **F6 master_query `notes MISSING`**: search_tui index_ages still
+  pointed at the retired `memory/research.db` — now
+  `memory/note_search.duckdb` (P4 leftover; stale search_tui_app hint
+  left, unverified).
+
+Verification: 6632-pass full non-live suite (conftest cap active), 188
+static/lint/dirty-scope tests, 92 gate tests, 41 hyper-edge tests both
+engines, 71 scipy/centrality tests, ruff clean. Eval-gate: no
+query-visible semantics change (store untouched — hyper_derive dry-run
+only; gate_query corrections restore documented derived-index behaviour).
+Deferred: item 3 clean gate battery (operator go); compiled BFS kernel;
+549k pre-existing sqlite3-datetime DeprecationWarnings from
+`snapshot_db.py:1739`.
