@@ -4,8 +4,10 @@ the script_search sidecar index (script_metadata_search proposal S1).
 Hermetic: tmp mini-tree + sidecar, injected fake embedder.
 """
 
+import ast
 import os
 import time
+from pathlib import Path
 
 import pytest
 
@@ -215,6 +217,176 @@ class TestMakefileParser:
         )
         targets = rss._parse_makefile(text)
         assert targets[0]["recipe"] == "echo one"
+
+
+# One import per statement-list nesting form Python has, plus look-alikes that
+# must NOT count (docstring, comment, string literal, comprehension, relative).
+_ALL_NESTING_FORMS = '''\
+"""Module docstring mentioning import doc.only.look_alike."""
+import alpha.beta.gamma
+import alpha.delta as eps
+from zeta.eta import theta, iota as kappa
+from . import relative_sibling
+from ..relative import parent_thing
+
+if flag:
+    import if_body
+elif other:
+    from elif_mod import a as b
+else:
+    import else_body
+
+for item in items:
+    import for_body
+else:
+    import for_else
+
+while cond:
+    import while_body
+else:
+    import while_else
+
+try:
+    import try_body
+except ValueError:
+    import handler_one
+except (TypeError, KeyError) as exc:
+    import handler_two
+else:
+    import try_else
+finally:
+    import try_finally
+
+try:
+    import try_star_body
+except* GroupError:
+    import handler_star
+
+with open(p) as fh:
+    import with_body
+
+
+def fn():
+    import def_body
+
+    class Inner:
+        import class_body
+
+        async def method(self):
+            import method_body
+
+    return [x for x in range(3)]  # import list.look_alike.not_a_module
+
+
+class Outer:
+    attr = "import str.look_alike.not_a_module"
+    # import comment.look_alike.not_a_module
+
+    def m(self):
+        import method_in_class
+
+
+async def afn():
+    import async_def_body
+    async with lock:
+        import async_with_body
+    match point:
+        case Point(x=0, y=0):
+            import case_one
+        case [_, second] if second:
+            import case_guard
+            match second:
+                case str():
+                    import nested_case
+        case {"key": value}:
+            import case_mapping
+        case _:
+            import case_wildcard
+'''
+
+
+class TestImportCandidates:
+    """``_import_candidates`` walks statement lists only (an import is a
+    statement); these hold it equal to the ``ast.walk`` form it replaced."""
+
+    @staticmethod
+    def _walk_reference(tree: ast.AST) -> set[str]:
+        names: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names.update(a.name for a in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                names.add(node.module)
+                names.update(f"{node.module}.{a.name}" for a in node.names)
+        return names
+
+    def test_matches_ast_walk_on_every_compound_form(self):
+        tree = ast.parse(_ALL_NESTING_FORMS)
+        names = rss._import_candidates(tree)
+        assert names == self._walk_reference(tree)
+        nested = (
+            "if_body",
+            "elif_mod",
+            "else_body",
+            "for_body",
+            "for_else",
+            "while_body",
+            "while_else",
+            "try_body",
+            "handler_one",
+            "handler_two",
+            "handler_star",
+            "try_else",
+            "try_finally",
+            "try_star_body",
+            "with_body",
+            "async_with_body",
+            "def_body",
+            "class_body",
+            "method_body",
+            "method_in_class",
+            "async_def_body",
+            "case_one",
+            "case_guard",
+            "nested_case",
+            "case_mapping",
+            "case_wildcard",
+        )
+        assert set(nested) <= names
+        assert {
+            "alpha.beta.gamma",
+            "alpha.delta",
+            "zeta.eta",
+            "zeta.eta.theta",
+            "zeta.eta.iota",
+        } <= names
+
+    def test_look_alikes_and_relative_imports_do_not_count(self):
+        names = rss._import_candidates(ast.parse(_ALL_NESTING_FORMS))
+        assert not {n for n in names if n.startswith(("doc.", "list.", "str.", "comment."))}
+        assert not {"relative_sibling", "relative", "relative.parent_thing"} & names
+
+    def test_statement_walk_reaches_exactly_the_statements(self):
+        tree = ast.parse(_ALL_NESTING_FORMS)
+        reached = {id(n) for n in rss._iter_statements(tree)}
+        assert reached == {id(n) for n in ast.walk(tree) if isinstance(n, ast.stmt)}
+
+    def test_matches_ast_walk_on_a_sample_of_repo_sources(self):
+        root = Path(__file__).resolve().parents[1]
+        sources = (
+            sorted((root / "helpers").rglob("*.py"))[::6]
+            + sorted((root / "tests").glob("test_*.py"))[::16]
+            + [root / "app.py"]
+        )
+        compared = 0
+        for path in sources:
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+            except SyntaxError:
+                continue
+            assert rss._import_candidates(tree) == self._walk_reference(tree), path
+            compared += 1
+        assert compared > 50
 
 
 class TestFreshnessAndIncremental:

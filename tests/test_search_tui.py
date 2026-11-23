@@ -262,10 +262,13 @@ def test_fts_safe_degrades_bad_syntax() -> None:
 
 def test_index_ages_missing_and_present(tmp_path: Path) -> None:
     (tmp_path / "memory").mkdir()
-    (tmp_path / "memory" / "research.db").write_text("")
+    # notes ages read the DuckDB note store; the SQLite research.db that
+    # the old mapping named is gone since Build route P4 (2026-11-21).
+    (tmp_path / "memory" / "note_search.duckdb").write_text("")
     ages = index_ages(tmp_path)
     assert "docs MISSING" in ages
     assert "notes 0h" in ages
+    assert "notes MISSING" not in ages
 
 
 # ---------------------------------------------------------------- pilot UI

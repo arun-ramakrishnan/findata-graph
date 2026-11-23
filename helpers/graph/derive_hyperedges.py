@@ -87,6 +87,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.frontmatter import split_frontmatter, yaml_safe_load  # noqa: E402
+from helpers.core.vec_search import _is_duckdb_conn  # noqa: E402  # engine branch for batched UPDATE-FROM
 from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
 
 COMPANIES_DIR = _REPO_ROOT / "findata" / "Companies"
@@ -1651,6 +1652,9 @@ def prune_stale_group_edges(conn, wanted_labels: set[str], *, dry_run: bool) -> 
     return stats
 
 
+_SQL_CHUNK = 500  # max VALUES tuples / IN-list placeholders per statement
+
+
 def compact_membership(
     conn,
     hyper_type: str,
@@ -1673,31 +1677,66 @@ def compact_membership(
     ``--families`` run legitimately collects only its selection.
 
     Returns incidences deleted (or would-delete in dry-run).
+
+    Batched (2026-11-23): the per-label edge lookup + per-label
+    COUNT/DELETE pair cost ~1 ms per statement — 5,662 statements ≈ 9.2 s
+    of a full derive (cProfile). The edge ids are resolved with chunked
+    IN-lists, the wanted membership is staged in a temp table, and the
+    prune runs as one anti-join (identical predicate per label: keep
+    exactly the wanted members of the wanted edges).
     """
-    pruned = 0
-    for label, members in groups.items():
-        if not members or any(label.startswith(p) for p in skip_prefixes):
-            continue
-        edge = conn.execute(
-            "SELECT id FROM hyper_edges WHERE edge_type = ? AND label = ?",
-            (hyper_type, label),
-        ).fetchone()
-        if edge is None:
-            continue
-        qmarks = ",".join("?" * len(members))
-        if dry_run:
-            cur = conn.execute(
-                f"SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ? "  # noqa: S608  # ?-placeholders only, values parameterized
-                f"AND entity_name NOT IN ({qmarks})",
-                (edge[0], *members),
-            )
-        else:
-            cur = conn.execute(
-                f"DELETE FROM hyper_incidences WHERE edge_id = ? "  # noqa: S608  # ?-placeholders only, values parameterized
-                f"AND entity_name NOT IN ({qmarks})",
-                (edge[0], *members),
-            )
-        pruned += cur.fetchone()[0] if dry_run else cur.rowcount
+    labels = [
+        (label, sorted(members))
+        for label, members in groups.items()
+        if members and not any(label.startswith(p) for p in skip_prefixes)
+    ]
+    if not labels:
+        return 0
+
+    edge_ids: dict[str, int] = {}
+    for i in range(0, len(labels), _SQL_CHUNK):
+        chunk = labels[i : i + _SQL_CHUNK]
+        marks = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT id, label FROM hyper_edges WHERE edge_type = ? AND label IN ({marks})",  # noqa: S608
+            (hyper_type, *(label for label, _ in chunk)),
+        ).fetchall()
+        edge_ids.update({label: eid for eid, label in rows})
+    if not edge_ids:
+        return 0
+
+    want = [
+        (edge_ids[label], member)
+        for label, members in labels
+        if label in edge_ids
+        for member in members
+    ]
+    # sqlite has no CREATE OR REPLACE TEMP TABLE; drop-then-create is
+    # engine-neutral (temp.* qualification resolves the temp schema first
+    # on both engines, so a stale main-schema leftover can't be hit).
+    conn.execute("DROP TABLE IF EXISTS temp._compact_want")
+    conn.execute("CREATE TEMP TABLE _compact_want (edge_id BIGINT, entity_name TEXT)")
+    for i in range(0, len(want), _SQL_CHUNK):
+        part = want[i : i + _SQL_CHUNK]
+        marks = ",".join("(?, ?)" for _ in part)
+        conn.execute(
+            f"INSERT INTO _compact_want VALUES {marks}",  # noqa: S608
+            [v for row in part for v in row],
+        )
+    predicate = (
+        "hyper_incidences.edge_id IN (SELECT edge_id FROM _compact_want) AND NOT EXISTS ("
+        "SELECT 1 FROM _compact_want w WHERE w.edge_id = hyper_incidences.edge_id "
+        "AND w.entity_name = hyper_incidences.entity_name)"
+    )
+    if dry_run:
+        pruned = conn.execute(
+            "SELECT COUNT(*) FROM hyper_incidences WHERE " + predicate  # noqa: S608 - internal SQL
+        ).fetchone()[0]
+    else:
+        pruned = conn.execute(
+            "DELETE FROM hyper_incidences WHERE " + predicate  # noqa: S608 - internal SQL
+        ).rowcount
+    conn.execute("DROP TABLE _compact_want")
     return pruned
 
 
@@ -1771,14 +1810,30 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
             for hyper_type, groups in hyper.items():
                 new_edges = 0
                 new_inc = 0
-                for label, members in sorted(groups.items()):
-                    is_new = (hyper_type, label) not in existing_edges
-                    if dry_run and is_new:
-                        new_edges += 1
-                        new_inc += len(members)
-                        continue
+                ordered = sorted(groups.items())
 
-                    if not dry_run:
+                if not dry_run:
+                    # One pass: id + current properties + valid_from for every
+                    # existing label of this edge_type (was a per-label SELECT
+                    # plus a no-op props UPDATE per label — ~1 ms each).
+                    have: dict[str, tuple[int, object, object]] = {}
+                    for i in range(0, len(ordered), _SQL_CHUNK):
+                        chunk = ordered[i : i + _SQL_CHUNK]
+                        marks = ",".join("?" * len(chunk))
+                        rows = conn.execute(
+                            f"SELECT label, id, properties, valid_from FROM hyper_edges "  # noqa: S608
+                            f"WHERE edge_type = ? AND label IN ({marks})",
+                            (hyper_type, *(label for label, _ in chunk)),
+                        ).fetchall()
+                        have.update(
+                            {
+                                label: (eid, props_old, vf_old)
+                                for label, eid, props_old, vf_old in rows
+                            }
+                        )
+
+                    props_json_by_label = {}
+                    for label, members in ordered:
                         # base properties every hyperedge carries; S4 event
                         # facets merge in (period/date_precision/magnitude)
                         props = {
@@ -1787,20 +1842,29 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
                         }
                         if facets:
                             props.update(facets.get("props", {}).get(label, {}))
-                        props_json = json.dumps(props, sort_keys=True)
-                        # refresh properties on existing hyperedges too
-                        # (upstream_types was [] for industry before S8 —
-                        # backfills converge stale props in one pass).
-                        # Best-effort: DuckDB 2.x FK law refuses ANY row
-                        # rewrite of hyper_edges while hyper_incidences
-                        # reference it — the skip leaves stale metadata on
-                        # populated edges until a full S0-prune re-derive
-                        # (measured 2026-11-22, the two-edition gate arc).
+                        props_json_by_label[label] = json.dumps(props, sort_keys=True)
+
+                    # refresh properties on existing hyperedges only where the
+                    # JSON actually differs (upstream_types was [] for industry
+                    # before S8 — backfills converge stale props in one pass).
+                    # Best-effort: DuckDB 2.x FK law refuses ANY row rewrite of
+                    # hyper_edges while hyper_incidences reference it — the
+                    # skip leaves stale metadata on populated edges until a
+                    # full S0-prune re-derive (measured 2026-11-22, the
+                    # two-edition gate arc).
+                    for label, _members in ordered:
+                        if label not in have or have[label][1] == props_json_by_label[label]:
+                            continue
                         try:
                             conn.execute(
                                 "UPDATE hyper_edges SET properties = ?"
                                 "WHERE edge_type = ? AND label = ? AND properties != ?",
-                                (props_json, hyper_type, label, props_json),
+                                (
+                                    props_json_by_label[label],
+                                    hyper_type,
+                                    label,
+                                    props_json_by_label[label],
+                                ),
                             )
                         except Exception as e:  # noqa: BLE001  # best-effort restamp
                             print(
@@ -1808,74 +1872,169 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
                                 f"{hyper_type}/{label} (referenced by incidences): {e}",
                                 file=sys.stderr,
                             )
-                        if facets:
+                    if facets:
+                        for label, _members in ordered:
                             vf = facets.get("valid_from", {}).get(label)
-                            if vf:
-                                try:
-                                    conn.execute(
-                                        "UPDATE hyper_edges SET valid_from = ? "
-                                        "WHERE edge_type = ? AND label = ? AND valid_from IS NOT ?",
-                                        (vf, hyper_type, label, vf),
-                                    )
-                                except Exception as e:  # noqa: BLE001  # best-effort restamp
-                                    print(
-                                        f"WARNING: hyperedge valid_from restamp skipped for "
-                                        f"{hyper_type}/{label} (referenced by incidences): {e}",
-                                        file=sys.stderr,
-                                    )
-                        if is_new:
-                            source_ref = f"derive:hyperedges:{_upstream(hyper_type)}"
-                            vf_new = facets.get("valid_from", {}).get(label) if facets else None
-                            cur = conn.execute(
-                                "INSERT OR IGNORE INTO hyper_edges "
-                                "(edge_type, label, properties, source_ref, valid_from) "
-                                "VALUES (?, ?, ?, ?, ?)",
-                                (hyper_type, label, props_json, source_ref, vf_new),
-                            )
-                            if cur.rowcount:
-                                new_edges += 1
-                        edge_id = conn.execute(
-                            "SELECT id FROM hyper_edges WHERE edge_type = ? AND label = ?",
-                            (hyper_type, label),
-                        ).fetchone()[0]
+                            if not vf or label not in have or have[label][2] == vf:
+                                continue
+                            try:
+                                conn.execute(
+                                    "UPDATE hyper_edges SET valid_from = ? "
+                                    "WHERE edge_type = ? AND label = ? AND valid_from IS NOT ?",
+                                    (vf, hyper_type, label, vf),
+                                )
+                            except Exception as e:  # noqa: BLE001  # best-effort restamp
+                                print(
+                                    f"WARNING: hyperedge valid_from restamp skipped for "
+                                    f"{hyper_type}/{label} (referenced by incidences): {e}",
+                                    file=sys.stderr,
+                                )
+
+                    # new edges: one multi-row INSERT OR IGNORE per chunk
+                    edge_rows = []
+                    for label, members in ordered:
+                        if (hyper_type, label) in existing_edges:
+                            continue
+                        source_ref = f"derive:hyperedges:{_upstream(hyper_type)}"
+                        vf_new = facets.get("valid_from", {}).get(label) if facets else None
+                        edge_rows.append(
+                            (hyper_type, label, props_json_by_label[label], source_ref, vf_new)
+                        )
+                    for i in range(0, len(edge_rows), _SQL_CHUNK):
+                        part = edge_rows[i : i + _SQL_CHUNK]
+                        marks = ",".join("(?, ?, ?, ?, ?)" for _ in part)
+                        cur = conn.execute(
+                            f"INSERT OR IGNORE INTO hyper_edges "  # noqa: S608
+                            f"(edge_type, label, properties, source_ref, valid_from) VALUES {marks}",
+                            [v for row in part for v in row],
+                        )
+                        new_edges += cur.rowcount
+
+                    # edge ids: known for existing labels, fetched once for the rest
+                    edge_ids = {label: spec[0] for label, spec in have.items()}
+                    missing = [label for label, _ in ordered if label not in edge_ids]
+                    for i in range(0, len(missing), _SQL_CHUNK):
+                        chunk = missing[i : i + _SQL_CHUNK]
+                        marks = ",".join("?" * len(chunk))
+                        rows = conn.execute(
+                            f"SELECT label, id FROM hyper_edges WHERE edge_type = ? AND label IN ({marks})",  # noqa: S608
+                            (hyper_type, *chunk),
+                        ).fetchall()
+                        edge_ids.update({label: eid for label, eid in rows})
+
+                    want_rows = []
+                    for label, members in ordered:
+                        eid = edge_ids.get(label)
+                        if eid is None:
+                            continue
                         for member in sorted(members):
                             w = (weights or {}).get((hyper_type, label, member))
                             role = facets.get("roles", {}).get((label, member)) if facets else None
-                            cur = conn.execute(
-                                "INSERT OR IGNORE INTO hyper_incidences "
-                                "(edge_id, entity_name, weight, role) VALUES (?, ?, ?, ?)",
-                                (edge_id, member, w, role),
-                            )
-                            if cur.rowcount:
-                                new_inc += 1  # genuinely new membership
-                            else:
-                                # existing member: converge the intensity
-                                # (S8 re-runs after new quotes) and, in
-                                # --roles mode, the participant role (S4 —
-                                # untagged participants converge to NULL)
-                                if w is not None:
-                                    conn.execute(
-                                        "UPDATE hyper_incidences SET weight = ? "
-                                        "WHERE edge_id = ? AND entity_name = ?",
-                                        (w, edge_id, member),
-                                    )
-                                if facets:
-                                    conn.execute(
-                                        "UPDATE hyper_incidences SET role = ? "
-                                        "WHERE edge_id = ? AND entity_name = ? AND role IS NOT ?",
-                                        (role, edge_id, member, role),
-                                    )
+                            want_rows.append((eid, member, w, role))
+
+                    # existing incidences: batched so the INSERT fan-out only
+                    # covers genuinely new membership
+                    edge_id_list = sorted({eid for eid, *_ in want_rows})
+                    have_pairs: set[tuple[int, str]] = set()
+                    for i in range(0, len(edge_id_list), _SQL_CHUNK):
+                        chunk_ids = edge_id_list[i : i + _SQL_CHUNK]
+                        marks = ",".join("?" * len(chunk_ids))
+                        have_pairs.update(
+                            conn.execute(
+                                f"SELECT edge_id, entity_name FROM hyper_incidences WHERE edge_id IN ({marks})",  # noqa: S608
+                                chunk_ids,
+                            ).fetchall()
+                        )
+
+                    fresh = [row for row in want_rows if (row[0], row[1]) not in have_pairs]
+                    for i in range(0, len(fresh), _SQL_CHUNK):
+                        part = fresh[i : i + _SQL_CHUNK]
+                        marks = ",".join("(?, ?, ?, ?)" for _ in part)
+                        cur = conn.execute(
+                            f"INSERT OR IGNORE INTO hyper_incidences "  # noqa: S608
+                            f"(edge_id, entity_name, weight, role) VALUES {marks}",
+                            [v for row in part for v in row],
+                        )
+                        new_inc += cur.rowcount  # genuinely new membership
+
+                    # existing members: converge the intensity (S8 re-runs
+                    # after new quotes) and, in --roles mode, the participant
+                    # role (S4 — untagged participants converge to NULL)
+                    weight_updates = [
+                        (w, eid, member)
+                        for eid, member, w, _role in want_rows
+                        if (eid, member) in have_pairs and w is not None
+                    ]
+                    # Engine shapes: sqlite names bare VALUES columns
+                    # column1..N, duckdb col0..N-1; neither accepts the
+                    # postgres-style column-alias list on a FROM alias, so the
+                    # inner SELECT renames them instead (sync_tags.py IS
+                    # DISTINCT FROM doctrine for the role predicate).
+                    if _is_duckdb_conn(conn):
+                        wcol, ecol, mcol = "col0", "col1", "col2"
                     else:
-                        # dry-run, edge exists: count only missing incidences
-                        edge_id = conn.execute(
-                            "SELECT id FROM hyper_edges WHERE edge_type = ? AND label = ?",
-                            (hyper_type, label),
-                        ).fetchone()[0]
-                        n_have = conn.execute(
-                            "SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ?",
-                            (edge_id,),
-                        ).fetchone()[0]
-                        new_inc += max(0, len(members) - n_have)
+                        wcol, ecol, mcol = "column1", "column2", "column3"
+                    for i in range(0, len(weight_updates), _SQL_CHUNK):
+                        part = weight_updates[i : i + _SQL_CHUNK]
+                        marks = ",".join("(?, ?, ?)" for _ in part)
+                        conn.execute(
+                            f"UPDATE hyper_incidences SET weight = data.weight "  # noqa: S608
+                            f"FROM (SELECT {wcol} AS weight, {ecol} AS edge_id, {mcol} AS entity_name "
+                            f"FROM (VALUES {marks})) AS data "
+                            f"WHERE hyper_incidences.edge_id = data.edge_id "
+                            f"AND hyper_incidences.entity_name = data.entity_name",
+                            [v for row in part for v in row],
+                        )
+                    if facets:
+                        role_updates = [
+                            (role, eid, member)
+                            for eid, member, _w, role in want_rows
+                            if (eid, member) in have_pairs
+                        ]
+                        for i in range(0, len(role_updates), _SQL_CHUNK):
+                            part = role_updates[i : i + _SQL_CHUNK]
+                            marks = ",".join("(?, ?, ?)" for _ in part)
+                            conn.execute(
+                                f"UPDATE hyper_incidences SET role = data.role "  # noqa: S608
+                                f"FROM (SELECT {wcol} AS role, {ecol} AS edge_id, {mcol} AS entity_name "
+                                f"FROM (VALUES {marks})) AS data "
+                                f"WHERE hyper_incidences.edge_id = data.edge_id "
+                                f"AND hyper_incidences.entity_name = data.entity_name "
+                                f"AND hyper_incidences.role IS DISTINCT FROM data.role",
+                                [v for row in part for v in row],
+                            )
+                else:
+                    # dry-run, edge exists: count only missing incidences —
+                    # ids and counts resolved in batched passes
+                    ids: dict[str, int] = {}
+                    for i in range(0, len(ordered), _SQL_CHUNK):
+                        chunk = ordered[i : i + _SQL_CHUNK]
+                        marks = ",".join("?" * len(chunk))
+                        rows = conn.execute(
+                            f"SELECT label, id FROM hyper_edges WHERE edge_type = ? AND label IN ({marks})",  # noqa: S608
+                            (hyper_type, *(label for label, _ in chunk)),
+                        ).fetchall()
+                        ids.update({label: eid for label, eid in rows})
+                    counts: dict[int, int] = {}
+                    id_list = sorted(set(ids.values()))
+                    for i in range(0, len(id_list), _SQL_CHUNK):
+                        chunk_ids = id_list[i : i + _SQL_CHUNK]
+                        marks = ",".join("?" * len(chunk_ids))
+                        rows = conn.execute(
+                            f"SELECT edge_id, COUNT(*) FROM hyper_incidences "  # noqa: S608
+                            f"WHERE edge_id IN ({marks}) GROUP BY edge_id",
+                            chunk_ids,
+                        ).fetchall()
+                        counts.update({eid: n for eid, n in rows})
+                    for label, members in ordered:
+                        if (hyper_type, label) not in existing_edges:
+                            new_edges += 1
+                            new_inc += len(members)
+                            continue
+                        eid = ids.get(label)
+                        if eid is None:
+                            continue
+                        new_inc += max(0, len(members) - counts.get(eid, 0))
                 stats[hyper_type] = (new_edges, new_inc)
     finally:
         if own_conn:

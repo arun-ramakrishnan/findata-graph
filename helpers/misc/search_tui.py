@@ -2143,12 +2143,18 @@ def open_command(hit: Hit, root: Path, force_editor: bool = False) -> list[str] 
 
 
 def index_ages(root: Path) -> str:
-    """Human ages of the search-fresh sidecars, for the status bar."""
+    """Human ages of the search-fresh sidecars, for the status bar.
+
+    ``notes`` reads the DuckDB note store. Build route P4 (2026-11-21)
+    deleted the frozen SQLite estate ``memory/research.db``, so the old
+    path printed ``notes MISSING`` on every call while the notes leg
+    answered normally (seen live 2026-11-23).
+    """
     parts = []
     for label, rel in (
         ("docs", "memory/doc_search.duckdb"),
         ("scripts", "memory/script_search.duckdb"),
-        ("notes", "memory/research.db"),
+        ("notes", "memory/note_search.duckdb"),
         ("memory", "memory/memory_search.duckdb"),
         ("convo", "memory/convo_search.duckdb"),
         ("git", "memory/git_search.duckdb"),

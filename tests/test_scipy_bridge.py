@@ -701,6 +701,136 @@ def test_closeness_harmonic_all_universe_dryrun(store, capsys):
     assert "b: 0.500000" in out  # WF top: center of the path component
 
 
+def _full_universe_oracle(A):
+    """Plain-Python oracle for full_universe_stats: per-node hop lists off the
+    full distance matrix, harmonic summed with math.fsum."""
+    import math
+
+    from scipy.sparse.csgraph import connected_components, dijkstra
+
+    n = A.shape[0]
+    D = dijkstra(A, directed=False, unweighted=True)
+    n_comp, comp = connected_components(A, directed=False)
+    sizes = np.bincount(comp, minlength=n_comp)
+    giant = int(sizes.argmax())
+    clo, harm, ecc, reach, sums = [], [], [], [], []
+    for s in range(n):
+        hops = [int(x) for x in D[s] if np.isfinite(x) and x > 0]
+        sum_d, r = sum(hops), len(hops)
+        clo.append((n - 1) / sum_d * (r / (n - 1)) ** 2 if sum_d else 0.0)
+        harm.append(math.fsum(1.0 / h for h in hops))
+        ecc.append(max(hops) if hops else 0)
+        reach.append(r)
+        sums.append(sum_d)
+    ecc_a, reach_a = np.array(ecc), np.array(reach)
+    total_sum, total_cnt = float(sum(sums)), int(sum(reach))
+    ecc_all, giant_rows = ecc_a[reach_a > 0], (comp == giant) & (reach_a > 0)
+    return {
+        "closeness": np.array(clo),
+        "harmonic": np.array(harm),
+        "structure": {
+            "diameter": int(ecc_all.max()) if ecc_all.size else 0,
+            "radius": int(ecc_a[giant_rows].min()) if giant_rows.any() else 0.0,
+            "avg_path_length": (total_sum / total_cnt) if total_cnt else 0.0,
+            "reachable_pairs": total_cnt,
+            "components": int(n_comp),
+            "largest_component": int(sizes[giant]),
+        },
+    }
+
+
+def _componented_csr():
+    """54 nodes: a random 40-node core, a 5-cycle (40-44), a 7-node path
+    (45-51) and two isolated nodes (52, 53) — built like load_projection."""
+    from scipy.sparse import csr_matrix
+
+    rng = np.random.default_rng(7)
+    edges = set()
+    while len(edges) < 60:
+        s, t = (int(x) for x in rng.integers(0, 40, size=2))
+        if s != t:
+            edges.add((min(s, t), max(s, t)))
+    edges |= {(40 + i, 40 + (i + 1) % 5) for i in range(5)}
+    edges |= {(45 + i, 46 + i) for i in range(6)}
+    r = np.fromiter((s for s, _ in edges), dtype=np.int64, count=len(edges))
+    c = np.fromiter((t for _, t in edges), dtype=np.int64, count=len(edges))
+    both = np.concatenate([r, c])
+    return csr_matrix((np.ones(both.size), (both, np.concatenate([c, r]))), shape=(54, 54))
+
+
+def test_full_universe_stats_hand_oracle(store):
+    """Path a-b-c + pair d-e: WF closeness, raw harmonic and the structure
+    scalars by hand (same golden graph as test_structure_stats_golden)."""
+    A, names = sb.load_projection(store)
+    res = sb.full_universe_stats(A, jobs=1)
+    pos = {n: i for i, n in enumerate(names)}
+    assert res["closeness"][pos["a"]] == pytest.approx(1 / 3, abs=1e-12)
+    assert res["closeness"][pos["b"]] == pytest.approx(0.5, abs=1e-12)
+    assert res["closeness"][pos["d"]] == pytest.approx(0.25, abs=1e-12)
+    assert dict(zip(names, res["harmonic"], strict=True)) == {
+        "a": 1.5,
+        "b": 2.0,
+        "c": 1.5,
+        "d": 1.0,
+        "e": 1.0,
+    }
+    assert res["structure"] == {
+        "diameter": 2,
+        "radius": 1,
+        "avg_path_length": 1.25,
+        "reachable_pairs": 8,
+        "components": 2,  # the path and the pair
+        "largest_component": 3,
+    }
+
+
+def test_full_universe_stats_matches_oracle_across_block_sizes(monkeypatch):
+    """The hop-histogram reduction equals the plain oracle whatever the row
+    block (one block, ragged tail, one row per block); isolated rows score 0."""
+    A = _componented_csr()
+    ref = _full_universe_oracle(A)
+    for block in (256, 8, 1):  # 54 rows: one block / 6×8+5 / per-row
+        monkeypatch.setattr(sb, "_FULL_UNIVERSE_BLOCK", block)
+        res = sb.full_universe_stats(A, jobs=1)
+        np.testing.assert_allclose(res["closeness"], ref["closeness"], rtol=0, atol=1e-12)
+        np.testing.assert_allclose(res["harmonic"], ref["harmonic"], rtol=1e-12)
+        assert res["structure"] == ref["structure"]
+    # isolated rows score 0; a 5-cycle node sees 1, 1, 2, 2 hops -> 1+1+0.5+0.5
+    assert res["closeness"][52:].tolist() == [0.0, 0.0]
+    assert res["harmonic"][52:].tolist() == [0.0, 0.0]
+    assert res["harmonic"][40:45].tolist() == [3.0] * 5
+    # core + cycle + path + two singletons (the random core may split further)
+    assert res["structure"]["components"] >= 4
+    assert res["structure"]["largest_component"] >= 7
+
+
+def test_full_universe_stats_empty_graph():
+    from scipy.sparse import csr_matrix
+
+    res = sb.full_universe_stats(csr_matrix((0, 0)), jobs=1)
+    assert res["closeness"].size == 0 and res["harmonic"].size == 0
+    assert res["structure"] == {
+        "diameter": 0,
+        "radius": 0,
+        "avg_path_length": 0.0,
+        "reachable_pairs": 0,
+        "components": 0,
+        "largest_component": 0,
+    }
+
+
+@pytest.mark.filterwarnings("ignore:This process .* is multi-threaded.*:DeprecationWarning")
+def test_full_universe_stats_jobs2_matches_jobs1(monkeypatch):
+    """Shard boundaries (54 -> 27 | 27) and block boundaries inside them."""
+    A = _componented_csr()
+    monkeypatch.setattr(sb, "_FULL_UNIVERSE_BLOCK", 7)
+    one = sb.full_universe_stats(A, jobs=1)
+    two = sb.full_universe_stats(A, jobs=2)
+    np.testing.assert_array_equal(two["closeness"], one["closeness"])
+    np.testing.assert_allclose(two["harmonic"], one["harmonic"], rtol=1e-12)
+    assert two["structure"] == one["structure"]
+
+
 # --------------------------------------------------------------------------- #
 # Personalized PageRank (scipy exact-solve lane) — proposal
 # doc/improvements/archive/graph/scipy_personalized_pagerank.md §4

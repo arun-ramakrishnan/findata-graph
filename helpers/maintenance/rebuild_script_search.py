@@ -308,17 +308,49 @@ def _top_level_names(tree: ast.Module | None) -> list[str]:
     ]
 
 
+# Statement-list fields through which Python nests statements: the bodies of
+# the compound statements (if/for/while/try/with/def/class) and the lists of
+# owners that carry one (except handlers, match cases).
+_STMT_LIST_FIELDS = ("body", "orelse", "finalbody")
+_STMT_LIST_OWNERS = ("handlers", "cases")
+
+
+def _iter_statements(tree: ast.AST):
+    """Yield every statement of *tree*, descending through statement lists ONLY.
+
+    ``ast.walk`` visits every node of the tree, and expressions are nearly all
+    of them (1.44 M nodes for the ~660 repo Python units, 6.2 s — 60% of a
+    script-index apply, measured 2026-11-23). An import is a statement, and the
+    grammar nests statements solely through the compound-statement bodies, so a
+    walk of statement lists reaches the same imports without entering any
+    expression. Field access is generic (any statement exposing one of these
+    list fields is descended), so a later compound statement needs no edit here.
+    Tests hold this equal to an ``ast.walk`` reference on every compound form
+    and on a sample of repo sources (tests/test_rebuild_script_search.py)."""
+    stack: list[list[ast.stmt]] = [list(getattr(tree, "body", []))]
+    while stack:
+        for node in stack.pop():
+            yield node
+            for field in _STMT_LIST_FIELDS:
+                body = getattr(node, field, None)
+                if isinstance(body, list):
+                    stack.append(body)
+            for field in _STMT_LIST_OWNERS:
+                stack.extend(owner.body for owner in getattr(node, field, None) or ())
+
+
 def _import_candidates(tree: ast.Module | None) -> set[str]:
     """Dotted module names an AST references, as import-match candidates.
 
     `import a.b.c` -> {a.b.c}; `from a.b import c` -> {a.b, a.b.c}. This is
     the ONLY test->script mapping signal (no grep-mention: comments and
     string literals would make `tested_by` noisy, and it is only useful if
-    precise)."""
+    precise). Relative imports (`from . import x`) are skipped: they name no
+    importable dotted module."""
     if tree is None:
         return set()
     names: set[str] = set()
-    for node in ast.walk(tree):
+    for node in _iter_statements(tree):
         if isinstance(node, ast.Import):
             names.update(a.name for a in node.names)
         elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:

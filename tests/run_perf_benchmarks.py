@@ -333,10 +333,16 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         ["helpers/graph/scipy_matching.py", "match-suppliers"],
         3.0,
     ),
+    # hyper_derive re-baselined 2026-11-23 (operator ruling: "raise budget
+    # to 12s"). The 4.0 entry dates from 2026-11-01 (baseline 1.71 s x2);
+    # by 2026-11-23, after the 2026-11-22 duckdb cutover, the dry-run
+    # measured 18.34 s on a quiet box. The batched compact_membership /
+    # apply_hyperedges rewrite brought it to 4.58 s (identical dry-run
+    # output, old vs new).
     (
         "hyper_derive",
         ["helpers/graph/derive_hyperedges.py"],
-        4.0,
+        12.0,
     ),
     (
         "price_census",

@@ -51,24 +51,26 @@ def _ceiling_ms(cold_ms: float) -> float:
 def test_hot_route_returns_within_budget(unit_client, route):
     """Each hot route answers within its measured ceiling.
 
-    Takes the best of 3 requests: under xdist the suite runs 4 workers on
+    Takes the best of 5 requests: under xdist the suite runs 4 workers on
     a 4-core box, and a co-running worker can add ~3x contention to a
     single-shot timing (measured: sector/Banking swings 269-805 ms under
-    load). Best-of-3 measures the route's own cost, not the scheduler's,
+    load). Best-of-5 measures the route's own cost, not the scheduler's,
     which is what the budget is about -- a genuine AVAIL-1-class slowdown
     (53 s) exceeds any contention envelope.
     """
     ceiling_s = _ceiling_ms(_BASELINES_MS[route]) / 1000.0
     best = float("inf")
-    for _ in range(3):
+    status = 0
+    for _ in range(5):
         t0 = time.perf_counter()
         r = unit_client.get(route)
         best = min(best, time.perf_counter() - t0)
+        status = r.status_code
     # 404 is a legitimate fast answer for a fixture-shaped miss; the budget
     # guards the *compute* path, and a 404 that takes 10 s is still a bug.
     assert best < ceiling_s, (
-        f"{route} took {best * 1000:.0f} ms (best of 3), ceiling "
-        f"{ceiling_s * 1000:.0f} ms; status {r.status_code}"
+        f"{route} took {best * 1000:.0f} ms (best of 5), ceiling "
+        f"{ceiling_s * 1000:.0f} ms; status {status}"
     )
 
 

@@ -301,6 +301,12 @@ def _structure_worker(payload: tuple) -> tuple[float, float, float, int]:
     )
 
 
+# Row-block size of the all-universe pass. One block is block × n float64
+# (256 × 22.8k = 47 MB live) and is reduced before the next is computed, so no
+# shard-sized distance matrix (5.7k × 22.8k = 1 GB at 4 jobs) is ever held.
+_FULL_UNIVERSE_BLOCK = 256
+
+
 def _full_universe_worker(payload: tuple) -> tuple:
     """One sharded dijkstra pass -> WF centralities + structure scalars.
 
@@ -311,37 +317,67 @@ def _full_universe_worker(payload: tuple) -> tuple:
     costs one pass, not two (scipy_exact_universe S6). Diagonal:
     excluded from structure sums/counts; INCLUDED in the WF reach count
     r (the (r-1)/(N-1) convention counts self).
+
+    Reduction (2026-11-23): unweighted distances are hop counts, so each
+    block is reduced through a per-row HOP HISTOGRAM instead of full-size
+    float temporaries — reach, distance sums, harmonic sums
+    (sum of count/hop) and eccentricity all read off the counts. On the
+    live projection (22,840 nodes / 69,913 edges) the stamp's all-universe
+    pass went 70.0 s -> 46.1 s at jobs=4; the remaining time is the
+    dijkstra itself. Closeness and the structure scalars are bit-identical
+    to the per-entry sums; harmonic is the same sum re-associated (last
+    ulp). Tests: tests/test_scipy_bridge.py (hand oracle + plain-Python
+    oracle across block sizes).
     """
     A, lo, hi, comp, giant, n_all = payload
-    D = dijkstra(A, directed=False, indices=np.arange(lo, hi), unweighted=True)
-    finite = np.isfinite(D)
-    D[~finite] = 0.0
-    local = np.arange(hi - lo)
-    D[local, np.arange(lo, hi)] = 0.0
-    finite[local, np.arange(lo, hi)] = False
-    # centralities (diagonal excluded from sums, included in r):
-    r = finite.sum(axis=1) + 1  # restore the self count for WF
-    sum_d = D.sum(axis=1)
     N = n_all
+    rows = hi - lo
+    # Per-row accumulators, filled block by block (a block is the unit of work
+    # because the dense distance block, not the shard, is what gets reduced):
+    reach = np.zeros(rows, dtype=np.int64)  # finite OFF-diagonal entries
+    sum_d = np.zeros(rows, dtype=np.int64)  # exact: hops are small integers
+    harm = np.zeros(rows, dtype=np.float64)
+    ecc = np.zeros(rows, dtype=np.int64)  # 0 for a row with no reach
+    for start in range(0, rows, _FULL_UNIVERSE_BLOCK):
+        stop = min(start + _FULL_UNIVERSE_BLOCK, rows)
+        m = stop - start
+        D = dijkstra(A, directed=False, indices=np.arange(lo + start, lo + stop), unweighted=True)
+        D[~np.isfinite(D)] = -1.0
+        # the self pair leaves the histogram (bucket 0 keeps unreachable + self)
+        D[np.arange(m), np.arange(lo + start, lo + stop)] = -1.0
+        d = D.astype(np.int64)  # exact: unweighted distances are hop counts
+        del D
+        width = int(d.max()) + 2  # bucket b holds hop b-1
+        codes = d + 1 + np.arange(m, dtype=np.int64)[:, None] * width
+        counts = np.bincount(codes.ravel(), minlength=m * width).reshape(m, width)
+        # width == 1: no reachable pair in this block (isolated rows only) —
+        # the accumulators already hold their zeros.
+        if width > 2:
+            hops = np.arange(1, width - 1, dtype=np.int64)
+            cnt = counts[:, 2:]
+            reach[start:stop] = cnt.sum(axis=1)
+            sum_d[start:stop] = cnt @ hops
+            harm[start:stop] = cnt @ (1.0 / hops)
+            ecc[start:stop] = np.max(np.where(cnt > 0, hops, 0), axis=1)
+    # centralities (same WF expression as before the histogram reduction, so
+    # closeness stays bit-identical to the per-entry float sums):
+    r = reach + 1  # restore the self count for WF
+    sd = sum_d.astype(np.float64)
     clo_wf = np.where(
-        sum_d > 0,
-        (N - 1) / np.where(sum_d > 0, sum_d, 1.0) * ((r - 1.0) / (N - 1.0)) ** 2,
-        0.0,
+        sd > 0, (N - 1) / np.where(sd > 0, sd, 1.0) * ((r - 1.0) / (N - 1.0)) ** 2, 0.0
     )
-    harm = np.where(D > 0, 1.0 / np.where(D > 0, D, 1.0), 0.0).sum(axis=1)
     # structure scalars:
-    row_max = D.max(axis=1)
-    has_reach = finite.any(axis=1)
-    ecc = row_max[has_reach]
+    has_reach = reach > 0
+    ecc_all = ecc[has_reach]
     giant_rows = (comp[lo:hi] == giant) & has_reach
-    ecc_giant = row_max[giant_rows]
+    ecc_giant = ecc[giant_rows]
     scalars = (
-        float(ecc.max()) if ecc.size else 0.0,
+        float(ecc_all.max()) if ecc_all.size else 0.0,
         float(ecc_giant.min()) if ecc_giant.size else float("inf"),
-        float(D[finite].sum()),
-        int(finite.sum()),
+        float(sd.sum()),
+        int(reach.sum()),
     )
-    return clo_wf.astype(np.float64), harm.astype(np.float64), scalars
+    return clo_wf.astype(np.float64), harm, scalars
 
 
 class FullUniverseStats(TypedDict):
