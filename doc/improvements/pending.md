@@ -949,6 +949,16 @@ Open items below keep their revisit triggers inline; executed work is compressed
     _TITLE_MEMO — ~1,400 per-run source re-reads eliminated; derive_insights
     CLI 3.33s→2.75s measured).
 
+- **Quote-extractor hardening — CLOSED 2026-11-23, EXECUTED same day**
+  (#562, `archive/database/quote_extractor_hardening.md`): parity
+  closers + masthead/frontmatter guards landed; estate repair ran as
+  one stable-replace apply (17 new / 9,089 kept / 62 stale — the
+  delete-first dance proved unnecessary); census converged
+  (9,106 = 9,106, affected stems 0; null_speaker 2,481 → 2,444, the
+  residue legitimately anonymous); S4 hand-block folds landed
+  shape-preserving. Census driver banked at
+  `bench_data/quote_extractor_census/`.
+
 ## Executed — records only (kept for audit; details in completed.md / archive)
 
 - **Technology avenues** — EXECUTED & ARCHIVED 2026-08-17→18

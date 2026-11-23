@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:23Z'
 stale_after: '2027-02-11'
 sources:
 - id: Half_a_century_in
@@ -157,10 +157,6 @@ _Source: yfinance | Refreshed: 2026-10-16_
 
 > "That is right because corporate travelers will typically book at the last minute and the $l$ much more bundled fares, which will include seat, meal bags included in that, there is a much higher mix of business and first-class in corporate versus consumer. So, the averag realiz…"
 > — Dhruv Shringi, CEO [^chatter-Between_Seasons]
-
-- **That's it for now! Your feedback will really help shape how The Chatter evolves. Dr it down in the comments below! Quotes in this newsletter…**
-
-> "What the hell is happening?" is deliberately messy, more permanent draft than polished product. Each edition examines the collision of mega-trends shaping our world: from the stupidity of trade wars and the weaponization of interdependence, great power competition and planetar…"
 
 [^chatter-Between_Seasons]: Between Seasons — [[Between_Seasons]]
 

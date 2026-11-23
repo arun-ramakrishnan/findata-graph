@@ -17,7 +17,7 @@ created: '2026-09-07'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: Making_It_Work
@@ -192,7 +192,7 @@ _Source: yfinance | Refreshed: 2026-10-16_
 > "This estimate should not be used to make projections for future quarters as there are $m$ factors that could change, including tariff rates."
 > — Tim Cook, CEO [^chatter-Making_It_Work]
 
-> "Substantial" capex growth driven primarily by AI suggests Apple is making generational infrastructure investments that could fundamentally alter its cost structure and competitive positioning in AI-driven markets."
+- **"Substantial" capex growth driven primarily by AI suggests Apple is making generational infrastructure investments that could fundamentally…**
 
 > "I would say a pretty significant driver as Tim talked about is the fact we are increasing investment significantly in AI. So that is certainly a component of it... I would say a significant portion of the driver of growth that you're seeing now is really driven by somi our AI …"
 

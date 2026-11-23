@@ -19,7 +19,7 @@ created: '2026-07-31'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:40:22Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-27'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -201,16 +201,7 @@ in production. …"
 
 > "See, if you look at why SaaS grew in the first place, there were two promises. One was"
 
-> "processes encoded into my platform" and bringing standardization. But the truth is, mo
-
-large enterprises don’t like standardization. They feel it’s being forced on them. The seco
-
-promise, which was true, is that it’s too expensive and too time-consuming to custom-bu
-
-softwar…"
-> — R. Srikrishna, CEO [^chatter-Max_Life_Tempsens_TCS]
-
-- **Hexaware is avoiding high-compliance and core data SaaS segments where incumbents have strong defensive moats. By targeting non-core softwar…**
+- **"processes encoded into my platform" and bringing standardization. But the truth is, mo large enterprises don’t like standardization. They f…**
 
 > "However, if you look at it, there are many types of SaaS that I think will have a moat th
 
@@ -241,12 +232,7 @@ earlier avatar was "legacy modernization," which we started last Jan. So that ha
 
 revenue…"
 
-> "zero tech debt" before this year is out. So that’ll be first off the bat in being more
-
-meaningful."
-> — R. Srikrishna, CEO [^chatter-Max_Life_Tempsens_TCS]
-
-- **The "zero license" strategy uses automated AI agents to quickly analyse and propos custom replacements for existing SaaS expenditures. Succe…**
+- **"zero tech debt" before this year is out. So that’ll be first off the bat in being more meaningful." — R. Srikrishna, CEO The "zero license"…**
 
 > "I think for "zero license," a lot of the deals right now—clients love the concept first, tho
 

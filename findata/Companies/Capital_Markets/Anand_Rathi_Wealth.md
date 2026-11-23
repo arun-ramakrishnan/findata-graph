@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-04-25'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -366,11 +366,6 @@ already prepared, or nearly prepared. We should be able to file it by around Oct
 > — Feroz Azeez, Joint CEO [^chatter-Still_in_Play]
 
 - **Reaffirms fiscal targets with confidence and highlights a record of conservative guidance and delivery. Reference to uniqueness builds trust…**
-
-> "Do I see any change in the guidance? The answer is a big no, because we will be able to achieve those numbers is how we have always under committed, overdelivered. ...there is only one Company which has given PAT guidance and also met it for 3 successive years. which is Anand …"
-> — Feroz Azeez, Joint CEO [^chatter-Still_in_Play]
-
-- **No immediate return-of-capital action expected; management will signal plans if/as they arise. Preference for measured approach to buybacks…**
 
 > "...our corporate actions of buyback, I think we have not considered any buyback so far. . if there is any consideration we will come back to you and price is not a huge motivation a buyback. Of course, earlier, there used to be immense amount of tax efficiency...tax la have ch…"
 

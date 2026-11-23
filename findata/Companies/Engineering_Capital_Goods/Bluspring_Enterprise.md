@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:36Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -124,10 +124,6 @@ Bluspring Enterprises Limited is an Indian infrastructure management company pro
 
 > "Despite the macro environment, we maintained renewal rates of $85 \%+$ and added new wins across manufacturing, healthcare, technology, infra and BFSI."
 > — Kamal Pal Hoda, Executive Director \& CEO [^chatter-The_Mood_in_the_Room]
-
-- **That's it for now! Your feedback will really help shape how The Chatter evolves. Drop it down in the comments below! Quotes in this newslett…**
-
-> "What the hell is happening?" is deliberately messy, more permanent draft than polished product. Each edition examines the collision of mega-trends shaping our world: from the stupidity of trade wars and the weaponization of interdependence, to great power competition and plane…"
 
 [^chatter-The_Mood_in_the_Room]: The Mood in the Room — [[The_Mood_in_the_Room]]
 

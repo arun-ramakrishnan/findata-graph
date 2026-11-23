@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: Sharp_Takes
@@ -213,10 +213,6 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **Quantifies the cost advantage of green power and provides specific targets for increasing green power share in FY26:**
 
 > "So green power, we have the cost arbitrage. When we compare with our grid power becı whatever the green power we are purchasing that is that we are replacing with the our gr power and then it is $25 \%$ cheaper than the than the grid power...The second question, ho much is the…"
-
-- **That's it for now! Your feedback will really help shape how The Chatter evolves. Dr it down in the comments below! Quotes in this newsletter…**
-
-> "What the hell is happening?" is deliberately messy, more permanent draft than polished product. Each edition examines the collision of mega-trends shaping our world: from the stupidity of trade wars and the weaponization of interdependence, great power competition and planetar…"
 
 [^chatter-Sharp_Takes]: Sharp Takes — [[Sharp_Takes]]
 

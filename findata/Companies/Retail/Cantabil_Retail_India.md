@@ -18,7 +18,7 @@ created: '2026-09-07'
 last_modified: '2026-09-07'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: Echoes_from_the_Boardroom
@@ -221,10 +221,6 @@ April and May is like, better than Q4. So, yes, there is a pickup in the demand 
 
 > "So, last year our average size was 1635 square feet. So, it's going to increase a little bit t 1700 square feet per store for the new stores. And for the average store of company toda. stands at 1300 square feet."
 > — Deepak Bansal, Full Time Director [^chatter-Echoes_from_the_Boardroom]
-
-- **That's it for now! Your feedback will really help shape how The Chatter evolves. Dr it down in the comments below! Quotes in this newsletter…**
-
-> "What the hell is happening?" is deliberately messy, more permanent draft than polished product. Each edition examines the collision of mega-trends shaping our world: from the stupidity of trade wars and the weaponization of interdependence, great power competition and planetar…"
 
 [^chatter-Echoes_from_the_Boardroom]: Echoes from the Boardroom — [[Echoes_from_the_Boardroom]]
 

@@ -19,7 +19,7 @@ created: '2025-11-26'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -370,11 +370,6 @@ Enhanced with comprehensive telecommunications sector analysis, telecom equipmen
 > — Arnab Roy, COO \& MD [^chatter-In_the_Middle_of_Things]
 
 - **The 18,000 additional sites and some customer shipments were delayed due to inventory and clearance issues, making this a one-off quarter. T…**
-
-> "And 18,000 sites add-on sites and got delayed a bit plus a few other customer shipmenı got a bit delayed because of inventory and clearances. So, so in a way, yes, this is a one-1 quarter where things got pushed out more than anything else and we should be able to se the resul…"
-> — Arnab Roy, COO \& MD [^chatter-In_the_Middle_of_Things]
-
-- **Gross margins improved quarter-on-quarter, driven largely by changes in product c project mix, as previously discussed by the company.**
 
 > "Gross margin level uh which uh if you see quarter on quarter there's been an improvem compared to the previous quarter as we've been talking about in in our past conversation and our calls as well uh I think a lot of our margin material margin level movement gets driven by the…"
 > — Sumit Dhingra, CFO [^chatter-In_the_Middle_of_Things]

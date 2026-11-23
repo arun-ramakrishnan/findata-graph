@@ -16,7 +16,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -192,10 +192,6 @@ One is sales volume increase, which is already being driven by our sales team. S
 
 One is sales volume increase, which is already being driven by our sales team. Second, $w$ are trying to increase the MOP in the market. There are areas where there i…"
 > — Kartik Muchandani, Head of Finance -Home Appliance [^chatter-Inflection_Watch]
-
-- **That's it for now! Your feedback will really help shape how The Chatter evolves. Dr it down in the comments below! Quotes in this newsletter…**
-
-> "What the hell is happening?" is deliberately messy, more permanent draft than polished product. Each edition examines the collision of mega-trends shaping our"
 
 [^chatter-Inflection_Watch]: Inflection Watch — [[Inflection_Watch]]
 

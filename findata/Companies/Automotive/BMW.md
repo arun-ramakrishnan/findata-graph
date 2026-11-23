@@ -16,7 +16,7 @@ created: '2026-09-07'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: Signals_in_Silence
@@ -103,10 +103,6 @@ German premium automobile and motorcycle manufacturer.
 - **BMW is making a critical assumption that current trade tensions will ease by July 2025, with tariff reductions materializing in the second h…**
 
 > "Our guidance given at the annual conference on March 14th included all the tariff increases in force as of March 12th already. Since then, political and macroeconomic volatility has increased even further. Due to ongoing developments and negotiations, the expected effects from…"
-
-- **That's it for now! Your feedback will really help shape how The Chatter evolves. Dr it down in the comments below! Quotes in this newsletter…**
-
-> "What the hell is happening?" is deliberately messy, more permanent draft than polished product. Each edition examines the collision of mega-trends shaping our world: from the stupidity of trade wars and the weaponization of interdependence, great power competition and planetar…"
 
 [^chatter-Signals_in_Silence]: Signals in Silence — [[Signals_in_Silence]]
 

@@ -17,7 +17,7 @@ created: '2026-09-07'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: Embracing_the_Unknown
@@ -122,11 +122,6 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **As beer companies diversify, non-alcohol and "better-for-you" innovations are bringing new consumers into the category and winning share fro…**
 
 > "Let me explain this further. Our non-alcohol portfolio is delivering exceptional results, the growth drivers are becoming very clear: $\mathbf{6 0 \%}$ of non-alcohol beer consumption represents either completely new consumers entering our category or existing beer drink, cons…"
-
-- **AB InBev's 'balanced choices' portfolio-spanning non-alcohol, low-calorie, gluten free, and more-is now a $\$ 5$ billion business growing st…**
-
-> "Our 'balanced choices' portfolio now generates over $\$ 5$ billion in annual revenue, grow at high single digits, and has become a significant innovation platform across our globai markets. We're making substantial investments in this as one of our core growth platform to expa…"
-> — Michel Doukeris, CEO [^chatter-Embracing_the_Unknown]
 
 [^chatter-Embracing_the_Unknown]: Embracing the Unknown — [[Embracing_the_Unknown]]
 

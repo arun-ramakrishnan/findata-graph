@@ -19,7 +19,7 @@ created: '2026-09-07'
 last_modified: '2026-09-25'
 generated:
   by: derive_insights.py/v1
-  at: '2026-11-22T14:24:47Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-03-24'
 sources:
 - id: Management_in_Motion
@@ -206,10 +206,6 @@ _Source: yfinance | Refreshed: 2026-09-15_
 
 > "In January '25, if I remember correctly, we were at 192 megawatts. As on date, we are almost 2.5 gigawatt, because 2.34 gigawatt is Ayana plus PTC... I'm very happy to see th ONGC has become formidable in no time. I repeat, in no time, it has become a formida force in renewabl…"
 > — Arun Kumar Singh, Chairman \& CEO [^chatter-Management_in_Motion]
-
-- **That's it for now! Your feedback will really help shape how The Chatter evolves. Dr it down in the comments below! Quotes in this newsletter…**
-
-> "What the hell is happening?" is deliberately messy, more permanent draft than polished product. Each edition examines the collision of mega-trends shaping our"
 
 [^chatter-Management_in_Motion]: Management in Motion — [[Management_in_Motion]]
 

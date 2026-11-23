@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:23Z'
 stale_after: '2027-02-11'
 sources:
 - id: Contours_of_Change
@@ -221,10 +221,6 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **average for the PAPM. But our belief is that some modest element of growth there, coup with the portfolio of the other clients and the varia…**
 
 > "so quick commerce, as you know, has 2 parts. One is there are workforces involved in th dark stores and the other aspect is on the gig workforce, which is really your drivers, deli boys, etc., and all that. So that's the space we don't occupy because that's not really forn wor…"
-
-- **. Kartik Narayan, CEO That's it for now! Your feedback will really help shape how The Chatter evolves. Dr it down in the comments below! Quo…**
-
-> "What the hell is happening?" is deliberately messy, more permanent draft than polished product. Each edition examines the collision of mega-trends shaping our world: from the stupidity of trade wars and the weaponization of interdependence, great power competition and planetar…"
 
 [^chatter-Contours_of_Change]: Contours of Change — [[Contours_of_Change]]
 

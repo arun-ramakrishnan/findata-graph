@@ -17,7 +17,7 @@ created: '2025-11-28'
 last_modified: '2026-11-22'
 generated:
   by: derive_insights.py/v1
-  at: '2026-11-22T14:24:47Z'
+  at: '2026-11-23T02:46:23Z'
 stale_after: '2027-05-21'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -348,13 +348,6 @@ _Source: yfinance | Refreshed: 2026-10-16_
 > — Umesh Chowdhary, Vice Chairman & Managing Director [^chatter-Asian_Paints_NMDC_IndiGo]
 
 - **The company is funding its major expansion projects using its own cash reserves rather than taking on new debt. Maintaining a net debt-free…**
-
-> "Our balance sheet remains very lean, and we are net debt-free at the standalone level." capital expenditure for the wheel plant and metro expansion is being funded largely thrc
-
-internal accruals. We intend to maintain this financial discipline even as we scale up our passenge…"
-> — Anil Kumar Agarwal, Chief Financial Officer [^chatter-Asian_Paints_NMDC_IndiGo]
-
-- **By making its own train motors and wheels, the company is protecting itself from international supply delays and costs. This move toward sel…**
 
 > "The backward integration into propulsion systems and wheels is a key differentiator for now. By manufacturing these critical components in-house or through JVs, we are insulating ourselves from global supply chain shocks. This strategy is also helping us improve our overall EB…"
 > — Umesh Chowdhary, Vice Chairman & Managing Director [^chatter-Asian_Paints_NMDC_IndiGo]

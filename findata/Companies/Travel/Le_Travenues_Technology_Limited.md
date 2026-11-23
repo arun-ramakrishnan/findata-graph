@@ -16,7 +16,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: Known_Unknowns
@@ -236,8 +236,6 @@ tags:
 > — Aloke Bajpai, CEO \& MD [^chatter-The_Known_Unknowns]
 
 - **Investors should view ixigo as well-positioned to capture disproportionate growth i Indian travel sectors via digital penetration and multi-…**
-
-> "Half of the new flyers from our apps are flying for the first time," demonstrating penetration into a new customer base."
 
 > "The proverbial pyramid will now become a diamond as middle-class India continues tc grow... travel continues to be in the top three things people want to spend on to improve their lifestyle."
 > — Aloke Bajpai, CEO \& MD [^chatter-The_Known_Unknowns]

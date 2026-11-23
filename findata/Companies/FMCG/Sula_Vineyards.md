@@ -19,7 +19,7 @@ created: '2025-12-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:40:22Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: Playing_the_Long_Game
@@ -139,7 +139,7 @@ Sula Vineyards Limited is the largest wine producer and seller in India, dominat
 > "I’m very happy to say Q2, I do believe, is the beginnings of a turnaround... And I would also like to say that our market intelligence says that we are gaining market share, especially in Premium &amp; Elite... notwithstanding the fact that our competition continues to grow mu…"
 > — Rajeev Samant, Founder and Chief Executive Officer [^chatter-Playing_the_Long_Game]
 
-> "The Source" brand consistently shows strong double-digit growth and now accounts for 10% of own brand revenue, poised to be a key future growth driver."
+- **"The Source" brand consistently shows strong double-digit growth and now accounts for 10% of own brand revenue, poised to be a key future gr…**
 
 > "The Source has really been our star performer in terms of our brands, clocking double-digit growth for many quarters in a row. It now forms 10% of our own brands revenue, which is a pretty big jump from a year ago."
 > — Rajeev Samant, Founder and Chief Executive Officer [^chatter-Playing_the_Long_Game]

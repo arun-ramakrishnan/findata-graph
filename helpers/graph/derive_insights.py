@@ -1019,7 +1019,14 @@ def iter_edition_note_section(
     first = bounds[0][0] if bounds else len(content)
     if first == 0:
         return
-    yield CompanySection(stem, 1, content[:first])
+    # quote_extractor_hardening S2: the preamble slice includes the YAML
+    # frontmatter; strip it so paraphrase accumulation can't fold
+    # `type:`/`title:` metadata into captured units (seen in quotes.id
+    # 24698's paraphrase).
+    body = _FM_RE.sub("", content[:first], count=1).strip()
+    if not body:
+        return
+    yield CompanySection(stem, 1, body)
 
 
 # --- quote/attribution extraction ------------------------------------------
@@ -1156,7 +1163,15 @@ def _close_quote_same_line(open_line: str, stripped: str) -> tuple[list[str], bo
     if open_line.count('"') >= 2:
         p = open_line.rfind('"')
         rest = open_line[p + 1 :].strip()
-        if not rest or _attrish_line(rest):
+        # quote_extractor_hardening S1: an empty tail closes only at even
+        # quote parity — a line ending on an EMBEDDED quoted phrase (odd
+        # parity: opener + one embedded pair, e.g. PDF line-wrap landing
+        # "no-regrets, low-risk" at a line end) is a wrap artifact, not the
+        # closer; closing there truncated the run to its first physical
+        # line and lost the attribution (quotes.id 24674). An attrish tail
+        # still closes at any parity — inline attribution is the S3b
+        # signal, not a closer.
+        if _attrish_line(rest) or (not rest and open_line.count('"') % 2 == 0):
             close_attr = None
             if rest:
                 close_attr = _parse_attribution(rest.lstrip("-–—").strip()) or _parse_attribution(
@@ -1190,6 +1205,10 @@ def _close_quote_multiline(
     closed = False
     resume_at: int | None = None
     close_attr: tuple | None = None
+    # quote_extractor_hardening S1: cumulative straight-quote count across
+    # the run (opener included). Embedded phrase-quoted spans keep parity
+    # odd past a line-ending `"`; only the true closer flips it even.
+    parity = sum(ln.count('"') for ln in quote_lines)
     while j < len(lines):
         nxt = lines[j].rstrip()
         ns = nxt.strip()
@@ -1201,7 +1220,8 @@ def _close_quote_multiline(
             resume_at = j
             break
         quote_lines.append(nxt)
-        if nxt.endswith('"'):
+        parity += ns.count('"')
+        if nxt.endswith('"') and parity % 2 == 0:
             closed = True
             break
         j += 1
@@ -1259,6 +1279,17 @@ def _create_quote(
 
 def _is_quote_open(lines: list[str], i: int, open_line: str) -> bool:
     """Check if a line opens a quote (is_open or short_with_attr)."""
+    # quote_extractor_hardening S2: a line carrying exactly ONE balanced
+    # quoted span with prose continuing after the close (non-attrish tail)
+    # is a mid-sentence quotation inside chrome/masthead prose ("The
+    # Chatter" format to better serve ...), not a verbatim-block opener —
+    # it once opened a junk unit attributed to the edition entity
+    # (quotes.id 24698). One-line quotes with inline attributions keep
+    # opening (attrish tail).
+    if open_line.count('"') == 2:
+        tail = open_line[open_line.rfind('"') + 1 :].strip()
+        if tail and not _attrish_line(tail):
+            return False
     is_open = open_line.startswith('"') and len(open_line) > 40
     if is_open:
         return True

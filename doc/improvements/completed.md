@@ -17006,3 +17006,49 @@ design, gate-timing-watch confound-parked, fuzz noise, ty-tests
 warnings-class); make perf — PARKED (contended: load1 4.54 > 4 cores);
 advisory report file shows cross-tree sections (pdf-ocr-obsidian shares
 outputs/) — digest partially unreliable, noted.
+
+## 562. Quote-extractor hardening — parity closers, masthead/frontmatter guards, estate repair
+
+Filed 2026-11-23; executed 2026-11-23
+(`archive/database/quote_extractor_hardening.md`; found auditing the
+IBM_Tata_Tech edition's quotes at the operator's request).
+
+- **Root fixes in derive_insights.py**: `_close_quote_same_line`'s
+  empty-tail branch and `_close_quote_multiline` now require even
+  cumulative quote parity across the run before closing (attrish tails
+  still close at any parity — the inline-attribution signal), so an
+  embedded phrase-quoted span landing on a PDF line-wrap no longer
+  truncates the capture (row 24674 class: Krishna's 66-char fragment →
+  full 1,041-char attributed quote). `_is_quote_open` rejects
+  count-2 openers with non-empty non-attrish tails (masthead brand
+  names, row 24698 class); `iter_edition_note_section` strips YAML
+  frontmatter before paraphrase capture. The edition-note lane stays
+  by design (G5); S2 is guards inside it, not lane removal.
+- **Estate repair, one command**: the planned delete-first dance was
+  unnecessary — `apply_quotes` is a prefix-scoped stable replace
+  (content diff deletes stale, keeps unchanged ids, preserves
+  hand-seeded rows). `findata --apply`: 17 new, 9,089 unchanged,
+  62 stale (net −45, every removal source-verified as junk death or
+  truncation repair); metrics 0/4,170/0; 22 company-note chatter
+  blocks regenerated, 1,284 hand-written edition blocks skipped
+  (curation safety held).
+- **Census ruler banked** at `bench_data/quote_extractor_census/`:
+  before 9,151 stored / 9,106 fresh / 43 stems drifted /
+  null_speaker 2,481 / no_terminal 754 → after 9,106 = 9,106,
+  affected stems 0 (converged), null_speaker 2,444 (residue =
+  legitimately anonymous units), no_terminal 727. IBM_Tata_Tech
+  per-speaker counts match the hand audit exactly (Krishna 8, Harris
+  5, Gupta 6, B.K.Singh 5, Modi 6, Nageswaran 9, Agrawal 5, R.K.Singh
+  5, Sarangi 4); boilerplate rows 0; frontmatter paraphrase 0.
+- **S4 content slice in place** (shape-preserving folds): IBM.md block
+  gains Krishna's India deploy-layer + chips-in-India, IT-billing
+  flip + quantum-2029, open-weight cap themes; KEI block gains the
+  ₹25-30k cr data-centre TAM; Quotes.md folds Nageswaran's
+  FII-rotation/sovereign-spread/rupee and Sarangi's
+  no-new-PLI/BCD-ALMM into their existing bullets.
+- **Validation**: targeted suites 298 passed (test_derive_insights.py
+  224 + test_quote_capture_s4.py 74 incl. 5 new fixture tests);
+  markdownlint clean on the three enriched vault files. Out of scope,
+  noted: mid-word source truncations in the edition md are a
+  pdf_pipeline defect (pdf_conv_md hard right-edge cuts) — the
+  extractor is now source-faithful to them.

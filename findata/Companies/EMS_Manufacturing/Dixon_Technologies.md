@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-11-22T14:24:47Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -345,8 +345,9 @@ displays, with trials in Q3 and commercial production in Q4. Once we achieve 80-
 - **Clear-headed decision to exit or avoid complex/low-return businesses even if they a 'flavor of the month' with policymakers. PCB- Printed Ci…**
 
 > "CCTV business: "...we only have a minority stake of $6.5 \%$...we are not running that anymore."
+(PCB), as of now, we are not pursuing it. We were working on strategic acquisition. To b candid, we are working on a very tight timeline so that we can file the applications of ECM…"
 
-- **(PCB), as of now, we are not pursuing it. We were working on strategic acquisition. To b candid, we are working on a very tight timeline so…**
+- **feel that PCBA is a very large opportunity. Now the next phase of the line is to create a business resource and a strategy for pursuing that…**
 
 > "We have recently hired vice president, strategy and digital transformation...vice preside for components...Taiwan expat for display...Korean expat for washing machines/appliances...HR. Many hirings are on...has to be scaled much more."
 > — Atul Lall, CEO [^chatter-Making_It_Work]

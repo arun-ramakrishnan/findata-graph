@@ -340,7 +340,7 @@ sources:
   last_modified: '2026-11-22'
 generated:
   by: derive_insights.py/v1
-  at: '2026-11-22T14:24:46Z'
+  at: '2026-11-23T02:46:23Z'
 stale_after: '2027-05-21'
 ---
 # Quotes
@@ -1002,7 +1002,7 @@ market prices …"
 
 > "Management has been transparent about price adjustments needed for a major client c contracts transition to fully digital models. "We have done almost like 50\% of the impac there in the base in this particular quarter. So if you move forward you will see probably similar impa…"
 
-- **Ramsaran, CFO CAMS' insurance repository business has significantly accelerated, doubling annua policy additions from 20-25 lakh to 40-50 la…**
+- **CAMS' insurance repository business has significantly accelerated, doubling annua policy additions from 20-25 lakh to 40-50 lakh over the pa…**
 
 > "In terms of insurance repository, you would have seen that till about a year back we us to increment volumes at the rate of about 20 to 25 lakh [2-2.5 million] policies a year. L one year this increase has almost doubled to become 40 to 50 lakh [4-5 million] policies. LIC is s…"
 
@@ -113958,10 +113958,10 @@ Currently, spot prices are 145 per kg for fishmeal."
 ## The Chatter — IBM Tata Tech
 
 **PM Modi (FICCI AGM) — 'India First' capex:** industry should anchor long-term investment in self-reliance — pharma must build domestic API/bulk-drug depth behind its 'Pharmacy of the World' formulations lead; steel and aluminium must move from exporting ore to making specialised grades domestically; agri-processing (processed food's share of agri-exports up from 13% to 20%+) and Global South machinery exports are the flagged opportunities.
-**CEA Nageswaran — resilience data:** extreme poverty down to 2.6% ($3/day 2021 PPP) and moderate poverty from 57% to 16% (2011-2023); growth held above 7% through six supply shocks; Q1 GDP grew 7.8% with manufacturing at 9.2% and net exports contributing 3.1 points (40%) of it; the export trajectory approaches $1 trillion on the way to a $4.2 trillion economy.
+**CEA Nageswaran — resilience data:** extreme poverty down to 2.6% ($3/day 2021 PPP) and moderate poverty from 57% to 16% (2011-2023); growth held above 7% through six supply shocks; Q1 GDP grew 7.8% with manufacturing at 9.2% and net exports contributing 3.1 points (40%) of it; the export trajectory approaches $1 trillion on the way to a $4.2 trillion economy. On flows: capital rotating back to India as AI-bubble doubts emerge — $5.2bn net FII equity inflows in Jul-Aug, ~$10bn this month; the compressed 10-year spread (~230bp over UST vs 500-600bp a decade ago) reflects a structural decline in the sovereign risk premium, and if oil/AI-valuation trajectories hold, FY28's challenge may be managing rupee appreciation rather than weakness.
 **Commerce Secretary Agrawal — trade timing:** the US-India bilateral deal is negotiated but signing waits on Washington's new tariff architecture; India-UK FTA operationalisation is targeted for March 2027; electronics exports cross $60 billion with non-smartphone categories growing faster (real value addition, rules-of-origin compliant); 100+ trade reforms executing and granular product-level import data will be released to catalyse domestic manufacturing.
 **Defence Secretary Singh — manufacturing depth:** an AMCA private-sector winner (first-ever private-led fighter production line) will be announced within about a month; defence capex is up another 20% on last year's 22%, with ₹2 lakh crore+ of contracts signed per year; the goal is 2-3 military-aircraft producers, multiple missile and ammunition makers, and hundreds of drone companies for surge capacity.
-**MNRE Secretary Sarangi — green stack:** a polysilicon subsidy scheme is under negotiation with the Finance Ministry (the missing link in solar manufacturing); green-molecule offtake near 4 lakh tonnes of green-hydrogen equivalent (Reliance-Samsung C&T among them); 67 lakh rooftop-solar households become prosumers with peer-to-peer trading on the India Energy Stack within a couple of years.
+**MNRE Secretary Sarangi — green stack:** a polysilicon subsidy scheme is under negotiation with the Finance Ministry (the missing link in solar manufacturing); green-molecule offtake near 4 lakh tonnes of green-hydrogen equivalent (Reliance-Samsung C&T among them); 67 lakh rooftop-solar households become prosumers with peer-to-peer trading on the India Energy Stack within a couple of years; no new PLI is coming beyond the announced electrolyser/ingot-wafer schemes — the ask now is BCD and ALMM tweaks so component manufacturing (energy storage above all) scales domestically.
 
 > "Tell me, my friends in industry, what kind of nation exports ore only to import bread? Ask yourselves that question."
 > — Narendra Modi, Prime Minister of India

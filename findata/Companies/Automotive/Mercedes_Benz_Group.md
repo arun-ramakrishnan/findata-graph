@@ -17,7 +17,7 @@ created: '2026-09-07'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-10-28T18:55:35Z'
+  at: '2026-11-23T02:46:24Z'
 stale_after: '2027-02-11'
 sources:
 - id: Decoding_the_Dialogue
@@ -131,10 +131,6 @@ _Source: yfinance | Refreshed: 2026-10-16_
 - **Management is essentially guiding to the worst-case scenario within their range, assuming all current tariffs remain in place for the full y…**
 
 > "So we have considered that USMCA holds for the year as it is currently in place. Um a then also we have considered the tariffs that are currently in planes. That means the $25 \%$ for steel, aluminum, copper. It also means the 10\% retaliatory tariffs that we have in pla now f…"
-
-- **tariffs that are currently in place. And with that, we expect to be at the lower end of the to $13 \%$ range, which I believe is an extremel…**
-
-> "What the hell is happening?" is deliberately messy, more permanent draft than polished product. Each edition examines the collision of mega-trends shaping our world: from the stupidity of trade wars and the weaponization of interdependence, great power competition and planetar…"
 
 [^chatter-Decoding_the_Dialogue]: Decoding the Dialogue — [[Decoding_the_Dialogue]]
 

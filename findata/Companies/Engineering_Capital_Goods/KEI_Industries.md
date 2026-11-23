@@ -617,7 +617,7 @@ Middle East still exist, although dispatches have resumed and the situation is i
 **Copper volatility is a solved problem:** 20+ sharp price cycles navigated in five years; ~80% of revenue (project business) keeps inventory across offices and factories tightly mapped to the confirmed order book, so EBITDA margins stay steady — a 20-year track record.
 **~5% price cut passed through:** LME copper declines plus a softer dollar flow straight into selling prices — the pass-through mechanism works in both directions.
 **New corporate entrants:** some share capture is acknowledged, but industry demand is expanding faster than capacity additions; KEI keeps expanding internationally and domestically with no slowdown against projections.
-**Exports to ≥25% of revenue** as a strategic target, and high-margin EHV capacity is being expanded for the data-centre construction wave expected to peak in 2027-29.
+**Exports to ≥25% of revenue** as a strategic target, and high-margin EHV capacity is being expanded for the data-centre construction wave expected to peak in 2027-29 — Gupta sizes the India cable-industry opportunity from data centres alone at ₹25,000-30,000 crore over the next three years, with revenue split hard to pin down because projects are scattered nationally.
 
 > "Consequently, our EBITDA margins remain steady and consistent, as investors have seen across our 20-year track record."
 > — Anil Gupta, Chairman & Managing Director
