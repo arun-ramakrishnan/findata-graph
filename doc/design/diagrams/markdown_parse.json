@@ -2,13 +2,10 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "markdown_parse pipeline \u2014 newsletter to knowledge graph",
-    "quality_profile": "showcase",
+    "title": "markdown_parse pipeline — newsletter to knowledge graph",
+    "quality_profile": "standard",
     "locale": "en",
-    "viewBox": [
-      1440,
-      640
-    ]
+    "output": "doc/design/diagrams/markdown_parse.html"
   },
   "stages": [
     {
@@ -227,7 +224,7 @@
       "id": "maint-sqlite",
       "from": "maint",
       "to": "sqlite",
-      "label": "backup \u00b7 sync \u00b7 derive",
+      "label": "backup · sync · derive",
       "labelAt": [
         856.0,
         217.9
@@ -258,7 +255,7 @@
       "id": "sqlite-frontend",
       "from": "sqlite",
       "to": "frontend",
-      "label": "entities \u00b7 events \u00b7 quotes",
+      "label": "entities · events · quotes",
       "fromSide": "right",
       "toSide": "right",
       "via": [
@@ -314,9 +311,9 @@
       "dot": "slate",
       "title": "Evidence origin/main e37eb7db",
       "items": [
-        "pdf_conv_md.py:454 \u00b7 capture_newsletter_images.py:116",
-        "parse_newsletter.py:774 \u00b7 maint.py:203 (PRE_FULL)",
-        "app.py:23 \u00b7 Makefile maint-full"
+        "pdf_conv_md.py:454 · capture_newsletter_images.py:116",
+        "parse_newsletter.py:774 · maint.py:203 (PRE_FULL)",
+        "app.py:23 · Makefile maint-full"
       ]
     },
     {

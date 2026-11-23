@@ -3,11 +3,7 @@
   "diagram_type": "sequence",
   "meta": {
     "title": "Snapshot apply handshake",
-    "output": "doc/design/diagrams/snapshot_apply.json",
-    "viewBox": [
-      900,
-      800
-    ],
+    "output": "doc/design/diagrams/snapshot_apply.html",
     "animation": "trace",
     "quality_profile": "showcase",
     "column_fit": "spread"
@@ -68,7 +64,7 @@
     },
     {
       "from": 612,
-      "to": 740,
+      "to": 744,
       "label": "Verify round-trip"
     }
   ],
@@ -110,7 +106,7 @@
       "id": "load-sql",
       "from": "sqlite",
       "to": "snap",
-      "y": 340,
+      "y": 400,
       "label": "apply DDL · load *.parquet rows",
       "variant": "default"
     },
@@ -118,7 +114,7 @@
       "id": "fts-rebuild",
       "from": "sqlite",
       "to": "fts",
-      "y": 375,
+      "y": 435,
       "label": "rebuild note_search from shadow",
       "variant": "default"
     },
@@ -126,7 +122,7 @@
       "id": "fts-done",
       "from": "fts",
       "to": "sqlite",
-      "y": 408,
+      "y": 468,
       "label": "index rebuilt",
       "variant": "return"
     },
@@ -134,7 +130,7 @@
       "id": "sql-done",
       "from": "sqlite",
       "to": "cli",
-      "y": 442,
+      "y": 502,
       "label": "FK check ✓ · atomic replace",
       "variant": "return",
       "note": "PRAGMA foreign_key_check hard-fails the restore (snapshot_db.py:976)"
@@ -143,7 +139,7 @@
       "id": "restore-duck",
       "from": "cli",
       "to": "duck",
-      "y": 495,
+      "y": 555,
       "label": "restore_duckdb_from_parquet",
       "variant": "emphasis"
     },
@@ -151,7 +147,7 @@
       "id": "load-duck",
       "from": "duck",
       "to": "snap",
-      "y": 530,
+      "y": 590,
       "label": "ordered DDL + views · read_parquet",
       "variant": "default"
     },
@@ -159,7 +155,7 @@
       "id": "duck-done",
       "from": "duck",
       "to": "cli",
-      "y": 565,
+      "y": 625,
       "label": "CHECKPOINT ✓ · atomic replace",
       "variant": "return"
     },
@@ -167,7 +163,7 @@
       "id": "apply-done",
       "from": "cli",
       "to": "operator",
-      "y": 605,
+      "y": 665,
       "label": "✓ live DBs rebuilt",
       "variant": "return"
     },
@@ -175,7 +171,7 @@
       "id": "check",
       "from": "operator",
       "to": "cli",
-      "y": 645,
+      "y": 705,
       "label": "make snapshot-check",
       "variant": "default"
     },
@@ -183,7 +179,7 @@
       "id": "roundtrip",
       "from": "cli",
       "to": "snap",
-      "y": 680,
+      "y": 750,
       "label": "verify_parquet_snapshot",
       "variant": "security"
     },
@@ -191,7 +187,7 @@
       "id": "roundtrip-ok",
       "from": "snap",
       "to": "cli",
-      "y": 712,
+      "y": 782,
       "label": "row counts + schema match",
       "variant": "return"
     }

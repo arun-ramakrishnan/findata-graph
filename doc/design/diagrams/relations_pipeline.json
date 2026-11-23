@@ -2,13 +2,10 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "Relations pipeline \u2014 extract, triage, apply",
-    "quality_profile": "showcase",
+    "title": "Relations pipeline — extract, triage, apply",
+    "quality_profile": "standard",
     "locale": "en",
-    "viewBox": [
-      1500,
-      520
-    ]
+    "output": "doc/design/diagrams/relations_pipeline.html"
   },
   "lanes": [
     {
@@ -63,7 +60,7 @@
       "col": 0,
       "type": "backend",
       "label": "extract_relations --apply",
-      "tag": "walk \u00b7 prose \u2192 edges \u00b7 noise-gated",
+      "tag": "walk · prose → edges · noise-gated",
       "width": 170
     },
     {
@@ -72,7 +69,7 @@
       "col": 2,
       "type": "database",
       "label": "graph_edges",
-      "tag": "UNIQUE dedupe \u00b7 symmetric=1",
+      "tag": "UNIQUE dedupe · symmetric=1",
       "width": 165
     },
     {
@@ -81,7 +78,7 @@
       "col": 5,
       "type": "backend",
       "label": "follow-up chain",
-      "tag": "re-extract \u2192 roster sync \u2192 rebuild",
+      "tag": "re-extract → roster sync → rebuild",
       "width": 175
     },
     {
@@ -90,7 +87,7 @@
       "col": 1,
       "type": "database",
       "label": "_pending_relations.txt",
-      "tag": "prose misses \u00b7 suggestions split",
+      "tag": "prose misses · suggestions split",
       "width": 175
     },
     {
@@ -99,7 +96,7 @@
       "col": 2,
       "type": "backend",
       "label": "make triage-relations",
-      "tag": "dedupe \u00b7 split \u00b7 bucket",
+      "tag": "dedupe · split · bucket",
       "width": 175
     },
     {
@@ -108,7 +105,7 @@
       "col": 3,
       "type": "external",
       "label": "decide per row",
-      "tag": "discard \u00b7 alias \u00b7 stub \u00b7 skip \u00b7 accept",
+      "tag": "discard · alias · stub · skip · accept",
       "width": 200
     },
     {
@@ -117,7 +114,7 @@
       "col": 4,
       "type": "backend",
       "label": "--apply-decisions",
-      "tag": "aliases \u2192 json \u00b7 accepts \u2192 edges",
+      "tag": "aliases → json · accepts → edges",
       "width": 175
     }
   ],
@@ -184,9 +181,9 @@
       "dot": "slate",
       "title": "Evidence origin/main e37eb7db",
       "items": [
-        "extract: helpers/graph/extract_relations.py:100 noise gate \u00b7 :110 sidecar",
-        "triage: helpers/graph/triage_pending_relations.py:234 bucket \u00b7 :487 accept",
-        "G3 persist: triage_pending_relations.py:599 \u00b7 suggestions: :618"
+        "extract: helpers/graph/extract_relations.py:100 noise gate · :110 sidecar",
+        "triage: helpers/graph/triage_pending_relations.py:234 bucket · :487 accept",
+        "G3 persist: triage_pending_relations.py:599 · suggestions: :618"
       ]
     },
     {
@@ -195,8 +192,8 @@
       "items": [
         "dry-run writes only the sidecar, zero edges; queue is append-on-miss, deduped",
         "noise never enters: countries/generic/fragment filtered at extract write time",
-        "G3: discards persist to relation_noise.json \u2014 extract consults it, rows do not return",
-        "triage splits link-prediction rows \u2192 _pending_suggestions.txt (never auto-applied)"
+        "G3: discards persist to relation_noise.json — extract consults it, rows do not return",
+        "triage splits link-prediction rows → _pending_suggestions.txt (never auto-applied)"
       ]
     },
     {
@@ -212,9 +209,9 @@
       "dot": "rose",
       "title": "Loop closure",
       "items": [
-        "symmetric=1 stored rows: jv_with \u00b7 same_group \u00b7 competes_with \u00b7 co_mentioned_in \u00b7 semantic_peer",
-        "aliases persist to relation_aliases.json (runtime-loaded \u2014 no code edits)",
-        "after stubs/aliases: re-run extract \u2192 roster sync if stubs \u2192 graph-rebuild \u2192 snapshot"
+        "symmetric=1 stored rows: jv_with · same_group · competes_with · co_mentioned_in · semantic_peer",
+        "aliases persist to relation_aliases.json (runtime-loaded — no code edits)",
+        "after stubs/aliases: re-run extract → roster sync if stubs → graph-rebuild → snapshot"
       ]
     }
   ]

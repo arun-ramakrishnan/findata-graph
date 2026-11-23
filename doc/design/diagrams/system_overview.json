@@ -8,7 +8,8 @@
     "repository": {
       "url": "https://github.com/arun-ramakrishnan/findata-graph",
       "revision": "56926513d340bc8c4b32595862d7274d8b81273f"
-    }
+    },
+    "output": "doc/design/diagrams/system_overview.html"
   },
   "layout": {
     "mode": "grid",
@@ -264,14 +265,7 @@
       "id": "writer-vault",
       "from": "writer",
       "to": "vault",
-      "label": "edits OKF notes",
-      "labelDy": 24,
-      "fromSide": "left",
-      "toSide": "left",
-      "labelAt": [
-        16,
-        236
-      ]
+      "label": "edits OKF notes"
     },
     {
       "id": "github-maintenance",

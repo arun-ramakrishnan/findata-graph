@@ -802,6 +802,25 @@ def _take_fold_detail(watch: Watch, sid: str) -> dict | None:
     return fd
 
 
+def _sample_flags(bars: btn.Bars, t1_eff: int, growth: float, dec: btn.Decision) -> list[str]:
+    """Eligibility/arming flags for one heartbeat (C901 split out of build_sample)."""
+    growth_ok = growth >= bars.growth_floor
+    ord2 = dec.t2_pen > t1_eff
+    ord3 = dec.t3_pen > dec.t2_pen and dec.t3_pen > t1_eff
+    flags: list[str] = []
+    if growth_ok:
+        flags.append("GROWTH-OK")
+    if t1_eff >= bars.t1:
+        flags.append("T1-ELIGIBLE")
+    if dec.t2_pen >= bars.t2 and ord2 and growth_ok:
+        flags.append("T2-ARMED")
+    if dec.t3_pen >= bars.t3 and ord3 and growth_ok:
+        flags.append("T3-ARMED")
+    if t1_eff < bars.t1 and dec.t2_pen > 0 and dec.t2_pen <= t1_eff and dec.t3_pen <= dec.t2_pen:
+        flags.append("STRANDED")
+    return flags
+
+
 def build_sample(
     watch: Watch,
     bars: btn.Bars,
@@ -820,18 +839,7 @@ def build_sample(
     growth_ok = growth >= bars.growth_floor
     ord2 = dec.t2_pen > t1_eff
     ord3 = dec.t3_pen > dec.t2_pen and dec.t3_pen > t1_eff
-
-    flags = []
-    if growth_ok:
-        flags.append("GROWTH-OK")
-    if t1_eff >= bars.t1:
-        flags.append("T1-ELIGIBLE")
-    if dec.t2_pen >= bars.t2 and ord2 and growth_ok:
-        flags.append("T2-ARMED")
-    if dec.t3_pen >= bars.t3 and ord3 and growth_ok:
-        flags.append("T3-ARMED")
-    if t1_eff < bars.t1 and dec.t2_pen > 0 and dec.t2_pen <= t1_eff and dec.t3_pen <= dec.t2_pen:
-        flags.append("STRANDED")
+    flags = _sample_flags(bars, t1_eff, growth, dec)
 
     age = None
     if verdict and verdict.ts:
@@ -864,9 +872,11 @@ def build_sample(
         absorbs = watch.absorbs
         absorb_credit = watch.absorb_credit
 
-    # Session-lifetime counters (nudges / hit% / reqs / degen / cumIn /
-    # cachedIn): bili_sessions' merged dashboard+log view is authoritative
-    # -- the dashboard for the token totals, the log for the ladder events.
+    # Session-lifetime counters: bili_sessions' merged dashboard+log view is
+    # authoritative. Prefer it for fields it owns so the watcher and
+    # bili_sessions table agree (hit rate, requests, nudges, cumulative tokens,
+    # fold/absorb/block counts, saved ledger). Fall back to the watch's own
+    # log-tail state when the dashboard/log merge has no data.
     metrics = _session_metrics(sid) if sid else {}
     nudges = metrics.get("nudges", 0)
     # `or`, not a .get default: hit_pct=None (dashboard cacheHitPct null AND
@@ -878,6 +888,19 @@ def build_sample(
     degen_flag = bool(metrics.get("degenerate_folds", 0))
     cum_input = metrics.get("cum_input", 0)
     cached_input = metrics.get("cached_input", 0)
+    if metrics:
+        folds = int(metrics.get("folds", folds) or 0)
+        saved = int(metrics.get("saved", saved) or 0)
+        absorbs = int(metrics.get("absorbs", absorbs) or 0)
+        absorb_credit = int(metrics.get("absorb_credit", absorb_credit) or 0)
+
+    blocks_total = len(state.blocks)
+    active_blocks = len(state.active)
+    if metrics:
+        if metrics.get("blocks") is not None:
+            blocks_total = int(metrics.get("blocks") or 0)
+        if metrics.get("active_blocks") is not None:
+            active_blocks = int(metrics.get("active_blocks") or 0)
 
     return Sample(
         ts=verdict.ts if verdict else now_ts(),
@@ -903,12 +926,10 @@ def build_sample(
         fold_detail=_take_fold_detail(watch, sid),
         folds=folds,
         saved=saved,
-        # `blocks` was len(state.active) — the active-flag subset the tier
-        # sums use — under the same label bili_sessions uses for the
-        # dashboard's creation-count TOTAL. Both counts now travel under
-        # their own names (pending.md 2026-10-30).
-        blocks=len(state.blocks),
-        act=len(state.active),
+        # `blocks` is the dashboard/log merged total when available (same
+        # field bili_sessions shows). `act` is the live working set.
+        blocks=blocks_total,
+        act=active_blocks,
         blocked=dict(watch.blocked),
         reason=verdict.reason if verdict else "",
         tier=dec.tier,

@@ -39,40 +39,50 @@ verify_notes ✓  database_integrity_check ✓  db_maint ✓  snapshot ✓
 ```text
 app.py                Flask: findata viewer + graph API (lazy-imports helpers.core.db,
                       helpers.graph.query, helpers.graph.algorithms)
-memory/               research.db (SQLite, WAL) + graph.duckdb (cache) + embed_store.db (pooled vec/cache store) — gitignored
-snapshots/            git-tracked Parquet snapshot (per-table + schema DDL) — restores memory/
-db-backup/            local scratch: zstd snapshots + zstd *_backup.* recovery copies (gitignored)
+memory/               research.db (SQLite, WAL; frozen anchor/rollback) + research.duckdb
+                      (canonical DuckDB store; selector via helpers.core.db_engine) +
+                      graph.duckdb (graph cache) + embed_store.duckdb/.db (pooled
+                      embedding cache) + note_search.duckdb + markus.db + wordfreq.db +
+                      wip_sections.db — gitignored, restored via snapshot
+snapshots/            git-tracked snapshot: parquet/sqlite + parquet/duckdb (per-table zstd
+                      parquet + schema DDL) — restore target for memory/
+db-backup/            local scratch: zstd snapshots + *_backup.* recovery copies (gitignored)
 findata/              the vault (see findata.md for layout & note format)
-helpers/              core/ graph/ maintenance/ misc/ pdf/ validators/
-doc/                  this file, db_schema.md, findata.md, okf.md, graph_design.md,
-                      procedures/, improvements/{pending,completed,archive}
-tests/                pytest suite (~1.6k tests; qa gate = not-live subset)
+helpers/              core/ graph/ maintenance/ misc/ pdf/ validators/ bench/ analytics/
+doc/                  design/, procedures/, improvements/{pending,completed,archive},
+                      templates/; diagrams/ = Archify JSON IR + rendered HTML
+tests/                pytest suite (qa gate = not-live subset)
 frontend/             TypeScript UI sources
+rust/                 Rust crates: findata_graph_kernels, quack-query, embed_cache, etc.
+mojo/                 Mojo graph-kernel experiments/bridges (opt-in, parity-gated)
+models/               local model artifacts (GGUF/embeddings/onager dist; gitignored/symlinked)
 ```
 
 ## 4. Data model
 
-Authoritative: [`db_schema.md`](db_schema.md) (SQLite + DuckDB cache schemas).
-Summary: 10 user tables + the FTS5 `note_search` + the `relations` VIEW —
-`entities` (1,685 rows; 8 entity kinds: company 1179 / institution 207 /
-edition 114 / sub_sector 100 / sector 42 / country 21 / theme 12 /
-super_sector 10; PK `name`), `entity_tags` (note-tag
-mirror), `graph_edges` (19,325 rows, 19 registered edge types — 18
-populated; `part_of`/`has_company` retired 2026-10-19, was 21/20), `events` (436),
-`quotes` (8,272), `company_metrics` (4,412), `graph_analytics` (23,837 rows;
-written only by `make recompute-graph`), `hyper_edges` +
-`hyper_incidences` (the star incidence store; ten families live on
-2026-10-21 — `event`/`edition`/`industry`/`sub_sector`/`sector`/
-`org_membership`/`country`/`theme`/`group`/`jv` — plus two n-ary
-corporate-structure families added 2026-10-21: `merger` (A+B → survivor
-C, roles `constituent`/`resultant`) and `demerger` (parent → spun-off
-child, roles `parent`/`resultant`), written only by
-`helpers/graph/derive_merger_hyperedges.py` from accepted triage
-decisions; the family vocabulary is code-side
-`helpers/graph/hyperedge_types.py` because `hyper_edges.edge_type`
-carries no DDL CHECK), `provenance_agents`
-(the S1 agent registry). No `market_cap`/`index_membership`
-columns — tag-only. Counts live 2026-09-14.
+Authoritative: [`db_schema.md`](db_schema.md) (SQLite + DuckDB schemas;
+machine-lineage columns; cross-store layouts). Treat row counts as live DB
+facts, not constants — query `memory/research.db`/`research.duckdb` for current
+values.
+
+Core stores:
+
+- `entities` — PK `name`; entity kinds include company/institution/edition/
+  sub_sector/sector/country/theme/super_sector (see schema for live enum/kinds).
+- `entity_tags` — note-tag mirror.
+- `graph_edges` — typed pairwise edges (`graph_edge_types.py` is the registry).
+- `events`, `quotes`, `company_metrics` — extracted fact tables.
+- `graph_analytics` — derived analytics; written only by `make recompute-graph`.
+- `hyper_edges` + `hyper_incidences` — star incidence store for n-ary families;
+  family vocabulary is code-side (`helpers/graph/hyperedge_types.py`).
+- `provenance_agents` — S1 agent registry; FK-bearing rows must use a registered
+  agent id (never `''`).
+
+Research-store engine split: `memory/research.db` is the SQLite anchor/rollback
+artifact; `memory/research.duckdb` is the canonical DuckDB store selected by
+`helpers/core/db_engine.py` (`FINDATA_RESEARCH_ENGINE`, `FINDATA_RESEARCH_DB_PATH`).
+New DB access should go through `helpers.core.db.connect()` / funnel helpers;
+raw `sqlite3.connect()` is reserved for narrow, justified paths.
 
 Derived/frozen/moving data follows the §10 format standard
 (parquet-zstd at rest, Arrow in flight).
@@ -82,8 +92,13 @@ FKs are declared CASCADE and `helpers/core/db.py:connect()` **enables
 does not — stale children are caught by the validators. Graph engine and
 the algorithm catalog: [`graph_design.md`](graph_design.md) (DuckDB
 read-cache + Onager; duckpgq and NetworkX were retired 2026-08-14).
+Atomicity note: `helpers/core/atomic.py` + the lineage hooks in
+`db.py:conn_attributes` (stamped on the live conn); DB writes via the
+helpers put a matching `machine_*` stamp on the row when present.
 
 ## 5. Filesystem ↔ DB sync contract
+
+Updated 2026-11-22 (§3/§6, see commit ce2cf8809).
 
 Enforced by the validators; the authoritative copy lives in
 [`findata.md`](findata.md) §"Sync Rules" (filename = `normalized_name`.md,
@@ -97,24 +112,22 @@ checked before parent catch-alls during classification
 
 | Tool | Purpose |
 |---|---|
-| `doc/procedures/markdown_parse.md` | the ingestion procedure the agent follows |
-| `doc/procedures/embeddings.md` | local-embeddings apply/pre-warm procedure + new-letter refresh model |
-| `doc/procedures/search.md` | all search surfaces: doc/script/note indexes, shared `--check` contract, query CLIs, search TUI |
-| `doc/procedures/maintenance.md` | routine-maintenance doctrine: PRE_FULL/TIER1/TIER2 composition, recovery vs snapshot semantics |
-| `helpers/core/local_embedder.py` | the one embedder module (bge-small-en-v1.5; owns the BGE query/document prefix rule) |
-| `helpers/core/parse_newsletter.py` | orchestrates ingestion Stages 0–3 + 5–6 (images, entities, tickers, DB writes, validation); Stage 4 (commentary lift) stays manual via `<slug>_enhancement_worklist.json` |
-| `helpers/core/get_tickers.py` | name → NSE/BSE ticker via Yahoo (prefer `.NS` over `.BO`) |
-| `helpers/core/frontmatter.py` | shared YAML-front-matter parsing (consolidated 2026-08 from 5 duplicate implementations) |
-| `helpers/core/sync_tags.py` · `db.py` | rebuild `entity_tags` (`make sync-tags`) · connection layer |
-| `helpers/graph/query.py` | DuckDB connection/cache + every pattern query + `semantic_neighbors` (consumed by `/api/graph/*`) |
-| `helpers/graph/onager.py` | Onager algorithm wrappers (centralities, communities, link prediction, graph metrics) |
-| `helpers/graph/algorithms.py` | `compute()` dispatcher + CLI (`make recompute-graph`; writes `graph_analytics`) |
-| `helpers/graph/extract_relations.py` `derive_{co_mentions,themes,events,insights}.py` | edge/event/quote/metric producers (`make derive-*`) |
-| `helpers/graph/stats.py` | `make graph-stats` human summary (incl. Onager structure section) |
-| `helpers/validators/verify_notes.py` `static_checks.py` | note YAML/content/duplicates · syntax/tags/permalink/pin checks (`make static-checks`) |
-| `helpers/misc/database_integrity_check.py` | registry-driven DB+cache integrity (`_CHECKS`; see db_schema.md for the check table) |
-| `helpers/maintenance/db_maint.py` `maint.py` `snapshot_db.py` `rebuild_schema.py` | VACUUM/ANALYZE/backup/REINDEX · `maint-full` orchestrator (PRE_FULL index refresh + maint + TIER2 re-derivations + re-snapshot; see doc/procedures/maintenance.md) · WAL-safe snapshots (+parquet L1) · canonical-DDL rebuild |
-| `helpers/pdf/capture_newsletter_images.py` | inline images for the parse path |
+| `doc/procedures/markdown_parse.md` | ingestion procedure the agent follows |
+| `doc/procedures/embeddings.md` / `helpers/core/local_embedder.py` | embeddings apply/refresh; one embedder module (BGE prefix rule) |
+| `doc/procedures/search.md` | doc/script/note/convo/memory/git/gate search surfaces and CLIs |
+| `doc/procedures/maintenance.md` | routine maintenance doctrine (PRE_FULL/TIER1/TIER2, recovery vs snapshot) |
+| `helpers/core/db.py`, `helpers/core/db_engine.py` | DB connections; research-store selector/funnel (`FINDATA_RESEARCH_ENGINE`) |
+| `helpers/core/parse_newsletter.py`, `get_tickers.py`, `frontmatter.py`, `sync_tags.py` | ingestion orchestration, ticker lookup, frontmatter, tag mirror |
+| `helpers/graph/query.py`, `algorithms.py`, `onager.py`, `stats.py` | graph read/cache/query layer, analytics dispatcher, Onager wrappers, stats |
+| `helpers/graph/extract_relations.py`, `derive_*.py` | edge/event/quote/metric/insight derivation producers |
+| `helpers/validators/verify_notes.py`, `static_checks.py` | note/content checks and static lint/gate checks |
+| `helpers/misc/database_integrity_check.py`, `helpers/maintenance/db_maint.py`, `maint.py`, `snapshot_db.py`, `rebuild_schema.py` | integrity, maintenance, snapshots/restore (SQLite+DuckDB parquet), schema rebuild |
+| `helpers/core/duckdb_shared.py`, `helpers/misc/quack_server_child.py`, `quack_health.py` | DuckDB 2.0 quack wire routing: one resident server per store, shared discovery/health |
+| `helpers/graph/findata_graph_kernels` / `rust/` | Rust kernels for hot graph/compute paths (PyO3 extension; parity-gated adoption) |
+| `mojo/` + `helpers/graph/mojo_*` bridges | Mojo experiments/kernels; opt-in, parity-gated, never a silent default swap |
+| `helpers/misc/llama_servers.sh`, `vendor/llamacpp/` | local llama.cpp model servers (embeddings/OCR lanes; provenance-pinned) |
+| `helpers/analytics/bili_*` | billion-context session analytics/tier-watch tooling |
+| `doc/procedures/diagrams.md` + `doc/design/diagrams/*` | Archify IR/HTML diagrams; validate with Archify 2.17 CLI (`$TMPDIR/archify_ref/archify/bin/archify.mjs`) |
 
 **History:** three cleanup passes (Jun–Aug 2026) deleted the never-wired
 "dual MCP" subsystem (~3.5k lines), all one-off `fix_*`/`migrate_*`
@@ -133,8 +146,9 @@ a pure findata graph server). Survivors form a layered DAG: `core/db.py`,
 - **Post-ingest** → `make maint-full`; routine → `make maint`; snapshot →
   `make snapshot`.
 - **Entity ops** — rename: `helpers/maintenance/rename_entity.py` (atomic,
-  FK-cascade); move sector: `move_sector.py`; delete: `DELETE FROM entities`
-  (cascades) then drop the note and `make sync-tags`.
+  FK-cascade; DuckDB 2.0 gap handling per §6); move sector: `move_sector.py`;
+  delete: `DELETE FROM entities` (cascades) then drop the note and `make
+  sync-tags`.
 - Always fix issues traceable to the current run, then re-run validators.
 
 ## 8. Doc map
@@ -183,7 +197,7 @@ distinct from the FinData entity graph served by DuckDB/Onager
 (`graph_design.md`).
 
 ---
-*Rewritten 2026-08-15 from the Jun 2026 version: §4 data model now points at
+*Rewritten 2026-08-15; refreshed 2026-11-23 for DuckDB/quack/Rust/Mojo/llama/snapshot-parity/diagram updates. Earlier note: §4 data model now points at
 schema.md (scale/counters refreshed to live: 1,209 entities / 4,110 edges /
 14 metrics); tooling table updated for the Onager era (duckpgq + NetworkX
 retired); FK note corrected (db.py enables the pragma); §9 doc statuses

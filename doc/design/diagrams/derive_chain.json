@@ -2,13 +2,10 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "derive_* chain \u2014 prose to derived state",
+    "title": "derive_* chain — prose to derived state",
     "quality_profile": "showcase",
     "locale": "en",
-    "viewBox": [
-      1280,
-      680
-    ]
+    "output": "doc/design/diagrams/derive_chain.html"
   },
   "stages": [
     {
@@ -32,7 +29,7 @@
       "id": "newsletters",
       "type": "database",
       "label": "Newsletter editions",
-      "tag": "The_Chatter \u00b7 P&F \u00b7 Plotlines",
+      "tag": "The_Chatter · P&F · Plotlines",
       "stage": 0,
       "row": 0,
       "width": 150
@@ -41,7 +38,7 @@
       "id": "company_notes",
       "type": "database",
       "label": "Company notes",
-      "tag": "concall \u00b7 sources[]",
+      "tag": "concall · sources[]",
       "stage": 0,
       "row": 1,
       "width": 140
@@ -50,7 +47,7 @@
       "id": "extract",
       "type": "backend",
       "label": "extract_relations",
-      "tag": "prose \u2192 edges \u00b7 noise-gated",
+      "tag": "prose → edges · noise-gated",
       "stage": 1,
       "row": 0,
       "width": 160
@@ -68,7 +65,7 @@
       "id": "insights",
       "type": "backend",
       "label": "derive_insights",
-      "tag": "quotes \u00b7 metrics",
+      "tag": "quotes · metrics",
       "stage": 2,
       "row": 1,
       "width": 165
@@ -85,7 +82,7 @@
     {
       "id": "quotes_tbl",
       "type": "database",
-      "label": "quotes \u00b7 metrics",
+      "label": "quotes · metrics",
       "tag": "verbatim + magnitudes",
       "stage": 3,
       "row": 2,
@@ -95,7 +92,7 @@
       "id": "reader",
       "type": "frontend",
       "label": "Reader",
-      "tag": "timeline \u00b7 search \u00b7 quotes",
+      "tag": "timeline · search · quotes",
       "stage": 4,
       "row": 1,
       "width": 150
@@ -182,9 +179,9 @@
       "dot": "slate",
       "title": "Evidence origin/main e37eb7db",
       "items": [
-        "extract: helpers/graph/extract_relations.py:110 sidecar \u00b7 noise gate :100",
-        "cited_in: derive_cited_in.py:278 \u00b7 events promote: derive_events.py:259",
-        "insights: derive_insights.py (quotes/render) \u00b7 shared CLI: derive_cli.py:37"
+        "extract: helpers/graph/extract_relations.py:110 sidecar · noise gate :100",
+        "cited_in: derive_cited_in.py:278 · events promote: derive_events.py:259",
+        "insights: derive_insights.py (quotes/render) · shared CLI: derive_cli.py:37"
       ]
     },
     {
@@ -192,8 +189,8 @@
       "title": "Chain wiring & idempotence",
       "items": [
         "PRE_FULL runs derive-cited-in ahead of graph-rebuild",
-        "edges dedupe on UNIQUE triple \u00b7 derive rows DELETE-then-INSERT \u00b7 cited-in INSERT OR IGNORE",
-        "make derive-all = READ-ONLY preview \u00b7 -rebuild targets re-render the DuckDB cache"
+        "edges dedupe on UNIQUE triple · derive rows DELETE-then-INSERT · cited-in INSERT OR IGNORE",
+        "make derive-all = READ-ONLY preview · -rebuild targets re-render the DuckDB cache"
       ]
     },
     {
@@ -202,7 +199,7 @@
       "items": [
         "render The Chatter into notes only via --apply (--no-notes in maint-full)",
         "auto chatter blocks sentinel-wrapped; hand-written blocks never clobbered",
-        "evaluate/quote feedback: word-overlap \u2192 sidecar queue \u00b7 tiers S1-S4 \u2192 Quotes.md"
+        "evaluate/quote feedback: word-overlap → sidecar queue · tiers S1-S4 → Quotes.md"
       ]
     }
   ]

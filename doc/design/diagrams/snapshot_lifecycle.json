@@ -1,178 +1,105 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "diagram_type": "lifecycle",
   "meta": {
-    "title": "Snapshot lifecycle \u2014 create, verify, restore",
+    "title": "Snapshot lifecycle — create, verify, restore",
     "quality_profile": "showcase",
     "locale": "en",
-    "viewBox": [
-      980,
-      680
-    ]
+    "output": "doc/design/diagrams/snapshot_lifecycle.html"
   },
-  "lanes": [
-    {
-      "id": "main",
-      "label": "Snapshot rail"
-    },
-    {
-      "id": "checks",
-      "label": "Verify"
-    },
-    {
-      "id": "recovery",
-      "label": "Recovery"
-    },
-    {
-      "id": "terminal",
-      "label": "Outcomes"
-    }
-  ],
   "states": [
     {
       "id": "clean",
       "type": "start",
       "label": "Clean",
       "sublabel": "DBs at rest, generation G",
-      "lane": "main",
-      "col": 0,
-      "step": "01",
-      "height": 58
+      "step": "01"
     },
     {
       "id": "creating",
       "type": "active",
       "label": "Creating",
       "sublabel": "pools + zstd twins",
-      "lane": "main",
-      "col": 1,
-      "step": "02",
-      "height": 58
+      "step": "02"
     },
     {
       "id": "created",
       "type": "waiting",
       "label": "Created",
       "sublabel": "stamped generation G+1",
-      "lane": "main",
-      "col": 2,
-      "step": "03",
-      "height": 58
+      "step": "03"
     },
     {
       "id": "verified",
       "type": "decision",
       "label": "Verified",
       "sublabel": "snapshot-check green",
-      "lane": "main",
-      "col": 3,
-      "step": "04",
-      "height": 58
+      "step": "04"
     },
     {
       "id": "trusted",
       "type": "success",
       "label": "Trusted",
       "sublabel": "recovery point",
-      "lane": "main",
-      "col": 4,
-      "step": "05",
-      "height": 58
+      "step": "05"
     },
     {
       "id": "drift",
       "type": "failure",
       "label": "Drift Flagged",
-      "sublabel": "DBs moved since stamp",
-      "lane": "checks",
-      "col": 0
+      "sublabel": "DBs moved since stamp"
     },
     {
       "id": "restore",
       "type": "active",
       "label": "Restore",
-      "sublabel": "make snapshot-restore",
-      "lane": "recovery",
-      "col": 1
+      "sublabel": "make snapshot-restore"
     },
     {
       "id": "superseded",
       "type": "neutral",
       "label": "Superseded",
-      "sublabel": "rotated by next create",
-      "lane": "terminal",
-      "col": 2
+      "sublabel": "rotated by next create"
     }
   ],
   "transitions": [
     {
       "id": "t1",
       "from": "clean",
-      "to": "creating",
-      "route": "straight"
+      "to": "creating"
     },
     {
       "id": "t2",
       "from": "creating",
-      "to": "created",
-      "route": "straight"
+      "to": "created"
     },
     {
       "id": "t3",
       "from": "created",
-      "to": "verified",
-      "route": "straight"
+      "to": "verified"
     },
     {
       "id": "t4",
       "from": "verified",
-      "to": "trusted",
-      "route": "straight"
+      "to": "trusted"
     },
     {
       "id": "t5",
       "from": "created",
       "to": "drift",
       "variant": "security",
-      "route": "straight",
-      "fromSide": "bottom",
-      "toSide": "top",
-      "label": "tamper or drift",
-      "labelAt": [
-        472.1,
-        350
-      ]
+      "label": "tamper or drift"
     },
     {
       "id": "t6",
       "from": "drift",
-      "to": "creating",
-      "fromSide": "left",
-      "toSide": "bottom",
-      "via": [
-        [
-          230.0,
-          307
-        ],
-        [
-          230.0,
-          440
-        ],
-        [
-          248.0,
-          440
-        ]
-      ]
+      "to": "creating"
     },
     {
       "id": "t7",
       "from": "verified",
       "to": "restore",
-      "label": "snapshot-restore",
-      "labelAt": [
-        645.0,
-        350
-      ]
+      "label": "snapshot-restore"
     },
     {
       "id": "t8",
@@ -185,11 +112,7 @@
       "from": "trusted",
       "to": "superseded",
       "variant": "dashed",
-      "label": "next create",
-      "labelAt": [
-        724.0,
-        300
-      ]
+      "label": "next create"
     }
   ],
   "cards": [
@@ -197,8 +120,8 @@
       "dot": "slate",
       "title": "Evidence origin/main e37eb7db",
       "items": [
-        "snapshot_db.py:102 create \u00b7 :139 verify \u00b7 :946 restore",
-        "Makefile:119 snapshot \u00b7 :123 snapshot-check \u00b7 :126 snapshot-restore"
+        "snapshot_db.py:102 create · :139 verify · :946 restore",
+        "Makefile:119 snapshot · :123 snapshot-check · :126 snapshot-restore"
       ]
     },
     {
@@ -207,7 +130,7 @@
       "items": [
         "pools: research.db, graph.duckdb, embed_store, corpus.db",
         "parquet exports + binary snapshots, zstd twins in db-backup/",
-        "embed matrix excluded by design \u2014 zstd twins are the recovery points"
+        "embed matrix excluded by design — zstd twins are the recovery points"
       ]
     },
     {
@@ -216,7 +139,7 @@
       "items": [
         "a tampered snapshot with a dropped table FAILS verify",
         "generation drift is flagged against db_meta",
-        "tampered snapshots are dropped \u2014 they never become recovery points"
+        "tampered snapshots are dropped — they never become recovery points"
       ]
     },
     {
@@ -228,5 +151,12 @@
         "executable spec: tests/test_integration_snapshot_cycle.py"
       ]
     }
+  ],
+  "mainPath": [
+    "clean",
+    "creating",
+    "created",
+    "verified",
+    "trusted"
   ]
 }

@@ -26,7 +26,10 @@ subject (a multi-stage chain, a store topology, an ordered protocol).
 - The JSON IR is the committed source of truth (diffable, greppable);
   the HTML is a regenerable build artifact, also committed
   (self-contained, ~0.7 MB). visual-check PNGs are transient — never
-  committed.
+  committed. Archify 2.17.0-dev.1 is the CLI: install with
+  `make install-archify` (clones `tt-a1i/archify` 2.17 into
+  `node_modules/archify` — npm 0.0.4 is the stale legacy package);
+  validate with `node node_modules/archify/archify/bin/archify.mjs validate <type> <ir> --quality showcase --repo-root . --json`.
 - The owning doc section carries a pointer line (diagrams are opaque to
   doc_query; the pointer is the discoverability path):
 

@@ -2,13 +2,10 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "Quote capture \u2014 audit \u2192 route \u2192 triage",
-    "quality_profile": "showcase",
+    "title": "Quote capture — audit → route → triage",
+    "quality_profile": "standard",
     "locale": "en",
-    "viewBox": [
-      1373,
-      752
-    ]
+    "output": "doc/design/diagrams/quote_capture.html"
   },
   "lanes": [
     {
@@ -65,7 +62,7 @@
       "col": 0,
       "type": "backend",
       "label": "coverage audit",
-      "tag": "read-only probe \u00b7 walks 3 trees",
+      "tag": "read-only probe · walks 3 trees",
       "width": 150
     },
     {
@@ -74,7 +71,7 @@
       "col": 1,
       "type": "backend",
       "label": "S1 marker family",
-      "tag": "bracket/bare \u00b7 family-wins",
+      "tag": "bracket/bare · family-wins",
       "width": 140
     },
     {
@@ -83,7 +80,7 @@
       "col": 2,
       "type": "backend",
       "label": "S2 resolver ladder",
-      "tag": "exact\u2192fold\u2192strips \u00b7 role tiers",
+      "tag": "exact→fold→strips · role tiers",
       "width": 150
     },
     {
@@ -102,7 +99,7 @@
       "col": 3,
       "type": "backend",
       "label": "S4 sector ladder",
-      "tag": "canonical \u2192 synonym",
+      "tag": "canonical → synonym",
       "width": 140
     },
     {
@@ -111,7 +108,7 @@
       "col": 4,
       "type": "backend",
       "label": "Quotes catch-all",
-      "tag": "10th super-sector \u00b7 childless",
+      "tag": "10th super-sector · childless",
       "width": 145
     },
     {
@@ -120,7 +117,7 @@
       "col": 5,
       "type": "database",
       "label": "quotes table",
-      "tag": "provenance \u00b7 magnitudes",
+      "tag": "provenance · magnitudes",
       "width": 135
     },
     {
@@ -129,7 +126,7 @@
       "col": 5,
       "type": "backend",
       "label": "quote triage",
-      "tag": "bucket \u00b7 annotate jsonl",
+      "tag": "bucket · annotate jsonl",
       "yOffset": 0,
       "width": 140
     },
@@ -139,7 +136,7 @@
       "col": 5,
       "type": "backend",
       "label": "apply decisions",
-      "tag": "validate \u00b7 persist",
+      "tag": "validate · persist",
       "yOffset": 86,
       "width": 135
     }
@@ -214,19 +211,19 @@
       "title": "Evidence origin/main e37eb7db",
       "items": [
         "audit: quote_coverage_audit.py",
-        "resolver: derive_insights.py:592 _resolve_ladder \u00b7 :497",
-        "sector: derive_insights.py:712 _resolve_sector \u00b7 :709",
-        "triage: triage_pending_quotes.py:52 \u00b7 :37"
+        "resolver: derive_insights.py:592 _resolve_ladder · :497",
+        "sector: derive_insights.py:712 _resolve_sector · :709",
+        "triage: triage_pending_quotes.py:52 · :37"
       ]
     },
     {
       "dot": "cyan",
       "title": "Resolver & sector tiers",
       "items": [
-        "ladder: exact \u2192 fold \u2192 strips \u2192 alias tier",
+        "ladder: exact → fold → strips → alias tier",
         "role tokens (SVP/CFO/head-of/md) drive attribution",
         "markers never split sector regions",
-        "sector: canonical \u2192 synonym \u2192 catch-all"
+        "sector: canonical → synonym → catch-all"
       ]
     },
     {

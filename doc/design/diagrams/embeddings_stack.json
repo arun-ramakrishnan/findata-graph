@@ -8,7 +8,8 @@
     "repository": {
       "url": "https://github.com/arun-ramakrishnan/findata-graph",
       "revision": "b057071c4209e91341bd6f949b1b6c7f8520ee2b"
-    }
+    },
+    "output": "doc/design/diagrams/embeddings_stack.html"
   },
   "layout": {
     "mode": "grid",
