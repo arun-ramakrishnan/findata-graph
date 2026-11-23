@@ -541,7 +541,7 @@ class TestWriterCoordination:
                 (
                     "import duckdb, time, sys\n"
                     "c = duckdb.connect(sys.argv[1], "
-                    "config={'memory_limit': '5GB'})\n"
+                    "config={'memory_limit': '2GB'})\n"
                     "print('ready', flush=True)\n"
                     "time.sleep(2.0)\n"
                     "c.close()\n"

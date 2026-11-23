@@ -240,3 +240,106 @@ def test_duckdb_conn_context_manager_keeps_conn_open(duckdb_store):
         duck.execute("DELETE FROM entities WHERE name = 'X'")
         duck.commit()
         duck.close()
+
+
+class TestWithBlockTransactionSemantics:
+    """#563 first slice: `with conn:` on the DuckDB funnel is a REAL
+    transaction. Before this, DuckDB auto-committed every statement and
+    the exception-path rollback had nothing to undo — a failed compound
+    write persisted its earlier statements (the Wakefit edge-loss
+    incident). Contract: outermost with-block = transaction boundary;
+    nested blocks join it; statements outside any with-block keep
+    autocommit; commit()/rollback() mid-block end the transaction early
+    (sqlite3.Connection parity)."""
+
+    def test_with_block_rolls_back_on_exception(self, duckdb_store):
+        duck = connect_funnel(duckdb_store)
+        try:
+            with pytest.raises(RuntimeError, match="boom"):
+                with duck:
+                    duck.execute("DELETE FROM entities WHERE name = 'A Ltd'")
+                    raise RuntimeError("boom")
+            rows = duck.execute("SELECT COUNT(*) FROM entities").fetchone()
+            assert rows[0] == 5, "DELETE inside a failed with-block must not persist"
+        finally:
+            duck.close()
+
+    def test_with_block_commits_on_clean_exit(self, duckdb_store, tmp_path):
+        duck = connect_funnel(duckdb_store)
+        try:
+            with duck:
+                duck.execute("INSERT INTO entities (name, entity_type) VALUES ('Z', 'company')")
+        finally:
+            # read through a FRESH connection: the write must be durable
+            fresh = connect_funnel(duckdb_store)
+            rows = fresh.execute("SELECT COUNT(*) FROM entities").fetchone()
+            assert rows[0] == 6
+            fresh.execute("DELETE FROM entities WHERE name = 'Z'")
+            fresh.commit()
+            fresh.close()
+            duck.close()
+
+    def test_statements_outside_with_stay_autocommit(self, duckdb_store):
+        duck = connect_funnel(duckdb_store)
+        try:
+            duck.execute("INSERT INTO entities (name, entity_type) VALUES ('Y', 'company')")
+            fresh = connect_funnel(duckdb_store)
+            rows = fresh.execute("SELECT COUNT(*) FROM entities").fetchone()
+            assert rows[0] == 6, "bare execute must persist immediately (autocommit)"
+            fresh.close()
+        finally:
+            duck.execute("DELETE FROM entities WHERE name = 'Y'")
+            duck.commit()
+            duck.close()
+
+    def test_nested_with_blocks_join_the_outer_transaction(self, duckdb_store):
+        duck = connect_funnel(duckdb_store)
+        try:
+            with pytest.raises(RuntimeError, match="boom"):
+                with duck:
+                    duck.execute("DELETE FROM entities WHERE name = 'A Ltd'")
+                    with duck:  # joins the outer txn — no nested BEGIN
+                        duck.execute("DELETE FROM entities WHERE name = 'B Ltd'")
+                        raise RuntimeError("boom")
+            rows = duck.execute("SELECT COUNT(*) FROM entities").fetchone()
+            assert rows[0] == 5, "outer rollback must undo nested-block writes too"
+        finally:
+            duck.close()
+
+    def test_commit_inside_block_pins_writes_against_later_exception(self, duckdb_store):
+        duck = connect_funnel(duckdb_store)
+        try:
+            with pytest.raises(RuntimeError, match="boom"):
+                with duck:
+                    duck.execute("INSERT INTO entities (name, entity_type) VALUES ('W', 'company')")
+                    duck.commit()  # ends the txn early — 'W' is durable from here
+                    duck.execute("INSERT INTO entities (name, entity_type) VALUES ('V', 'company')")
+                    raise RuntimeError("boom")
+            names = {r[0] for r in duck.execute("SELECT name FROM entities").fetchall()}
+            assert "W" in names, "explicit commit() inside the block persists"
+            assert "V" in names, (
+                "after commit() the txn is closed — the next statement ran autocommit, "
+                "so the block's later exception cannot undo it (sqlite3 parity)"
+            )
+        finally:
+            duck.execute("DELETE FROM entities WHERE name IN ('W', 'V')")
+            duck.commit()
+            duck.close()
+
+    def test_rollback_and_reuse_after_failed_block(self, duckdb_store):
+        """The raising statement aborts the DuckDB txn; __exit__'s ROLLBACK
+        must tolerate that and the conn must stay usable."""
+        duck = connect_funnel(duckdb_store)
+        try:
+            with pytest.raises(duckdb.Error):
+                with duck:
+                    duck.execute("DELETE FROM entities WHERE name = 'A Ltd'")
+                    duck.execute(
+                        "INSERT INTO entities (name, entity_type) VALUES ('A Ltd', 'company', 'A.NS', 'extra')"
+                    )
+            rows = duck.execute("SELECT COUNT(*) FROM entities").fetchone()
+            assert rows[0] == 5
+            # conn still usable
+            duck.execute("SELECT 1").fetchall()
+        finally:
+            duck.close()

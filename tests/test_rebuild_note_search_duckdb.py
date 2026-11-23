@@ -195,6 +195,32 @@ class TestRebuildDuckDB:
         s2 = rns.rebuild(duckdb_path, write=True)
         assert s2["indexed"] == s1["indexed"] == 4
 
+    def test_rebuild_summary_stats_report_rows_and_batch_cache(
+        self, seeded_tree, tmp_path, monkeypatch, fake_local
+    ):
+        """2026-11-23 false-alarm pins: the summary line printed the FILE
+        count as "docs" with an empty breakdown ("1403 docs ()"), and the
+        cache line read CachedEmbed.hits/misses — which batch mode never
+        increments ("0 hits, 0 misses" while the batch embedded)."""
+        duckdb_path = tmp_path / "note_search.duckdb"
+        monkeypatch.setattr(rns, "resolve_embedder", lambda: (_pseudo_embed, 64, "pseudo-test"))
+        s1 = rns.rebuild(duckdb_path, write=True)
+        # total_docs = SECTION rows (4), not files (3); breakdown populated.
+        assert s1["total_docs"] == 4
+        assert s1["total_files"] == 3
+        assert s1["by_type"] and sum(s1["by_type"].values()) == 4
+        # Fresh build: every section base is a batch MISS, not a silent 0/0.
+        assert s1["embed_cache_misses"] == 4
+        assert s1["embed_cache_hits"] == 0
+        # Warm second pass: same bases hit the cache.
+        s2 = rns.rebuild(duckdb_path, write=True)
+        assert s2["embed_cache_hits"] == 4
+        assert s2["embed_cache_misses"] == 0
+        # The summary line renders rows with a non-empty breakdown.
+        line = rns._summary_line(s2)
+        assert "note_search: 4 docs (" in line
+        assert "()" not in line
+
     def test_check_freshness_after_build_and_drift(
         self, seeded_tree, tmp_path, monkeypatch, fake_local
     ):

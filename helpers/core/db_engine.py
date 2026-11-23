@@ -163,6 +163,15 @@ class _DuckDBConn:
 
     def __init__(self, raw: Any) -> None:
         self.raw = raw
+        # Explicit-transaction depth: the OUTERMOST `with conn:` opens one
+        # BEGIN TRANSACTION, nested blocks join it, and the outermost
+        # __exit__ COMMITs (clean) or ROLLBACKs (exception). Statements
+        # outside any with-block keep DuckDB's autocommit. Before #563 the
+        # with-block was theatre — DuckDB auto-commits every statement, so
+        # the exception-path rollback had nothing to undo and a failed
+        # compound write persisted its earlier statements (the Wakefit
+        # edge-loss incident).
+        self._txn_depth = 0
 
     def execute(self, sql: str, parameters: Any = ()) -> _DuckDBCursor:
         cur = self.raw.execute(sql, parameters)
@@ -190,14 +199,40 @@ class _DuckDBConn:
         return _DuckDBConnCursor(self)
 
     def commit(self) -> None:
-        """sqlite3.Connection-compatible commit (DuckDB auto-commits; the
-        call is a no-op that keeps writer helpers engine-neutral)."""
-        self.raw.commit()
+        """sqlite3.Connection-compatible commit: inside a with-block this
+        ends the explicit transaction early; outside one it is a no-op
+        (DuckDB already auto-committed), keeping writer helpers
+        engine-neutral."""
+        if self._txn_depth > 0:
+            self._end_txn("COMMIT")
+        else:
+            self.raw.commit()
+
+    def rollback(self) -> None:
+        """sqlite3.Connection-compatible rollback: undoes the explicit
+        transaction when one is open; no-op otherwise."""
+        if self._txn_depth > 0:
+            self._end_txn("ROLLBACK")
+        else:
+            self.raw.rollback()
+
+    def _end_txn(self, verb: str) -> None:
+        """End the explicit transaction, tolerating one that is already
+        gone (a raising statement aborts it; commit() inside the block
+        closed it before __exit__)."""
+        try:
+            self.raw.execute(verb)
+        except Exception:  # noqa: S110  # txn already terminated — nothing to undo
+            pass
+        self._txn_depth = 0
 
     def close(self) -> None:
         self.raw.close()
 
     def __enter__(self) -> _DuckDBConn:
+        if self._txn_depth == 0:
+            self.raw.execute("BEGIN TRANSACTION")
+        self._txn_depth += 1
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
@@ -206,13 +241,13 @@ class _DuckDBConn:
         # callers routinely keep using the conn after the block. Closing
         # here would silently kill every later statement (observed:
         # derive_hyperedges S0 prune loop → "Connection already closed!").
-        if exc_type is None:
-            self.commit()
-        else:
-            try:
-                self.raw.rollback()
-            except Exception:  # noqa: S110
-                pass
+        if self._txn_depth > 0:
+            self._txn_depth -= 1
+        if self._txn_depth == 0:
+            if exc_type is None:
+                self._end_txn("COMMIT")
+            else:
+                self._end_txn("ROLLBACK")
 
 
 class ResearchEngine:

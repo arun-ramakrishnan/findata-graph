@@ -936,7 +936,10 @@ def _print_data_hygiene(n_companies: int) -> None:
     """Print data hygiene checks: orphan companies, self-loops, orphan edges,
     analytics freshness, and notes-on-disk count."""
     print(_hr("Data hygiene", "-"))
-    conn = connect()
+    # read_only pin (DuckDB cutover): a RW open collides with ANY concurrent
+    # holder — under xdist live runs it dies on the IOException below
+    # (2026-11-23 live-invariants); print_stats is a pure reader.
+    conn = connect(read_only=True)
     try:
         # part_of/has_company retirement (2026-10-19): sector membership is
         # canonical in the incidence store — a company is orphaned when it
@@ -1068,7 +1071,7 @@ def _print_retired_edge_types(max_n: int) -> None:
     canonical edition family, counted the same way the integrity checker
     counts them (_expected_comention_count).
     """
-    _mconn = connect()
+    _mconn = connect(read_only=True)
     try:
         n_membership = _mconn.execute(
             "SELECT COUNT(*) FROM hyper_incidences hi "
@@ -1142,7 +1145,7 @@ def print_stats(exact_chains: bool = False) -> int:
 
     # --- Longest chains (capture quality across domains) ---
     print(_hr("Longest chains — capture quality across domains", "-"))
-    _conn = connect()
+    _conn = connect(read_only=True)  # print_stats readers: see hygiene pin above
     try:
         for _line in longest_chains(_conn, exact=exact_chains):
             print(_line)
@@ -1153,7 +1156,7 @@ def print_stats(exact_chains: bool = False) -> int:
 
     # --- Hypergraph structure (D4 first SQL-over-incidence consumer) ---
     print(_hr("Hypergraph structure (incidence SQL)", "-"))
-    _hconn = connect()
+    _hconn = connect(read_only=True)  # print_stats readers: see hygiene pin above
     try:
         for _line in hyper_structure_lines(_hconn):
             print(_line)

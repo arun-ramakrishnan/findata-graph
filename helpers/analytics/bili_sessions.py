@@ -522,10 +522,13 @@ def reset_caches() -> None:
     every counter freezes at its first read. Long-lived callers invoke this
     before each re-read.
     """
+    _fetch_sessions.cache_clear()
+    _compress_config.cache_clear()
     _fetch_detail.cache_clear()
     dashboard_stats_map.cache_clear()
     dashboard_sessions_map.cache_clear()
     _family_index.cache_clear()
+    _index_paths.cache_clear()
     _active_blocks.cache_clear()
     _tier_pools.cache_clear()
     global _SID_INDEX

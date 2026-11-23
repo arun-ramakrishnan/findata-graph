@@ -302,7 +302,9 @@ def _research_store_ro(path: Path) -> Any | None:
     if dup.exists():
         from helpers.core import db_engine
 
-        return db_engine.connect_funnel(str(dup))
+        # read_only pin: the funnel default is RW and an RW open collides
+        # with any concurrent holder (post-cutover; named _ro, was RW).
+        return db_engine.connect_funnel(str(dup), read_only=True)
     return None
 
 

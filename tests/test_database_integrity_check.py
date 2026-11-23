@@ -1496,3 +1496,82 @@ class TestCheckDerivedNames:
         finally:
             checker.close()
         assert res["errors"] == 0
+
+
+# ---------------------------------------------------------------------------
+# check_orphan_spine_refs — the FK-drop backstop (fk_referenced_row_immutability)
+# ---------------------------------------------------------------------------
+class TestOrphanSpineRefs:
+    def test_registry_row_is_error_severity(self):
+        from helpers.misc.database_integrity_check import _CHECKS
+
+        row = {c.name: c for c in _CHECKS}
+        assert "orphan_spine_refs" in row
+        assert row["orphan_spine_refs"].severity == "error"
+
+    def test_absent_tables_yield_zero(self, tmp_path):
+        with _make_checker_db(tmp_path) as (_db_path, checker):
+            res = checker.check_orphan_spine_refs()
+        assert res["errors"] == 0
+        assert res["orphaned"] == 0
+        assert set(res["by_column"].values()) == {0}
+
+    def test_clean_refs_pass(self, tmp_path):
+        extra = [
+            "CREATE TABLE entity_identifiers (entity_name TEXT, identifier_type TEXT, "
+            "identifier_value TEXT, namespace TEXT, valid_from TEXT, valid_to TEXT, "
+            "source_ref TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+            "last_updated TIMESTAMP, PRIMARY KEY (entity_name, identifier_type, identifier_value))",
+            "CREATE TABLE speaker_identity (alias_name TEXT PRIMARY KEY, "
+            "canonical_name TEXT NOT NULL, person_name TEXT, source_ref TEXT NOT NULL, "
+            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        ]
+        with _make_rich_db(tmp_path, extra_tables=extra) as (db_path, checker):
+            conn = sqlite3.connect(db_path)
+            conn.execute("INSERT INTO entities VALUES ('Co A', 'company', 'x', 'Co_A', 'X', NULL)")
+            conn.execute(
+                "INSERT INTO entity_identifiers (entity_name, identifier_type, "
+                "identifier_value, source_ref) VALUES ('Co A', 'cin', 'U12345', 'seed')"
+            )
+            conn.execute(
+                "INSERT INTO speaker_identity (alias_name, canonical_name, person_name, "
+                "source_ref) VALUES ('Chair', 'Co A', 'Co A', 'seed')"
+            )
+            conn.commit()
+            conn.close()
+            res = checker.check_orphan_spine_refs()
+        assert res["errors"] == 0
+        assert res["by_column"]["entity_identifiers.entity_name"] == 0
+        assert res["by_column"]["speaker_identity.person_name"] == 0
+
+    def test_orphan_detected_per_column(self, tmp_path):
+        extra = [
+            "CREATE TABLE graph_analytics (entity_name TEXT, metric TEXT, value TEXT NOT NULL, "
+            "computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (metric, entity_name))",
+            "CREATE TABLE speaker_identity (alias_name TEXT PRIMARY KEY, "
+            "canonical_name TEXT NOT NULL, person_name TEXT, source_ref TEXT NOT NULL, "
+            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        ]
+        with _make_rich_db(tmp_path, extra_tables=extra) as (db_path, checker):
+            conn = sqlite3.connect(db_path)
+            conn.execute("INSERT INTO entities VALUES ('Co A', 'company', 'x', 'Co_A', 'X', NULL)")
+            conn.execute(
+                "INSERT INTO graph_analytics (entity_name, metric, value) "
+                "VALUES ('Co A', 'degree', '12')"
+            )
+            # person_name NULL is legal (nullable column) — only non-NULL dangling counts
+            conn.execute(
+                "INSERT INTO speaker_identity (alias_name, canonical_name, person_name, "
+                "source_ref) VALUES ('Ghost', 'Ghost Alias', NULL, 'seed')"
+            )
+            conn.execute(
+                "INSERT INTO speaker_identity (alias_name, canonical_name, person_name, "
+                "source_ref) VALUES ('Dangle', 'Dangle Alias', 'Gone Co', 'seed')"
+            )
+            conn.commit()
+            conn.close()
+            res = checker.check_orphan_spine_refs()
+        assert res["orphaned"] == 1
+        assert res["errors"] == 1
+        assert res["by_column"]["graph_analytics.entity_name"] == 0
+        assert res["by_column"]["speaker_identity.person_name"] == 1

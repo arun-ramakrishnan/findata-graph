@@ -174,6 +174,13 @@ ROUTING: dict[str, str] = {
 
 def load_projection(
     db_path: str | Path = DEFAULT_DB_PATH,
+    *,
+    # DuckDB in-process law (first post-cutover run of this lane,
+    # 2026-11-23): a file held under one read_only mode refuses a later
+    # open in the OTHER mode — the instance cache keys on the config, so
+    # main()'s write handle and these loads must agree. main() threads
+    # ``read_only=not args.apply`` through every open.
+    read_only: bool = True,
 ) -> tuple[csr_matrix, list[str]]:
     """CSR adjacency from SQLite ``graph_edges`` — the sole source of truth.
 
@@ -186,7 +193,7 @@ def load_projection(
     Reads through :func:`_edge_rows`, so the retired part_of/has_company
     pair still contributes its projected edges (2026-10-19).
     """
-    con = connect(db_path, read_only=True, row_factory=None)
+    con = connect(db_path, read_only=read_only, row_factory=None)
     try:
         # edge_projection: projects the retired part_of/has_company pair back
         # out of the canonical sector hyperedges (2026-10-19).
@@ -209,6 +216,7 @@ def contract_sources(
     db_path: str | Path = DEFAULT_DB_PATH,
     *,
     metric: str = CLOSINESS_METRIC,
+    read_only: bool = True,  # same in-process mode law as load_projection
 ) -> list[str]:
     """The persisted served-universe contract, in contract order (row i <-> contract[i]).
 
@@ -225,7 +233,7 @@ def contract_sources(
     """
     import sqlite3
 
-    con = connect(db_path, read_only=True, row_factory=None)
+    con = connect(db_path, read_only=read_only, row_factory=None)
     try:
         try:
             rows = con.execute(
@@ -525,6 +533,7 @@ def load_centrality_projection(
     *,
     exclude_edge_types: tuple[str, ...] = ("listed_on_index",),
     include_edge_types: tuple[str, ...] | None = None,
+    read_only: bool = True,  # same in-process mode law as load_projection
 ) -> tuple[csr_matrix, list[str]]:
     """Unweighted ex-index CSR for the exact-solve lanes (Katz/eigenvector).
 
@@ -548,7 +557,7 @@ def load_centrality_projection(
     reachable only through excluded types are absent from the
     projection; the PPR seed guard reports them loudly.
     """
-    con = connect(db_path, read_only=True, row_factory=None)
+    con = connect(db_path, read_only=read_only, row_factory=None)
     try:
         # _edge_rows projects the retired part_of/has_company pair back out
         # of the canonical sector hyperedges (2026-10-19).
@@ -642,6 +651,7 @@ def sector_cohort(
     seed: str = "",
     *,
     include_edge_types: tuple[str, ...] = PPR_INCLUDE_EDGE_TYPES,
+    read_only: bool = True,  # same in-process mode law as load_projection
 ) -> frozenset[str]:
     """Hybrid per-sector scope (operator decision 2026-11-06, proposal §5c).
 
@@ -655,7 +665,7 @@ def sector_cohort(
     neighbour arm. An unknown seed or a seed with no sector and no
     relational neighbours yields the empty set (the caller raises).
     """
-    con = connect(db_path, read_only=True, row_factory=None)
+    con = connect(db_path, read_only=read_only, row_factory=None)
     try:
         row = con.execute(
             "SELECT sector_classification FROM entities WHERE name = ?", (seed,)
@@ -995,6 +1005,7 @@ def load_capacity_projection(
     db_path: str | Path = DEFAULT_DB_PATH,
     *,
     unweighted: bool = False,
+    read_only: bool = True,  # same in-process mode law as load_projection
 ) -> tuple[csr_array, list[str]]:
     """Directed integer capacity CSR from SQLite ``graph_edges``.
 
@@ -1004,7 +1015,7 @@ def load_capacity_projection(
     capacity. Capacities are ``max(1, round(weight))`` (integer-only, a
     scipy requirement), or 1 in ``unweighted`` mode (edge-disjoint count).
     """
-    con = connect(db_path, read_only=True, row_factory=None)
+    con = connect(db_path, read_only=read_only, row_factory=None)
     try:
         # _edge_rows projects the retired part_of/has_company pair back out
         # of the canonical sector hyperedges (2026-10-19), so a
@@ -1140,7 +1151,7 @@ def _run_yen_lane(args: argparse.Namespace) -> int:
     """CLI: Yen K-shortest between two named entities (read-only)."""
     if not args.source or not args.sink:
         raise SystemExit("yen requires --source and --sink")
-    A, names = load_projection(args.db)
+    A, names = load_projection(args.db, read_only=not args.apply)
     paths = yen_paths(A, names, args.source, args.sink, args.k, directed=args.directed)
     print(f"yen {args.source} -> {args.sink}: {len(paths)} path(s) (k={args.k})")
     for cost, seq in paths:
@@ -1152,7 +1163,9 @@ def _run_max_flow_lane(args: argparse.Namespace) -> int:
     """CLI: max-flow value + min-cut between two named entities (read-only)."""
     if not args.source or not args.sink:
         raise SystemExit("max-flow requires --source and --sink")
-    cap, names = load_capacity_projection(args.db, unweighted=args.unweighted)
+    cap, names = load_capacity_projection(
+        args.db, unweighted=args.unweighted, read_only=not args.apply
+    )
     value, cut = max_flow(cap, names, args.source, args.sink)
     print(f"max-flow {args.source} -> {args.sink}: value={value}")
     print(f"  min-cut: {len(cut)} arc(s)")
@@ -1173,7 +1186,7 @@ def _run_exact_lane(args: argparse.Namespace, scon) -> int:
     from helpers.graph.algorithms import write_analytics
 
     t0 = time.perf_counter()
-    A, names = load_centrality_projection(args.db)
+    A, names = load_centrality_projection(args.db, read_only=not args.apply)
     pos = {n: i for i, n in enumerate(names)}
     t_build = time.perf_counter() - t0
     if args.command == "katz":
@@ -1188,7 +1201,7 @@ def _run_exact_lane(args: argparse.Namespace, scon) -> int:
         file=sys.stderr,
         flush=True,
     )
-    contract = contract_sources(args.db, metric=metric)
+    contract = contract_sources(args.db, metric=metric, read_only=not args.apply)
     if not contract:
         scon.close()
         raise ValueError(
@@ -1231,10 +1244,11 @@ def _run_ppr_lane(args: argparse.Namespace, scon) -> int:
     A, names = load_centrality_projection(
         args.db,
         include_edge_types=PPR_INCLUDE_EDGE_TYPES,
+        read_only=not args.apply,
     )
     sector_note = ""
     if getattr(args, "sector", False):
-        cohort = sector_cohort(args.db, args.seed)
+        cohort = sector_cohort(args.db, args.seed, read_only=not args.apply)
         keep = [i for i, n in enumerate(names) if n in cohort]
         if not keep or args.seed not in {names[i] for i in keep}:
             scon.close()
@@ -1393,15 +1407,19 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     from helpers.graph.algorithms import write_analytics
 
     # --apply writes to THIS lane's --db (tests pass a tmp store); never the
-    # default research.db implicitly.
-    scon = connect(args.db, row_factory=None)
+    # default research.db implicitly. read_only=not args.apply: DuckDB's
+    # in-process instance cache keys on the config — a file held RW refuses
+    # a later RO open of the SAME file (ConnectionException), and the
+    # loaders below open their own connections (2026-11-23, first
+    # post-cutover run of closeness-harmonic).
+    scon = connect(args.db, row_factory=None, read_only=not args.apply)
     if args.command in ("katz", "eigenvector"):
         return _run_exact_lane(args, scon)
     if args.command == "pagerank-personalized":
         return _run_ppr_lane(args, scon)
     t0 = time.perf_counter()
-    A, names = load_projection(args.db)
-    contract = contract_sources(args.db)
+    A, names = load_projection(args.db, read_only=not args.apply)
+    contract = contract_sources(args.db, read_only=not args.apply)
     if args.universe == "all":
         if args.apply:
             scon.close()

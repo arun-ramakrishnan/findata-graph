@@ -1065,21 +1065,21 @@ def _mark_warm(  # noqa: C901  # warm-mark: per-table/per-mode branches
     """Record build provenance in _build_meta after a successful build."""
     con.execute(_BUILD_META_DDL)
     # P0: stamp generation from the research store's db_meta so _is_warm can
-    # do O(1) staleness
+    # do O(1) staleness. Read through THIS connection's ATTACHed source
+    # (alias fin) — a second funnel open here defaults to READ-WRITE and
+    # loses the lock race to any concurrent holder; the swallowed
+    # IOException then ships a stamp-less warm cache whose _is_warm reads
+    # stale forever, and every later connect re-inlines a full rebuild
+    # (the 2026-11-23 gate-arc integration loop). fin reads cannot lose
+    # that race — the attach already holds the source lock, and a
+    # fixture-shaped source without db_meta surfaces as CatalogException.
     gen_val = None
     note_model = None
     try:
-        # S2/S6: funnel source read (see _source_connect) — default
-        # delegates to helpers.core.db.connect byte-identically; the pin
-        # keeps fixture-shaped sibling caches out of the resolution.
-        _scon = _source_connect(Path(db_path), _duckdb_path_of(con))
-        try:
-            _row = _scon.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
-            gen_val = str(int(_row[0])) if _row and _row[0] is not None else None
-        finally:
-            _scon.close()
-    except Exception:
-        gen_val = None
+        _row = con.execute("SELECT value FROM fin.db_meta WHERE key='generation'").fetchone()
+    except duckdb.CatalogException:
+        _row = None
+    gen_val = str(int(_row[0])) if _row and _row[0] is not None else None
     # sql_capability_unlocks A1: the note-embedding model label lives
     # in db_meta (note_search rows carry no model column — db_meta is
     # the only SQL-side home; stamped by rebuild_note_search's apply
@@ -1104,7 +1104,8 @@ def _mark_warm(  # noqa: C901  # warm-mark: per-table/per-mode branches
             pass
     if note_model is None:
         try:
-            _scon = _source_connect(Path(db_path), _duckdb_path_of(con))
+            # read_only pin: same lock-race law as the generation read above.
+            _scon = _source_connect(Path(db_path), _duckdb_path_of(con), read_only=True)
             try:
                 _row = _scon.execute(
                     "SELECT value FROM db_meta WHERE key='note_embed_model'"

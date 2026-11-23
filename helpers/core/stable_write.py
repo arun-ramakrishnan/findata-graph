@@ -122,6 +122,16 @@ def stable_prefix_replace(
     result, to_insert, stale_ids = _plan(conn, table, prefix, cols, new_rows)
     if stale_ids:
         for child_table, child_col in children:
+            # sqlite donors may lack the child table entirely (test
+            # fixtures build minimal schemas); the sqlite_master probe
+            # reads as a compat view on DuckDB, so it works on both
+            # engines (same gate as derive_hyperedges counterparty roll-up).
+            has_child = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE name = ? AND type = 'table'",
+                (child_table,),
+            ).fetchone()
+            if has_child is None:
+                continue
             conn.executemany(
                 f"DELETE FROM {child_table} WHERE {child_col} = ?",  # noqa: S608  # schema-constant identifiers
                 [(i,) for i in stale_ids],

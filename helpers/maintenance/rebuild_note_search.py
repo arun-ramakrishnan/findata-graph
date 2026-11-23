@@ -1014,12 +1014,13 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
             try:
                 if model_label is None:
                     raise ValueError("model_label unresolved before batch embed")
-                vecs, _batch_stats = cached_embed_batch(
+                vecs, batch_stats = cached_embed_batch(
                     conn, texts, model_label, batch_fn, source="note"
                 )
             except Exception as e:  # noqa: BLE001  # degrade -> same as legacy
                 print(f"[notes] warn: batch embed failed ({e})", file=sys.stderr)
                 vecs = []
+                batch_stats = {"hits": 0, "misses": len(texts)}
             # vecs is aligned to the TEXTS batch order, not the row index:
             # patch by batch POSITION. The old vecs[i] (row index) misaligned
             # whenever deferral was partial — the incremental case, where
@@ -1035,11 +1036,25 @@ def rebuild_note_duckdb(  # noqa: C901  # full duckdb rebuild: stage ladder
                 row = rows[i]
                 rows[i] = row[:5] + (pack_f32(vec),) + row[6:]
             if cache is not None:
-                stats["embed_cache_hits"] = cache.hits
-                stats["embed_cache_misses"] = cache.misses
+                # Report the BATCH stats, not the wrapper counters: batch mode
+                # bypasses CachedEmbed.embed(), so cache.hits/misses stay 0
+                # and the post-write report printed "0 hits, 0 misses" while
+                # the batch actually embedded (2026-11-23 false "broke again"
+                # alarm). Same shape as the legacy path's cstats below.
+                stats["embed_cache_hits"] = batch_stats.get("hits", cache.hits)
+                stats["embed_cache_misses"] = batch_stats.get("misses", cache.misses)
 
         all_rows = rows
         stats["total_rows"] = len(all_rows)
+        # total_docs was seeded as the FILE count (:929); the summary line
+        # prints it as "docs" — overwrite with the SECTION-row count and set
+        # by_type so the breakdown isn't "()" (1403-docs false alarm,
+        # 2026-11-23). total_files keeps the file count; the --check path
+        # keeps its own file-count semantics (different contract there).
+        stats["total_docs"] = len(all_rows)
+        from collections import Counter
+
+        stats["by_type"] = dict(Counter(r[0] for r in all_rows))
         stats["embedded"] = sum(1 for r in all_rows if r[5])
 
         # Current meta = file-content fingerprints (matches _write_note_store /

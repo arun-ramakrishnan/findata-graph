@@ -203,6 +203,12 @@ _CHECKS: tuple[Check, ...] = (
     ),
     Check("orphan_ppr_results", "check_orphan_ppr_results", "error", "Orphan PPR Results"),
     Check(
+        "orphan_spine_refs",
+        "check_orphan_spine_refs",
+        "error",
+        "Orphan Spine References (FK-less)",
+    ),
+    Check(
         "dangling_agent_ids",
         "check_dangling_agent_ids",
         "warning",
@@ -878,6 +884,51 @@ class DatabaseIntegrityChecker:
             "WHERE NOT EXISTS (SELECT 1 FROM entities e WHERE e.name = p.entity)"
         ).fetchone()[0]
         return {"total": total, "orphaned": orphaned, "errors": orphaned}
+
+    def check_orphan_spine_refs(self) -> dict:
+        """Dangling entity names in the five spine columns the FK-drop left
+        unguarded (fk_referenced_row_immutability S3).
+
+        The 2026-11-23 migration removed the DuckDB constraining FKs onto
+        ``entities(name)`` (DuckDB 2.x refuses any UPDATE/DELETE of a
+        referenced row, including non-key updates). Ten of the fifteen
+        dropped entity-side columns keep dedicated ERROR backstops
+        (check_events / check_quotes / check_company_metrics /
+        check_entity_tags / check_orphan_*); these five had none — their
+        FK was the only guard — so this scan replaces it. The fold
+        machinery re-points them via ``name_dedup._REFOLD_COLUMNS``, and
+        the sqlite donor still carries the FKs (trivially green there).
+
+        ERROR severity: live counts were 0 at the drop, so nonzero is a
+        real orphan. Tolerates missing tables (zeros).
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        targets = (
+            ("co_mention_editions", "entity_name"),
+            ("entity_identifiers", "entity_name"),
+            ("graph_analytics", "entity_name"),
+            ("graph_analytics_contract", "entity_name"),
+            ("speaker_identity", "person_name"),
+        )
+        by_column: dict[str, int] = {}
+        for table, column in targets:
+            if not db_engine.table_exists(cur, table, kind="table"):
+                by_column[f"{table}.{column}"] = 0
+                continue
+            by_column[f"{table}.{column}"] = cur.execute(
+                f'SELECT COUNT(*) FROM "{table}" x '  # noqa: S608  # table/column from the module-constant target list, never input
+                f'WHERE x."{column}" IS NOT NULL '
+                'AND NOT EXISTS (SELECT 1 FROM entities e WHERE e.name = x."'
+                f'{column}")'
+            ).fetchone()[0]
+        orphaned = sum(by_column.values())
+        return {
+            "total": len(targets),
+            "by_column": by_column,
+            "orphaned": orphaned,
+            "errors": orphaned,
+        }
 
     def check_dangling_agent_ids(self) -> dict:
         """Fact rows whose agent_id references an unknown provenance_agents row.
@@ -3124,6 +3175,13 @@ class DatabaseIntegrityChecker:
         )
         lines.append("")
 
+        spine = results.get("orphan_spine_refs", {})
+        lines.append("## ORPHAN SPINE REFERENCES (ERROR-level; gate-failing)")
+        for col, n in (spine.get("by_column") or {}).items():
+            lines.append(f"{col}={n}")
+        lines.append(f"orphaned={spine.get('orphaned', 0)} -> errors={spine.get('errors', 0)}")
+        lines.append("")
+
         dag = results.get("dangling_agent_ids", {})
         lines.append("## DANGLING agent_id ROWS (advisory; no live agent delete)")
         lines.append(
@@ -3457,6 +3515,14 @@ class DatabaseIntegrityChecker:
         print(f"   Total ppr rows: {ppr.get('total', 0)}")
         print(f"   Orphaned (entity missing): {ppr.get('orphaned', 0)}")
         print(f"   PPR errors: {ppr.get('errors', 0)}")
+        print()
+
+        spine = results.get("orphan_spine_refs", {})
+        print("🕸️  ORPHAN SPINE REFERENCES (ERROR-level; gate-failing):")
+        for col, n in (spine.get("by_column") or {}).items():
+            print(f"   {col}: {n}")
+        print(f"   Orphaned: {spine.get('orphaned', 0)}")
+        print(f"   Spine errors: {spine.get('errors', 0)}")
         print()
 
         dag = results.get("dangling_agent_ids", {})

@@ -37,8 +37,10 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent.parent
 SOURCE = REPO / "memory" / "research.db"
 CACHE_DIR = (
-    Path(os.environ["TMPDIR"]) / "opencode" / "swap_fk_gate"
-)  # TMPDIR is required; /tmp is never the fallback
+    Path(os.environ.get("TMPDIR") or REPO / ".smoke_tmp") / "opencode" / "swap_fk_gate"
+)  # TMPDIR preferred, workspace scratch fallback — /tmp is never the fallback
+# (AGENTS.md scratch law; module-level os.environ["TMPDIR"] KeyError'd the
+# live-invariants collectors 2026-11-23 in TMPDIR-less worker envs).
 CACHE = CACHE_DIR / "research_converted.duckdb"
 
 sys.path.insert(0, str(REPO))

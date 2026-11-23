@@ -624,7 +624,7 @@ class TestRefoldCoverage:
     def test_every_entity_fk_has_a_refold_entry(self):
         from helpers.core.db import connect  # noqa: E402, PLC0415
 
-        con = connect()
+        con = connect(read_only=True)  # live readers; RW collides with xdist peers
         try:
             children = nd.entity_fk_children(con)
         finally:
@@ -652,7 +652,7 @@ class TestDerivedNameCoverage:
     def test_enumeration_matches_declared_registry(self):
         from helpers.core.db import connect  # noqa: E402, PLC0415
 
-        con = connect()
+        con = connect(read_only=True)  # live readers; RW collides with xdist peers
         try:
             found = nd.derived_name_columns(con)
         finally:
@@ -686,7 +686,7 @@ class TestDerivedNameCoverage:
         from helpers.core.db import connect  # noqa: E402, PLC0415
         from helpers.graph.hyperedge_types import HYPEREDGE_TYPES  # noqa: E402, PLC0415
 
-        con = connect()
+        con = connect(read_only=True)  # live readers; RW collides with xdist peers
         try:
             live = {r[0] for r in con.execute("SELECT DISTINCT edge_type FROM hyper_edges")}
         finally:
@@ -798,7 +798,7 @@ class TestS2FoldLedgerInvariants:
             hit_v, hit_c = paren.search(variant), paren.search(canonical)
             return bool(hit_v or hit_c) and normalise(v) == normalise(c)
 
-        con = connect()
+        con = connect(read_only=True)  # live readers; RW collides with xdist peers
         try:
             rows = self._rows()
             assert len(rows) >= 100, f"ledger core shrank: {len(rows)}"

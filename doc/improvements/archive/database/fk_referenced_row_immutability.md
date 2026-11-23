@@ -1,25 +1,26 @@
 ---
-title: "Referenced-row write immutability under DuckDB 2.x — drop constraining FKs, gate-enforce (deferred)"
-status: deferred
+title: "Referenced-row write immutability under DuckDB 2.x — drop constraining FKs, gate-enforce"
+status: executed
 filed: '2026-11-22'
-executed: '2026-11-22'
-completed_md: "560"
+executed: '2026-11-23'
+completed_md: "563"
 area: schema/duckdb/research.sql, helpers/core/db_engine.py, helpers/core/stable_write.py, helpers/misc/database_integrity_check.py, helpers/graph/sector_membership.py, helpers/graph/derive_insights.py, helpers/graph/derive_events.py, helpers/graph/derive_event_participants.py, helpers/core/parse_newsletter.py
 ---
 
 # Proposal: Referenced-row write immutability under DuckDB 2.x
 
-**Date:** 2026-11-22 · **Status:** DEFERRED (design recommendation recorded;
-no schema change made. The six point-fixes in completed.md #560 stand and
+**Date:** 2026-11-22 · **Status:** EXECUTED 2026-11-23 (unparked by the
+operator alongside the quotes arc; see §6 for the execution record and
+completed.md #563. The six point-fixes in completed.md #560 stand and
 remain correct under either resolution.)
 
-> **Record:** filed AND concluded the same day as a design verdict, parked
-> without implementation (operator: "file a proposal and mark it deferred
-> for now"). The DuckDB 2.x FK limitation is real, documented upstream, and
-> already produced six per-site fixes in one sitting (#560); this proposal
-> records the design-level answer — drop the constraining FKs on the three
-> hot referenced tables, keep the provenance FK, and move enforcement to
-> the integrity gate — for execution whenever the operator unparks it.
+> **Record:** filed 2026-11-22 as a design verdict and parked the same day
+> (operator: "file a proposal and mark it deferred for now"); executed
+> 2026-11-23. The DuckDB 2.x FK limitation is real, documented upstream,
+> and had already produced six per-site fixes in one sitting (#560); this
+> proposal recorded the design-level answer — drop the constraining FKs on
+> the three hot referenced tables, keep the provenance FK, and move
+> enforcement to the integrity gate.
 
 ## 1. Motivation — the engine constraint contradicts the write model
 
@@ -111,3 +112,62 @@ failure class than a refused write.
 6. Eval-gate: not required — no query-visible semantics change (constraint
    metadata + validator coverage only); note that foreign_key_check
    coverage narrows to the kept FKs.
+
+## 6. Execution & findings (2026-11-23)
+
+All five acceptance criteria met, in §4's prescribed order:
+
+- **Slice 1 — transaction semantics (§4, first)**: `_DuckDBConn`
+  (helpers/core/db_engine.py:159) auto-committed every statement —
+  DuckDB has no implicit open transaction, so the old `__exit__`'s
+  rollback-on-exception had nothing to undo and partial writes persisted
+  (the Wakefit mechanism, now pinned to exact lines). New
+  depth-counted explicit transactions: `__enter__` issues
+  `BEGIN TRANSACTION` at depth 0, `__exit__` COMMITs or ROLLBACKs the
+  outermost block (conn stays open — prior regression preserved),
+  nested `with` joins the outer txn, `commit()` mid-block pins writes
+  (sqlite3 parity), statements outside any block stay autocommit.
+  Six tests in `tests/test_db_engine.py::TestWithBlockTransactionSemantics`
+  (rollback-on-exception preserves deleted rows; fresh-conn durability;
+  nested join; mid-block pinning; reuse-after-abort). The migration
+  itself then proved the semantics live: the first `DROP CONSTRAINT`
+  attempt raised `NotImplementedException` and the whole scratch txn
+  rolled back atomically (24 FKs verified intact after).
+- **Slice 2 — FK drop**: `ALTER TABLE ... DROP CONSTRAINT` is NOT
+  IMPLEMENTED in DuckDB 2.0.1, so the migration rebuilds the 13
+  referencing/referenced tables as shadow tables with the FK clauses
+  asserted-absent exactly once, inside one txn through house
+  `connect()`: 3 views dropped and recreated
+  (company_metrics_ruled, relations, v_quote_speaker), 14 secondary
+  indexes recreated, 471,157 rows preserved (row + sequence + index
+  counts equal pre/post). 24 → 7 FKs. KEPT 7: five
+  `agent_id → provenance_agents` (company_metrics, events, graph_edges,
+  hyper_edges, quotes — the AGENTS law) + concepts' two intra-table
+  FKs. Backup: full `make snapshot` before; `make schema-dump` after,
+  diff = exactly the 17 FK removals. Referenced-row UPDATE verified
+  legal on the live store.
+- **Slice 3 — gate enforcement**: `check_orphan_spine_refs` in
+  helpers/misc/database_integrity_check.py — ERROR-severity registry
+  row, engine-agnostic NOT EXISTS probe over the five newly-unguarded
+  spine columns (co_mention_editions.entity_name,
+  entity_identifiers.entity_name, graph_analytics.entity_name,
+  graph_analytics_contract.entity_name, speaker_identity.person_name;
+  NULLs skipped, missing tables tolerated), rendered in both report
+  writers. The other 10 dropped entity-side columns keep their
+  dedicated ERROR backstops (check_events orphaned, check_quotes,
+  check_company_metrics, check_entity_tags, check_orphan_incidences,
+  check_orphan_graph_edges, check_orphan_event_participants,
+  check_orphan_ppr_results). Full gate exit 0 on the clean estate;
+  four tests in `tests/test_database_integrity_check.py::TestOrphanSpineRefs`
+  (suite 101 passed).
+- **Pre-existing red fixed en route** (the "reds from earlier arcs"
+  standing rule): `test_derived_rows_replaced_on_rederive` failed on
+  sqlite fixtures since the children param landed in the writer wave —
+  `stable_prefix_replace` now skips child-table deletes whose table is
+  absent (`sqlite_master` probe, the derive_hyperedges gate shape;
+  DuckDB serves sqlite_master as a compat view, so both engines pass).
+- **#560 guards unchanged**: every FK-law guard added in #560 is
+  best-effort and simply never fires without the constraints — no debt
+  either direction. `foreign_key_check` in the integrity gate now
+  covers only the kept 7, which is precisely the narrowed coverage the
+  proposal called for.

@@ -959,6 +959,15 @@ Open items below keep their revisit triggers inline; executed work is compressed
   shape-preserving. Census driver banked at
   `bench_data/quote_extractor_census/`.
 
+- **Metric reconciliation driver (newsletter ↔ NSE-XBRL) — CLOSED
+  2026-11-23, EXECUTED same day (#564)**: driver + sidecar landed
+  (`helpers/maintenance/reconcile_newsletter_metrics.py`,
+  `metric_reconciliation` table); live baseline written (4,170 rows,
+  all unmatched — zero absolute-magnitude candidates exist yet, the
+  unit/period gates refuse growth figures rather than mis-anchor).
+  First anchored pairs expected from the next edition parsed after an
+  exchange refresh (§10.3 cycle ordering).
+
 ## Executed — records only (kept for audit; details in completed.md / archive)
 
 - **Technology avenues** — EXECUTED & ARCHIVED 2026-08-17→18
@@ -1268,18 +1277,14 @@ Open items below keep their revisit triggers inline; executed work is compressed
   the properties columns. Reopen only if a provenance column is ever
   introduced as JSON-TEXT.
 - **Referenced-row write immutability (DuckDB 2.x FK limitation) —
-  DEFERRED 2026-11-22** (`archive/database/fk_referenced_row_immutability.md`,
-  absorbed by completed.md #560): DuckDB 2.x refuses any UPDATE/DELETE of a
-  FK-referenced row (the non-key-column case is an upstream
-  false-positive), making entities/hyper_edges/events effectively
-  write-immutable — the root cause behind the six #560 writer fixes. The
-  design recommendation (drop the constraining FKs on the three hot
-  tables, keep the provenance FK per the connect() law, move enforcement
-  to the integrity gate as error-severity orphan checks) is parked with
-  the operator; FIRST slice of any execution is a transaction-semantics
-  audit of the db_engine wrapper (`with conn:` does not roll back on
-  exception — measured the same day). Reopen when the operator unparks it
-  or a DuckDB pin fixes the non-key-UPDATE false positive.
+  CLOSED 2026-11-23, EXECUTED (#563)**: the deferred design was unparked
+  alongside the quotes arc — transaction semantics fixed first (explicit
+  BEGIN/COMMIT/ROLLBACK in `_DuckDBConn`, six pinning tests), 17
+  constraining FKs dropped by shadow-table rebuild (24 → 7; kept = five
+  provenance `agent_id` + concepts' two), `check_orphan_spine_refs`
+  ERROR check added to the integrity gate. Reopen only if a DuckDB pin
+  fixes the non-key-UPDATE false positive (the FKs can then return; the
+  #560 guards are best-effort and no-op either way).
 - **Multilingual concall/transcript ingest — PARKED 2026-10-31, no
   source pinned** (operator): the strategic multilingual play (gemma
   11/12 vs granite 4/12 has had no consumer since #363) needs a

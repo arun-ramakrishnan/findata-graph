@@ -17052,3 +17052,145 @@ IBM_Tata_Tech edition's quotes at the operator's request).
   noted: mid-word source truncations in the edition md are a
   pdf_pipeline defect (pdf_conv_md hard right-edge cuts) — the
   extractor is now source-faithful to them.
+
+## 563. FK referenced-row immutability executed — transaction semantics fixed, 17 constraining FKs dropped, gate-enforced
+
+Filed 2026-11-22 (deferred); executed 2026-11-23
+(`archive/database/fk_referenced_row_immutability.md`; unparked by the
+operator alongside the quotes arc).
+
+- **Transaction semantics fixed first** (the proposal's first-slice
+  rule): `_DuckDBConn` (helpers/core/db_engine.py:159) auto-committed
+  every statement — DuckDB keeps no implicit open transaction, so the
+  wrapper's `with conn:` rollback-on-exception had nothing to undo and
+  partial writes persisted (the Wakefit loss mechanism, pinned to
+  exact lines). Explicit depth-counted transactions now: `__enter__`
+  opens `BEGIN TRANSACTION` at depth 0, the outermost `__exit__`
+  COMMITs or ROLLBACKs (connection stays open), nested blocks join
+  the outer txn, mid-block `commit()` pins writes (sqlite3 parity),
+  statements outside blocks stay autocommit. Six pinning tests in
+  `TestWithBlockTransactionSemantics`.
+- **17 constraining FKs dropped by shadow-table rebuild**:
+  `ALTER TABLE ... DROP CONSTRAINT` is not implemented in DuckDB
+  2.0.1, so 13 tables rebuilt in one txn through house `connect()`
+  (3 views + 14 secondary indexes recreated, 471,157 rows preserved,
+  counts equal pre/post): the `entities(name)`-side constraints,
+  `hyper_incidences → hyper_edges(id)`,
+  `event_participants → events(id)`. Kept 7: five
+  `agent_id → provenance_agents` (the AGENTS law) + concepts' two
+  intra-table FKs. Backup via `make snapshot` before; `make
+  schema-dump` diff after = exactly the 17 removals; referenced-row
+  UPDATE verified legal on the live store. The failed first attempt
+  (DROP CONSTRAINT → NotImplementedException) rolled back atomically
+  under the new txn semantics — slice 1 validating itself.
+- **Integrity gate inherits the constraints**:
+  `check_orphan_spine_refs` (ERROR-severity) probes the five
+  newly-unguarded spine columns with engine-agnostic NOT EXISTS
+  queries (co_mention_editions, entity_identifiers, graph_analytics,
+  graph_analytics_contract, speaker_identity; NULLs skip, missing
+  tables tolerated), rendered in both report writers; the other 10
+  dropped columns keep their dedicated ERROR backstops. Full gate
+  exit 0; `TestOrphanSpineRefs` brings the suite to 101 passed.
+  `foreign_key_check` coverage narrows to the kept 7 by design.
+- **En-route red fixed** (earlier-arc class): the children dance in
+  `stable_prefix_replace` now skips absent child tables
+  (`sqlite_master` probe, DuckDB serves it as a compat view), fixing
+  the sqlite-fixture failure in
+  `test_derived_rows_replaced_on_rederive` left by the writer wave.
+- **#560's FK-law guards stand unchanged** — all best-effort, they
+  simply never fire without the constraints.
+
+## 564. Metric reconciliation driver — newsletter ↔ NSE-XBRL ground truth
+
+Filed and executed 2026-11-23
+(`archive/database/metric_reconciliation_driver.md`; the §10.3/§10.4
+step-3 slice of the exchange-filings design).
+
+- **Ladder + sidecar**: `helpers/maintenance/reconcile_newsletter_metrics.py`
+  resolves each newsletter metric (`derive:metrics:` prefix) against
+  filing rows via entity → explicit-quarter period → label map → unit
+  map, then nearest filing candidate within a 10% band (`anchored`;
+  else `suspect`); standalone and consolidated rows compete and the
+  closer wins. Verdicts land in the `metric_reconciliation` sidecar
+  keyed on metric `id` (stable-replace applies keep ids), never in
+  `company_metrics` itself — `_METRIC_CONTENT_COLS` includes
+  `properties`, so in-row annotation would churn on the next apply.
+- **Live validation is an honest zero, by design**: of 4,170 newsletter
+  metrics, 89% carry no period (`period_missing` 3,717), 337 more have
+  year-only/date periods (`period_ambiguous`), and ALL 116
+  explicit-quarter rows are growth/percent figures (`unit_unmapped`
+  10, `label_missing` 69, `label_unmapped` 35, `no_filing_rows` 2) —
+  zero absolute-magnitude candidates exist yet. The gates refuse them
+  rather than mis-anchor. First anchored pairs arrive from the next
+  edition parsed after an exchange refresh (§10.3 cycle ordering);
+  the 4,170-row sidecar baseline (idempotent on rerun) makes that
+  diff visible.
+- **Tests**: 30 targeted tests (ladder rungs, consolidated
+  nearest-pick, suspect threshold, all unmatched reasons, apply
+  idempotency + pruning, report rendering) in
+  `tests/test_reconcile_newsletter_metrics.py` — sqlite fixtures, the
+  driver SQL is engine-agnostic.
+
+## 565. Gate arc 2026-11-23 — the integration-loop root cause, the RW/RO collision web, and the post-storm environment rebuild
+
+Filed 2026-11-23; executed 2026-11-23 (gate arc per doc/procedures/gates.md,
+covers #562-#564 plus the uncommitted gate-fix wave).
+
+- **Battery 1 aborted honestly**: qa opened with 6 lock casualties
+  (schema-check, group-growth, family-label, snapshot ×2, mojo-parity —
+  all `Could not set lock on memory/research.duckdb` self-contention),
+  then pytest froze 18m40s at 98% with the box swapping; user-directed
+  ABRT of the wedged worker (faulthandler: `test_integration_perf.py:193`
+  → `_shared_connect` → `_materialise_v_nodes`).
+- **The 3-layer integration-loop root cause**: (trigger) `_mark_warm`
+  read the store generation via a SECOND funnel open defaulting to
+  READ-WRITE — it loses the lock race to any concurrent holder, and the
+  swallowed IOException shipped a stamp-less warm cache; (amplifier) the
+  generation row silently skipped, `_is_warm` read stale forever, and
+  conftest's `GRAPH_STALE_REBUILD=inline` re-materialised 126-166 MB per
+  production connect (40+ rebuild temps; pytest 430s → 1550s+); (freeze)
+  the final build crawled in `_materialise_v_nodes` = DuckDB spill under
+  the swap storm — the per-process memory cap defaults to 11.2 GiB.
+- **Fixes**: `_mark_warm` now reads generation through the build
+  connection's ATTACHed source (`fin.db_meta`; fixture-shaped sources
+  surface as CatalogException → None, no second connection, no lock
+  window); note-embed-model fallback pinned `read_only=True`; per-
+  connection `MEMORY_LIMIT` capped 5GB → 2GB (operator directive,
+  `helpers/core/duckdb_shared.py`); `scipy_bridge` loaders + main
+  connection thread `read_only=not args.apply` (the loaders' internal
+  opens held RW while the bench re-opened RO — in-process instance cache
+  keys on the config and refuses the flip);
+  `stats.py` `print_stats` ×4 and `context_pack._research_store_ro` ×1
+  were post-cutover RW opens in pure readers (same collision web — under
+  xdist an RW holder excludes even RO openers, which is what turned
+  battery B's live-invariants into 22F+9E); `test_name_dedup` ×4 test-
+  side `connect()`s pinned RO; `swap_fk_gate` module-level
+  `os.environ["TMPDIR"]` KeyError'd every TMPDIR-less collector —
+  workspace-scratch fallback per the AGENTS.md scratch law; static-checks
+  sort-key tiebreak (`(-count, key)`); wave-2 fallout: the
+  event-participants cascade test rewritten to the refusal law,
+  `stable_write`'s sqlite_master existence probe parameterized.
+- **Live-invariants ladder**: 22F+9E (battery B casualties) → 9F+13E
+  after the warm fix — classified into the RW web above, the TMPDIR
+  KeyError, the gemma sidecar DOWN since the storm (restarted
+  `make embgemma-server`, 8732 healthy; the shared-QV no-local-load leg
+  needs it), and collateral → 1F residual transient collision with the
+  deliberate production-default RW test (`test_graph_disk.py:936`), 30/30
+  on the targeted re-run. Final: 174 passed, 11 skipped in 177.85s
+  (battery B: 422.6s under the churn tax).
+- **Store estate**: `make snapshot` converged the generation mismatch
+  (live = snapshot = 1145755), refreshed parquet + HIF + db-backup legs;
+  schema-dump closed drift (`metric_reconciliation`, `v_centrality_*`
+  views, FTS internals); `rebuild_note_search` summary now reports real
+  row counts + batch cache stats (was FILE-count seeding).
+
+Gates: make qa — battery B 8/15; all 9 pytest F + 6 non-pytest legs
+re-validated green targeted (91-test batch, six leg re-runs, snapshot
+regen); make advisory — graph-algos, suggest-relations, lint-audit green
+targeted, live-invariants green as above, gate-timing-watch FIRE
+parked (contended), convo-fresh-check parked by design, script/memory
+staleness → slot-2 APPLYs; make perf — PARKED twice (refusals: load1
+14.68 > 4 cores; the user's manual forced run 22/35 had 5 rc-fails =
+the since-fixed stale production cache and 8 budget-fails untrusted
+under contention). Battery 1's abort and both contention classes are
+recorded here rather than silently absorbed.

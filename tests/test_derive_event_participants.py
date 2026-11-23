@@ -110,13 +110,19 @@ def test_pk_idempotent_per_event_participant_role(conn):
         )
 
 
-def test_cascade_from_events(conn):
+def test_event_delete_refused_while_participants_reference(conn):
+    # FK law since the wave-2 rebuild (no CASCADE): event_participants
+    # references events(id), so a referenced event row cannot be deleted —
+    # writers clean participants first (stable_write children-dance).
     dep.ensure_schema(conn)
     conn.execute(
         "INSERT INTO event_participants (event_id, participant, role, source_ref) "
         "VALUES (1, 'Alpha', 'acquirer', 't')"
     )
     conn.commit()
+    with pytest.raises(sqlite3.IntegrityError):
+        conn.execute("DELETE FROM events WHERE id = 1")
+    conn.execute("DELETE FROM event_participants WHERE event_id = 1")
     conn.execute("DELETE FROM events WHERE id = 1")
     conn.commit()
     assert conn.execute("SELECT COUNT(*) FROM event_participants").fetchone()[0] == 0

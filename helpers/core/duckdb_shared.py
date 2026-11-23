@@ -251,8 +251,11 @@ def connect_shared(
 # materialization legs. Measured trial (2026-11-11, duckdb_read_side_tuning
 # trial): 5 GB (and even 512 MB) is performance-neutral on every read leg,
 # so cap all real connections here. Pure `:memory:` scratch, benches, and
-# the standalone trial script keep their own limits.
-MEMORY_LIMIT = "5GB"
+# the standalone trial script keep their own limits. Operator cap
+# 2026-11-23: 2 GB max per connection (the 2026-11-23 gate-arc swap storm
+# was driven by multi-worker materialization; each worker's claim is now
+# capped while read legs stay neutral).
+MEMORY_LIMIT = "2GB"
 
 
 def memory_cap_config() -> dict[str, Any]:
