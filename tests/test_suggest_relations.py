@@ -182,6 +182,30 @@ class TestCLI:
         assert "appended 0" in capsys.readouterr().out
 
 
+class TestExistingEdgePairsReadOnly:
+    """``existing_edge_pairs()`` only SELECTs, so its store handle is read-only.
+
+    A writable DuckDB handle is an exclusive lock: it collided with the
+    read-only research-store instance the process already held, taking the
+    advisory ``suggest-relations`` leg and the live suggestion test down
+    (advisory run 2026-11-24).
+    """
+
+    def test_opens_the_research_store_read_only(self, monkeypatch):
+        from helpers.core import db
+
+        seen: list[dict] = []
+
+        def fake_connect(*args, **kwargs):
+            seen.append(kwargs)
+            return object()
+
+        monkeypatch.setattr(db, "connect", fake_connect)
+        monkeypatch.setattr(SR, "edge_rows", lambda conn: [])
+        assert SR.existing_edge_pairs() == set()
+        assert seen == [{"read_only": True}]
+
+
 @pytest.mark.live
 class TestLiveSuggestions:
     """End-to-end against the real graph (skips without memory/graph.duckdb)."""

@@ -310,6 +310,21 @@ GATES: dict[str, Gate] = {
             # keys, e_comention edition-projection expectation). The make
             # target sets PATH itself; the frozen-binary note is obsolete.
             Step("mojo-parity", (_MAKE, "-f", "Makefile.mojo", "mojo-parity")),
+            # rust-test + mojo-test PROMOTED from advisory 2026-11-24
+            # (test_coverage_gap_sweep_nov24 S1): both extension crates
+            # and the Mojo integrity check sit under production paths, and
+            # while these legs were advisory a failing unit test in either
+            # could not fail the blocking gate. Placed AFTER mojo-parity on
+            # purpose: the parity leg is the front phase's long pole
+            # (~72 s, qa run 4619); these two (~9 s / ~8 s, 3-run warm
+            # quiet-box medians) run inside its shadow instead of delaying
+            # its start. SKIP semantics: rust-test SKIPs rc-0 without cargo
+            # unless RUST_TEST_STRICT=1, which main() sets for qa (the
+            # SCRIPT_KNN_STRICT pattern) — in this gate a missing cargo
+            # FAILS. mojo-test has no skip path: a missing mojo, a failing
+            # test, or an empty test roster all exit non-zero.
+            Step("rust-test", (_MAKE, "rust-test")),
+            Step("mojo-test", (_MAKE, "-f", "Makefile.mojo", "mojo-test")),
             # snapshot_fresh_gate: generation-only freshness first — drift
             # fails here in ~0.3 s with the exact remediation instead of
             # MISMATCH archaeology 7 s into snapshot_check.
@@ -471,22 +486,19 @@ GATES: dict[str, Gate] = {
             Step("secret-scan", (_MAKE, "secret-scan")),
             Step("cargo-audit", (_MAKE, "cargo-audit")),
             # Rust legs (rust_language_tooling S2, 2026-10-26): clippy =
-            # the lint surface, cargo test the (currently 0-test) hook —
-            # both SKIP cleanly without cargo. Advisory-first per the
-            # mojo-test precedent; promotion to qa on operator go.
+            # the lint surface; SKIPs cleanly without cargo. cargo test
+            # (rust-test) started advisory-first like this leg and was
+            # PROMOTED to qa 2026-11-24 (test_coverage_gap_sweep_nov24 S1)
+            # together with mojo-test, so a failing Rust/Mojo unit test
+            # can fail the blocking gate. Do not re-add either here.
             Step("rust-clippy", (_MAKE, "rust-clippy")),
-            Step("rust-test", (_MAKE, "rust-test")),
             # cargo-deny superset (advisories+bans+licenses+sources over
             # Rust/deny.toml, 2026-11-01): extends cargo-audit on the
             # Rust/ lock; SKIPs without the binary. Vulnerabilities FAIL,
             # warnings-class kinds report-only.
             Step("rust-deny", (_MAKE, "rust-deny")),
-            # mojo-test restored 2026-11-21 (freeze revoked): the
-            # 2026-10-26 Mojo freeze was the only reason it left the
-            # roster, and the lane re-entered service after parity
-            # re-converged (qa mojo-parity, 2026-11-13). One `mojo run`
-            # per test file, needs the venv mojo like qa's mojo-parity.
-            Step("mojo-test", (_MAKE, "-f", "Makefile.mojo", "mojo-test")),
+            # mojo-test: restored here 2026-11-21 when the Mojo freeze was
+            # revoked, then PROMOTED to qa 2026-11-24 (see the qa gate).
             Step("fuzz", (_MAKE, "fuzz")),
             Step("license-check", (_MAKE, "license-check")),
         ),
@@ -860,6 +872,12 @@ def main(argv: list[str] | None = None) -> int:
         # the qa importability test, not skip it (gemma-sidecar shape).
         # Direct pytest runs keep the skip.
         os.environ.setdefault("SCRIPT_KNN_STRICT", "1")
+        # qa hard pin #2 (test_coverage_gap_sweep_nov24 S1): rust-test is a
+        # qa leg now, so "cargo not installed" must FAIL it — the target
+        # SKIPs rc-0 by default, which would read as a green Rust lane.
+        # Same shape as SCRIPT_KNN_STRICT: direct `make rust-test` keeps the
+        # skip for boxes without the toolchain.
+        os.environ.setdefault("RUST_TEST_STRICT", "1")
     jobs = resolve_jobs(cli_jobs)
     print(f"(gate {name}: jobs={jobs})")
     started_dt = datetime.now()

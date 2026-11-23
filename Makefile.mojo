@@ -40,7 +40,14 @@ mojo-build: $(MOJO_TARGETS)
 
 # Mojo 1.0: `mojo test` CLI is gone — test files carry their own
 # TestSuite.discover_tests runner and are executed with `mojo run`.
+# An EMPTY roster must FAIL, never print the success line: MOJO_TESTS is a
+# cwd-relative wildcard, so a wrong cwd or an emptied Mojo/tests/ would
+# otherwise be a green leg that ran nothing (hardened with the qa promotion
+# 2026-11-24: measured exit 0 + "passed (0 files)" before this guard).
 mojo-test:
+> @if [ -z "$(MOJO_TESTS)" ]; then \
+>   echo "FAIL mojo-test: no Mojo/tests/*.mojo found — an empty roster is not a green lane"; exit 1; \
+> fi
 > @for t in $(MOJO_TESTS); do \
 >   echo "  mojo run $$t"; \
 >   $(MOJO) run $(MOJO_IMPORT_FLAGS) "$$t" || exit 1; \

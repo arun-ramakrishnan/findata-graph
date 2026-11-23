@@ -324,8 +324,16 @@ class DatabaseIntegrityChecker:
                     self.db_path = str(_sibling)
             if not os.path.exists(self.db_path):
                 raise FileNotFoundError(f"Database not found: {self.db_path}")
-        # P0: route through central helper so FK/WAL/busy_timeout are canonical
-        self._conn = db_engine.connect_funnel(self.db_path)
+        # P0: route through central helper so FK/WAL/busy_timeout are canonical.
+        # read_only: this checker only SELECTs, and on a DuckDB store a
+        # writable handle is an exclusive PROCESS lock for the whole run.
+        # The qa gate runs the store-reading legs concurrently, so the
+        # writable default took schema-check, group-growth-check,
+        # family-label-coverage, mojo-parity and snapshot_check down with
+        # "Could not set lock on file ... research.duckdb" in every run
+        # since the research store moved to DuckDB (qa runs 4622-4755;
+        # fixed 2026-11-24, test_coverage_gap_sweep_nov24 gate_fixes).
+        self._conn = db_engine.connect_funnel(self.db_path, read_only=True)
         return self._conn
 
     def close(self) -> None:

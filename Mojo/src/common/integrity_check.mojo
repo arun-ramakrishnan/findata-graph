@@ -297,7 +297,14 @@ def main() raises:
 
     # ---------------------------------------------------------- connection
     var dbmod = Python.import_module("helpers.core.db")
-    var conn = dbmod.connect("memory/research.db")
+    # READ-ONLY (2026-11-24, qa run 4755/4756 root cause): the parity
+    # sweep only SELECTs, but this open defaulted to a WRITABLE DuckDB
+    # handle — an exclusive process lock — so under qa it fast-failed
+    # against any sibling leg's shared read (0.36-0.74 s FAILs in runs
+    # 4621-4755, and still after integrity_check itself went read-only).
+    # read_only=True shares the file with every other reader; the
+    # .db -> .duckdb sibling resolution is db_engine's (308).
+    var conn = dbmod.connect("memory/research.db", read_only=True)
     # S4: mirror the Python original's engine-conditional predicates — under
     # DuckDB the research store's DATE columns cannot hold '', so the
     # `<> ''` guards are SQLite-only and must be dropped there.

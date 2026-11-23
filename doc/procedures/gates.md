@@ -184,9 +184,30 @@ seed; contends with the pytest-scale legs, so advisory wall time grows),
 `license-check` (AGPL + third-party inventory). Wired 2026-10-21;
 `mojo-test` was retired 2026-10-26 (Mojo freeze) and re-added
 2026-11-21 when the freeze was revoked (one `mojo run` per test file,
-needs the venv `mojo`, like qa's `mojo-parity`);
+needs the venv `mojo`, like qa's `mojo-parity`; moved on to qa
+2026-11-24 — see the next paragraph);
 `analytics-fresh` was deliberately left out — it reads external harness
 state and carries the same chronic-red risk class as convo-fresh.
+
+**`rust-test` and `mojo-test` moved advisory → qa on 2026-11-24**
+(test_coverage_gap_sweep_nov24 S1). Both were advisory legs, so a failing
+`cargo test` or Mojo suite could never fail the blocking gate. Three pins
+ride along, each with a test in `tests/test_run_gate_report.py` that was
+shown to fail on the pre-move code:
+
+- the qa harness exports `RUST_TEST_STRICT=1`, so `make rust-test` FAILS
+  instead of SKIP-ping rc-0 when cargo is missing (direct runs and other
+  boxes keep the skip — the `SCRIPT_KNN_STRICT` pattern);
+- `make -f Makefile.mojo mojo-test` FAILS on an empty roster:
+  `MOJO_TESTS` is a cwd-relative wildcard, and an empty expansion used to
+  print "✓ Mojo tests passed (0 files)" and exit 0;
+- both legs sit after `mojo-parity` in the FIFO roster, so they fill its
+  shadow instead of delaying its start.
+
+Cost on a quiet box, three runs each: `rust-test` 8.66 / 8.67 / 10.45 s
+(warm), `mojo-test` 7.44 / 7.73 / 7.98 s. The first cold `cargo test`
+after a toolchain or lockfile change costs about 67 s once (169 crates).
+Advisory keeps `rust-clippy` and `rust-deny`.
 
 `make integration` is NO LONGER a standing arc leg (dropped
 2026-11-09, operator go). It was the battery's one piece of **redundant

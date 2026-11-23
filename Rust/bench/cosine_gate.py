@@ -54,6 +54,8 @@ mirroring `make rust-clippy`/`rust-test`. The hard pin lives in qa:
 `SCRIPT_KNN_STRICT=1` turns the importorskip in
 `tests/test_cosine_knn_backends.py` into a failure, so a vanished `.so`
 still fails the gate on boxes that carry the production backend.
+`make rust-test` has the same shape since 2026-11-24: the qa harness sets
+`RUST_TEST_STRICT=1`, so a missing cargo fails that leg instead of skipping.
 
 Usage: .venv/bin/python3 Rust/bench/cosine_gate.py
 Exit codes: 0 within bars (or SKIP), 1 a bar was breached.

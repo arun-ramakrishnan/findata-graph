@@ -38,7 +38,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-*(none — the 2026-11-23 sweep was recorded executed the same day.)*
+- `test_coverage_gap_sweep_nov24` (testing/, filed 2026-11-24) — the
+  post-11-01 re-pin: S1 Rust/Mojo test legs into qa, S2 Rust parity +
+  `embed_cache` boundary, S3 unit pins (`maint_timing`,
+  `algorithm_wrappers`, HGX lane disposition), S4 fuzz, S5 integration
+  chains, S6 perf legs, S7 Mojo unit tests. Supersedes the snapshot in
+  #463 for everything that landed after 2026-11-01.
 
 - *(archived 2026-11-23)* — `misc_fix_gate_arc_maintenance` (tooling/,
   filed + executed 2026-11-23, completed.md #566 — the post-#565

@@ -111,7 +111,13 @@ def existing_edge_pairs(conn: sqlite3.Connection | None = None) -> set[frozenset
     if conn is None:
         from helpers.core.db import connect
 
-        conn = connect()  # house helper (static-checked rule)
+        # read_only: this function only SELECTs. A writable DuckDB handle
+        # is an exclusive lock — it collides with the read-only instance
+        # the same process (and every other one) already holds on the
+        # research store (advisory `suggest-relations` leg + live test,
+        # "Could not set lock on file ... research.duckdb"; fixed
+        # 2026-11-24, test_coverage_gap_sweep_nov24 gate_fixes).
+        conn = connect(read_only=True)  # house helper (static-checked rule)
     return {frozenset((s, t)) for s, t, _et, _w in edge_rows(conn)}
 
 

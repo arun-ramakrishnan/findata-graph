@@ -16,6 +16,8 @@ the production `events` DDL and seeds the specific defect under test.
 """
 
 import sqlite3
+import subprocess
+import sys
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -1575,3 +1577,49 @@ class TestOrphanSpineRefs:
         assert res["errors"] == 1
         assert res["by_column"]["graph_analytics.entity_name"] == 0
         assert res["by_column"]["speaker_identity.person_name"] == 1
+
+
+# --- connection mode --------------------------------------------------------
+
+
+class TestConnectionIsReadOnly:
+    """The checker only SELECTs, so its store handle is opened read-only.
+
+    On a DuckDB store a writable handle is an exclusive PROCESS lock for
+    the whole run. The qa gate runs the store-reading legs concurrently,
+    and that lock took schema-check, group-growth-check,
+    family-label-coverage, mojo-parity and snapshot_check down in every
+    run after the research store moved to DuckDB (qa runs 4622-4755).
+    """
+
+    @staticmethod
+    def _probe_opens_read_only(store: Path) -> subprocess.CompletedProcess[str]:
+        code = "import duckdb, sys; duckdb.connect(sys.argv[1], read_only=True).close()"
+        return subprocess.run(
+            [sys.executable, "-c", code, str(store)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+
+    def test_duckdb_store_stays_openable_by_another_process(self, tmp_path):
+        duckdb = pytest.importorskip("duckdb")
+        store = tmp_path / "check.duckdb"
+        duckdb.connect(str(store)).close()
+        checker = DatabaseIntegrityChecker(db_path=str(store), base_path=str(tmp_path))
+        try:
+            checker.get_connection()
+            # A same-process open would pass even against a writable
+            # handle (duckdb shares one database instance per process),
+            # so the probe has to be a separate process.
+            probe = self._probe_opens_read_only(store)
+            assert probe.returncode == 0, probe.stderr
+        finally:
+            checker.close()
+
+    def test_sqlite_store_rejects_writes_through_the_checker(self, tmp_path):
+        with _make_checker_db(tmp_path) as (_db_path, checker):
+            conn = checker.get_connection()
+            with pytest.raises(sqlite3.OperationalError, match="readonly"):
+                conn.execute("INSERT INTO entities (name) VALUES ('x')")

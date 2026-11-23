@@ -279,3 +279,39 @@ def test_no_force_still_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     rc = rpb.main([])
     assert rc == 3
     assert not (tmp_path / "perf_report.md").exists()
+
+
+def test_console_footer_counts_legs_not_budgets(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The console footer counts PASSING legs, not non-zero budgets.
+
+    The old `*_, ok, _` unpack bound the fifth field of the 6-tuple —
+    `budget`, a truthy float — so a run with over-budget legs still
+    printed "N/N passed" while the report said FAILED and the exit code
+    was 1 (the forced perf run of 2026-11-24 printed "35/35 passed"
+    against five OVER_BUDGET rows).
+    """
+    from tests import run_perf_benchmarks as rpb
+
+    monkeypatch.setattr(rpb, "REPORT", tmp_path / "perf_report.md")
+    monkeypatch.setattr(rpb, "_contention_reason", lambda midrun=False: None)
+    monkeypatch.setattr(rpb, "_cleanup_scratch", lambda: None)
+    monkeypatch.setattr(rpb, "_retain_run_artifacts", lambda *a, **k: None)
+    monkeypatch.setattr(
+        rpb,
+        "_run_all_benchmarks",
+        lambda force=False: (
+            [
+                ("good", 1.0, "OK", True, 2.0, ""),
+                ("slow", 9.0, "OVER_BUDGET", False, 3.0, ""),
+            ],
+            None,
+            None,
+        ),
+    )
+    rc = rpb.main([])
+    assert rc == 1
+    assert "1/2 passed" in capsys.readouterr().out

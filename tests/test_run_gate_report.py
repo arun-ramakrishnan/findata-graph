@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 import sys
 from datetime import datetime
+
+import pytest
 
 from tests import run_gate_report as rgr
 
@@ -430,6 +434,58 @@ def test_qa_gate_includes_markdown_lint():
     assert "md-lint" not in [s.label for s in rgr.GATES["advisory"].steps]  # qa owns it now
 
 
+def test_qa_gate_includes_rust_and_mojo_tests():
+    # 2026-11-24 (test_coverage_gap_sweep_nov24 S1): `cargo test` and the
+    # Mojo suites were advisory legs, so a failing Rust/Mojo unit test could
+    # never fail the blocking gate. Both are PROMOTED to qa (the md-lint
+    # precedent) and must stay there — and must leave advisory, or the same
+    # leg would run twice per advisory run.
+    qa = {s.label: s for s in rgr.GATES["qa"].steps}
+    assert "rust-test" in qa["rust-test"].args  # ("make", "rust-test"); make is which()-resolved
+    assert qa["mojo-test"].args == (rgr._MAKE, "-f", "Makefile.mojo", "mojo-test")
+    for label in ("rust-test", "mojo-test"):
+        assert not qa[label].nonblocking  # blocking, like the "lint" row
+        assert not qa[label].exclusive  # cheap legs (~9 s / ~8 s) co-run in the front phase
+        assert label not in [s.label for s in rgr.GATES["advisory"].steps]  # qa owns them now
+    # Placement: AFTER mojo-parity, the front phase's long pole (71–92 s
+    # green, qa runs 4619/4621/4622). Steps are submitted FIFO, so a step
+    # listed earlier never waits on a later one: mojo-parity still starts in
+    # the same wave as before and the two new legs fill its shadow instead
+    # of delaying it.
+    labels = [s.label for s in rgr.GATES["qa"].steps]
+    assert labels.index("mojo-parity") < labels.index("rust-test") < labels.index("mojo-test")
+
+
+def test_qa_harness_pins_rust_test_strict(tmp_path, monkeypatch):
+    # A qa leg that SKIPs rc-0 is a silent pass. `make rust-test` prints
+    # "SKIP rust-test: cargo not installed" and exits 0 by default, so the qa
+    # harness must ask for the strict branch (RUST_TEST_STRICT=1 — the
+    # SCRIPT_KNN_STRICT pattern); advisory and direct runs keep the skip.
+    seen: list[dict[str, str]] = []
+
+    def fake_run_gate(gate, jobs=1):
+        seen.append(dict(os.environ))
+        return []
+
+    # main() stays hermetic: the live-gate marker, the report append and the
+    # artifact prune all hang off OUTPUTS_ROOT / _JUNIT_DIR / _ARTIFACT_ROOT.
+    monkeypatch.setattr(rgr, "run_gate", fake_run_gate)
+    monkeypatch.setattr(rgr, "_publish_heartbeat", lambda lane, run_id: None)
+    for const in ("OUTPUTS_ROOT", "_JUNIT_DIR", "_ARTIFACT_ROOT"):
+        monkeypatch.setattr(rgr, const, tmp_path)
+    monkeypatch.delenv("RUST_TEST_STRICT", raising=False)
+
+    # Advisory first: the pin is a process-global os.environ.setdefault, so
+    # a qa run in the SAME process would leak it into any later gate (each
+    # gate is its own process in practice — see the advisory: / qa: recipes).
+    assert rgr.main(["advisory"]) == 0
+    assert "RUST_TEST_STRICT" not in seen[-1]  # advisory no longer runs cargo test
+
+    assert rgr.main(["qa"]) == 0
+    assert seen[-1]["RUST_TEST_STRICT"] == "1"
+    assert seen[-1]["SCRIPT_KNN_STRICT"] == "1"  # the precedent rides along
+
+
 def test_exclusive_step_runs_after_pool_drains(tmp_path):
     """Exclusive steps (the suite-scale legs) run alone after every shared
     step finishes — they own the cores instead of bidding for them
@@ -458,3 +514,56 @@ def test_exclusive_step_runs_after_pool_drains(tmp_path):
     by_label = {r.step.label: r for r in results}
     assert by_label["shared"].rc == 0
     assert by_label["excl"].rc == 0, "exclusive step overlapped the shared step"
+
+
+class TestPromotedLegsCannotPassWithoutRunning:
+    """2026-11-24 (test_coverage_gap_sweep_nov24 S1): rust-test and mojo-test
+    are BLOCKING qa legs now, so every way they could go green WITHOUT
+    running a test is a hole. These execute the real make recipes with the
+    toolchain hidden (PATH=/usr/bin:/bin + HOME=<tmp>: cargo lives in
+    ~/.cargo/bin). Each branch exits before any compiler starts, so a call
+    costs ~50 ms and touches nothing in the tree."""
+
+    @pytest.fixture(autouse=True)
+    def _make_present_and_cargo_hidden(self):
+        if not shutil.which("make"):
+            pytest.skip("make not installed")
+        if shutil.which("cargo", path="/usr/bin:/bin"):
+            pytest.skip(
+                "cargo is on the system PATH here; the hidden-toolchain probe cannot hide it"
+            )
+
+    @staticmethod
+    def _make(tmp_path, args: list[str], *, strict: str | None = None) -> str:
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path), "MAKEFLAGS": ""}
+        if strict is not None:
+            env["RUST_TEST_STRICT"] = strict
+        proc = subprocess.run(
+            [rgr._MAKE, *args],
+            cwd=rgr.REPO_ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        return f"rc={proc.returncode}\n{proc.stdout}{proc.stderr}"
+
+    def test_rust_test_keeps_its_skip_on_a_direct_run(self, tmp_path):
+        out = self._make(tmp_path, ["rust-test"])
+        assert "rc=0\n" in out, out
+        assert "SKIP rust-test: cargo not installed" in out
+
+    def test_rust_test_fails_without_cargo_under_the_qa_pin(self, tmp_path):
+        out = self._make(tmp_path, ["rust-test"], strict="1")
+        assert not out.startswith("rc=0\n"), out
+        assert "FAIL rust-test: cargo not installed" in out
+        assert "SKIP rust-test" not in out  # a skip is not what qa asked for
+
+    def test_mojo_test_fails_on_an_empty_roster(self, tmp_path):
+        # MOJO_TESTS is a cwd-relative wildcard: expanded to nothing it used
+        # to print "✓ Mojo tests passed (0 files)" and exit 0. The guard
+        # fires before the mojo binary is looked up, so hiding it is moot.
+        out = self._make(tmp_path, ["-f", "Makefile.mojo", "mojo-test", "MOJO_TESTS="])
+        assert not out.startswith("rc=0\n"), out
+        assert "FAIL mojo-test: no Mojo/tests/*.mojo found" in out

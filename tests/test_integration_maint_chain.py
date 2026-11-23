@@ -47,6 +47,7 @@ from helpers.graph import csr  # noqa: E402
 from helpers.graph import derive_cited_in as dci  # noqa: E402
 from helpers.graph import derive_hyperedges as dh_mod  # noqa: E402
 from helpers.graph import hyper_arrow as har  # noqa: E402
+from helpers.core import git_state  # noqa: E402
 from helpers.graph import hyper_centralities as hcen  # noqa: E402
 from helpers.graph import hyper_communities as hcom  # noqa: E402
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
@@ -603,6 +604,13 @@ def _make_dispatcher(p, mp, record: list, overrides: dict | None = None):
     repointed into the tmp project root — never the repo-root file."""
     real_popen = subprocess.Popen
     mp.setattr(maint, "REPORT_PATH", p.root / "maint_report.md")
+    # The hermetic project has no git history. The fresh-trample guard
+    # (rebuild_common.stale_apply_reason) orders the index's stamped HEAD
+    # against the LIVE repo HEAD, so an `stg refresh` while this test runs
+    # turned the next index step into "REFUSED: stale apply ... has
+    # DIVERGED" (qa run 4755, 2026-11-24). "cannot tell" is the guard's own
+    # proceed path.
+    mp.setattr(git_state, "head_sha", lambda *a, **k: None)
     shims = dict(_SHIMS)
     if overrides:
         shims.update(overrides)

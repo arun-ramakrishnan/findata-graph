@@ -813,7 +813,7 @@ def main(argv: list[str] | None = None) -> int:
             all_ok = False
     lines.append("-" * 70)
 
-    passed = sum(1 for *_, ok, _ in results if ok)
+    passed = sum(1 for _label, _dt, _status, ok, _budget, _tail in results if ok)
     total = len(results)
     lines.append(f"  {passed}/{total} passed")
 

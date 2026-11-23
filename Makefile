@@ -142,7 +142,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  mojo-build               Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)"
 > @echo "  mojo-format                 Normalize Mojo/src + Mojo/tests with \`mojo format\` (fix for the tests/test_lint_gates.py format gate)"
 > @echo "  mojo-parity             Golden parity: Mojo integrity_check vs the Python original over 92 canonical keys (qa leg; exits 1 on any mismatch)"
-> @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
+> @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (qa leg 2026-11-24; machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  ocr-version-check        Assert the OCR binary matches the pinned version (helpers/misc/ocr_pin.py; advisory)"
 > @echo "  onager-build             RETIRED 2026-11-20 — onager loads from the signed upstream 2.0.1 distribution (INSTALL onager FROM community;); the vendored build is superseded (see vendor/onager/PROVENANCE.md). Target kept as a no-op guide."
@@ -170,7 +170,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  rust-deny                cargo-deny superset scan of Rust/ — advisories + bans + licenses + sources (advisory; SKIPs without cargo-deny)"
 > @echo "  rust-format              Normalize Rust/ formatting with cargo fmt --all (fix for the tests/test_lint_gates.py format gate; rust_language_tooling S1)"
 > @echo "  rust-install             Release-build cosine_knn + graph_kernels, install the abi3 modules into venv site-packages (SKIPs without cargo; embed_cache stays backup-only — rust_language_tooling S4)"
-> @echo "  rust-test                Run Rust/ crate tests via cargo test --workspace (advisory leg; SKIPs without cargo; rust_language_tooling S2)"
+> @echo "  rust-test                Run Rust/ crate tests via cargo test --workspace (qa leg 2026-11-24; SKIPs without cargo unless RUST_TEST_STRICT=1, which the qa harness sets)"
 > @echo "  schema-check             Check tracked schema/ DDL against the live memory/ DBs (exit 1 on drift; fix: make schema-dump)"
 > @echo "  schema-dump              Regenerate schema/<engine>/<db>.sql from the live memory/ DBs (proposal schema_ddl_review_surface)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
@@ -231,7 +231,7 @@ parity:         ## Byte-compare registered refactor targets against REF (default
 tmp-sweep:      ## Reap this repo's temp-dir + memory/ rebuild residue (scratch DBs, stale bench dirs, TUI log, killed-rebuild .tmp) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)
 > python3 helpers/maintenance/tmp_sweep.py $(if $(APPLY),--apply,)
 
-qa:             ## Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + schema-check + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)
+qa:             ## Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + schema-check + mojo-parity + rust-test + mojo-test + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)
 > python3 tests/run_gate_report.py qa
 > @echo "✓ QA passed (lint + types + deptry + static + pytest + notes + integrity + snapshot; appended to outputs/qa_report.md)"
 
@@ -358,7 +358,7 @@ mojo-parity:     ## Golden parity: Mojo integrity_check vs the Python original o
 mojo-build:      ## Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)
 > $(MAKE) -f Makefile.mojo mojo-build
 
-mojo-test:       ## Run Mojo/tests/*.mojo test suites via mojo run (FROZEN 2026-10-26: retired from advisory — manual runs only; machinery in Makefile.mojo)
+mojo-test:       ## Run Mojo/tests/*.mojo test suites via mojo run (qa leg 2026-11-24 — promoted from advisory; machinery in Makefile.mojo)
 > $(MAKE) -f Makefile.mojo mojo-test
 
 mojo-format:        ## Normalize Mojo/src + Mojo/tests with `mojo format` (fix for the tests/test_lint_gates.py format gate)
@@ -522,9 +522,12 @@ rust-clippy:    ## Lint Rust/ via cargo clippy --workspace --all-targets (adviso
 > 	echo "SKIP rust-clippy: cargo not installed"; \
 > fi
 
-rust-test:      ## Run Rust/ crate tests via cargo test --workspace (advisory leg; SKIPs without cargo; rust_language_tooling S2)
+rust-test:      ## Run Rust/ crate tests via cargo test --workspace (qa leg 2026-11-24; SKIPs without cargo unless RUST_TEST_STRICT=1, which the qa harness sets — then a missing cargo FAILs)
 > @if command -v cargo >/dev/null 2>&1 || [ -x "$$HOME/.cargo/bin/cargo" ]; then \
 > 	cd Rust && PATH="$$HOME/.cargo/bin:$$PATH" cargo test --workspace; \
+> elif [ "$$RUST_TEST_STRICT" = "1" ]; then \
+> 	echo "FAIL rust-test: cargo not installed (RUST_TEST_STRICT=1 — the qa gate requires the Rust toolchain)"; \
+> 	exit 1; \
 > else \
 > 	echo "SKIP rust-test: cargo not installed"; \
 > fi
@@ -953,6 +956,6 @@ md-lint:        ## Markdown lint via pinned markdownlint-cli2 — doc/ prose bas
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit, secret-scan, cargo-audit, rust-clippy, rust-test, rust-deny, fuzz, license-check, hermeticity-watch (live-store touches from last qa), gate-timing-watch (per-leg drift) (appends outputs/advisory_report.md)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note/memory-search freshness checks, lint-audit, secret-scan, cargo-audit, rust-clippy, rust-deny, fuzz, license-check, hermeticity-watch (live-store touches from last qa), gate-timing-watch (per-leg drift) (appends outputs/advisory_report.md)
 > python3 tests/run_gate_report.py advisory
 > @echo "✓ Advisory checks complete (appended to outputs/advisory_report.md; these do NOT block \`make qa\`)"
