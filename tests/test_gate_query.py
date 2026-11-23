@@ -203,6 +203,83 @@ def test_refresh_upserts_legacy_parse_state_without_primary_key(corpus, capsys):
     con.close()
 
 
+def _wipe_schema(con) -> None:
+    """Recreate every report table via CTAS — the exact constraint-less
+    shape the live index came back with on 2026-11-19 (no PKs, no column
+    defaults, NOT NULL gone: INSERT ... RETURNING run_id then yields NULL)."""
+    for table in (*gq._HEAL_TABLES, "parse_state"):
+        # CTAS keeps rows + column types but drops PKs, defaults and NOT
+        # NULL — the live wipe's exact shape.
+        con.execute(f"CREATE TABLE _wipe_{table} AS SELECT * FROM {table}")  # noqa: S608
+        con.execute(f"DROP TABLE {table}")  # noqa: S608
+        con.execute(f"ALTER TABLE _wipe_{table} RENAME TO {table}")  # noqa: S608
+
+
+def test_schema_defects_detect_the_constraint_wipe(corpus):
+    con = gq.connect()
+    assert gq._index_schema_defects(con) == []
+    _wipe_schema(con)
+    defects = gq._index_schema_defects(con)
+    assert "runs lost its PRIMARY KEY on ('run_id',)" in defects
+    assert "runs.run_id lost its DEFAULT nextval('run_seq')" in defects
+    assert "runs.run_id lost NOT NULL" in defects
+    assert "legs.run_id lost NOT NULL" in defects
+    # parse_state's missing PK is deliberately tolerated (DELETE+INSERT upsert)
+    assert not any("parse_state" in d for d in defects)
+    row = con.execute(
+        "INSERT INTO runs (src_rel, wt, gate, started_at, generated_at, header_offset, "
+        "nbytes, complete) VALUES ('qa_report.md', '', 'qa', now(), now(), 0, 10, TRUE) "
+        "RETURNING run_id"
+    ).fetchone()
+    assert row[0] is None  # the defect that blinded recent/failures
+    con.close()
+
+
+def test_refresh_full_heals_a_constraint_wiped_index(corpus, capsys):
+    """A keyed run, the wipe, a NULL-keyed run ingested under it, one more
+    appended run: `refresh --full` preserves the keyed id and its legs,
+    re-indexes the NULL era from the reports, restarts run_seq past the
+    preserved max, and new inserts key again."""
+    rep = corpus / "qa_report.md"
+    _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    con = gq.connect()
+    assert gq.refresh(con)["runs"] == 1
+    assert one(con, "SELECT run_id FROM runs")[0] == 1
+    _wipe_schema(con)
+    # ingesting under the wiped schema lands NULL-keyed rows (the live bug)
+    _write(rep, _gate_block("2026-09-23 11:00:00", "2026-09-23 10:59:50"))
+    assert gq.refresh(con)["runs"] == 1
+    assert one(con, "SELECT count(*) FROM runs WHERE run_id IS NULL")[0] == 1
+    # one more appended block, still un-ingested
+    _write(rep, _gate_block("2026-09-23 12:00:00", "2026-09-23 11:59:50"))
+    con.close()
+    # plain refresh refuses to append more NULL-keyed rows...
+    assert gq.main(["refresh"]) == 0
+    assert "refusing to index into the constraint-less schema" in capsys.readouterr().out
+    # ...and --full heals: keyed run preserved, NULL era re-indexed
+    assert gq.main(["refresh", "--full"]) == 0
+    assert "healed:" in capsys.readouterr().out
+    con = gq.connect()
+    assert gq._index_schema_defects(con) == []
+    rows = con.execute("SELECT run_id, started_at FROM runs ORDER BY run_id").fetchall()
+    assert [(r[0], str(r[1])) for r in rows] == [
+        (1, "2026-09-23 09:59:50"),
+        (2, "2026-09-23 10:59:50"),
+        (3, "2026-09-23 11:59:50"),
+    ]
+    assert one(con, "SELECT count(*) FROM legs")[0] == 6  # 2 legs per run
+    # inserts key again and continue past the preserved max
+    new_id = con.execute(
+        "INSERT INTO runs (src_rel, wt, gate, started_at, generated_at, header_offset, "
+        "nbytes, complete) VALUES ('qa_report.md', '', 'qa', now(), now(), 0, 10, TRUE) "
+        "RETURNING run_id"
+    ).fetchone()[0]
+    assert new_id == 4
+    backups = list(corpus.glob("gate_runs.duckdb.pre-heal-*.bak"))
+    assert len(backups) == 1 and backups[0].stat().st_size > 0
+    con.close()
+
+
 def test_refresh_latest_incremental(corpus):
     rep = corpus / "qa_report.md"
     _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))

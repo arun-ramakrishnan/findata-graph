@@ -50,6 +50,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -235,6 +236,140 @@ def connect() -> duckdb.DuckDBPyConnection:
     con = connect_with_lock_retry(lambda: duckdb.connect(str(DB_PATH), **memory_cap_config()))
     con.execute(SCHEMA)
     return con
+
+
+# The live index lost every PRIMARY KEY and column default on 2026-11-19
+# (gate-arc window): all nine tables came back constraint-less, so the
+# `INSERT ... RETURNING run_id` store path started yielding NULL run_ids
+# and every run_id-keyed verb went blind (`recent`/`failures` reported
+# PASS for failed runs). SCHEMA's CREATE TABLE IF NOT EXISTS cannot
+# retrofit constraints onto existing tables, so refresh detects the wipe
+# and `--full` heals it IN PLACE: keyed rows are preserved with their ids
+# (their junit-derived tests rows cannot all be re-derived — artifact
+# retention rotates the junit away), NULL-keyed runs are dropped and
+# re-ingested from the reports by rewinding parse_state, and run_seq
+# restarts past the highest preserved id.
+
+_HEAL_TABLES = ("runs", "legs", "bench", "tests", "artifacts", "test_facts")
+
+
+def _index_schema_defects(con) -> list[str]:
+    """Key invariants index correctness relies on, as human-readable defects.
+
+    Empty list = healthy. Checks what the store path actually depends on:
+    the runs.run_id identity (PK + DEFAULT nextval('run_seq') + NOT NULL)
+    and NOT NULL on every child run_id. parse_state's missing PK is NOT a
+    defect — refresh's explicit DELETE+INSERT upsert is deliberately
+    correct on both the legacy (no-PK) and current schemas — but the heal
+    rebuilds parse_state with its PK anyway. The maint_* tables are
+    another writer's (maint_timing) and assign ids explicitly, so they
+    are not checked here.
+    """
+    expected_pks = {"runs": ("run_id",)}
+    have = {
+        (row[0], tuple(row[1]))
+        for row in con.execute(
+            "SELECT table_name, constraint_column_names FROM duckdb_constraints() "
+            "WHERE constraint_type = 'PRIMARY KEY'"
+        ).fetchall()
+    }
+    cols = {
+        (row[0], row[1]): (row[2], row[3])
+        for row in con.execute(
+            "SELECT table_name, column_name, column_default, is_nullable "
+            "FROM information_schema.columns WHERE table_schema = 'main'"
+        ).fetchall()
+    }
+    defects: list[str] = []
+    for table, key in expected_pks.items():
+        if (table, key) not in have:
+            defects.append(f"{table} lost its PRIMARY KEY on {key}")
+    run_id = cols.get(("runs", "run_id"))
+    if run_id is None:
+        defects.append("runs.run_id missing")
+    else:
+        if run_id[0] != "nextval('run_seq')":
+            defects.append("runs.run_id lost its DEFAULT nextval('run_seq')")
+        if run_id[1] != "NO":
+            defects.append("runs.run_id lost NOT NULL")
+    for child in ("legs", "bench", "tests", "artifacts", "test_facts"):
+        col = cols.get((child, "run_id"))
+        if col is not None and col[1] != "NO":
+            defects.append(f"{child}.run_id lost NOT NULL")
+    return defects
+
+
+def _heal_index_schema(con) -> dict:
+    """Rebuild the report-side tables with SCHEMA's constraints in place.
+
+    Preserves keyed rows (explicit-id copy) and their children, drops the
+    NULL-keyed runs for re-ingestion (parse_state rewound to the earliest
+    dropped block per report copy), and restarts run_seq past the highest
+    preserved id. Backs the database file up (plus a live .wal) before
+    touching anything. parse_state is rebuilt too so the src_rel PRIMARY
+    KEY lands on every file, legacy or not.
+    """
+    paths = [
+        row[0] for row in con.execute("SELECT path FROM duckdb_databases()").fetchall() if row[0]
+    ]
+    if not paths:
+        raise RuntimeError("heal: the index database is not file-backed")
+    src = Path(paths[0])
+    stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+    backup = src.with_name(src.name + f".pre-heal-{stamp}.bak")
+    con.execute("CHECKPOINT")  # merge the WAL so the copy is complete
+    shutil.copy2(src, backup)
+    wal = src.with_name(src.name + ".wal")
+    if wal.exists():
+        shutil.copy2(wal, backup.with_name(backup.name + ".wal"))
+    rewinds = con.execute(
+        "SELECT src_rel, min(header_offset) FROM runs WHERE run_id IS NULL GROUP BY src_rel"
+    ).fetchall()
+    dropped = con.execute("SELECT count(*) FROM runs WHERE run_id IS NULL").fetchone()[0]
+    max_id = con.execute("SELECT max(run_id) FROM runs").fetchone()[0]
+    start = (max_id or 0) + 1
+    try:
+        _rebuild_drop_indexes(con)
+        con.execute("DROP SEQUENCE IF EXISTS run_seq")
+        con.execute(f"CREATE SEQUENCE run_seq START {start}")
+        for table in (*_HEAL_TABLES, "parse_state"):
+            con.execute(f"ALTER TABLE {table} RENAME TO _heal_{table}_old")  # noqa: S608
+        con.execute(SCHEMA)
+        for table in (*_HEAL_TABLES, "parse_state"):
+            new_cols = [
+                row[1]
+                for row in con.execute(f"PRAGMA table_info('{table}')").fetchall()  # noqa: S608
+            ]
+            old_cols = {
+                row[1]
+                for row in con.execute(f"PRAGMA table_info('_heal_{table}_old')").fetchall()  # noqa: S608
+            }
+            shared = [c for c in new_cols if c in old_cols]
+            collist = ", ".join(f'"{c}"' for c in shared)
+            keep = "TRUE" if table == "parse_state" else "run_id IS NOT NULL"
+            con.execute(
+                f"INSERT INTO {table} ({collist}) SELECT {collist} "  # noqa: S608
+                f"FROM _heal_{table}_old WHERE {keep}"  # noqa: S608
+            )
+            con.execute(f"DROP TABLE _heal_{table}_old")  # noqa: S608
+        for rel, min_off in rewinds:
+            con.execute(
+                "UPDATE parse_state SET parse_offset = ? WHERE src_rel = ? AND parse_offset > ?",
+                [int(min_off), rel, int(min_off)],
+            )
+    except Exception as err:
+        raise RuntimeError(
+            "heal failed after a partial rebuild — restore from the backup "
+            f"{backup} ({type(err).__name__}: {err})"
+        ) from err
+    preserved = con.execute("SELECT count(*) FROM runs WHERE run_id IS NOT NULL").fetchone()[0]
+    return {
+        "backup": str(backup),
+        "preserved_runs": preserved,
+        "dropped_runs": dropped,
+        "rewound_files": [row[0] for row in rewinds],
+        "sequence_start": start,
+    }
 
 
 def _ts(s: str | None) -> datetime | None:
@@ -2695,9 +2830,37 @@ def cmd_refresh(con, args) -> str:
             f"{counts['orphan_rows']} orphaned rows"
         )
     if args.check:
+        defects = _index_schema_defects(con)
         counts = refresh(con, full=args.full, check=True)
-        return _refresh_check_message(counts)
-    counts = refresh(con, full=args.full)
+        if not defects:
+            return _refresh_check_message(counts)
+        return (
+            "INDEX SCHEMA DEFECTS — run `gate_query refresh --full` to heal in "
+            "place (keyed runs preserved; NULL-keyed runs re-indexed):\n"
+            + "".join(f"- {d}\n" for d in defects)
+            + _refresh_check_message(counts)
+        )
+    defects = _index_schema_defects(con)
+    if defects and not args.full:
+        return (
+            "refusing to index into the constraint-less schema — every new run "
+            "would land with a NULL run_id and stay invisible to run_id-keyed "
+            "verbs. Run `gate_query refresh --full` to heal in place. Defects: "
+            + "; ".join(defects)
+        )
+    heal_note = ""
+    if defects:
+        h = _heal_index_schema(con)
+        heal_note = (
+            f"healed: report tables rebuilt with PRIMARY KEY + defaults; preserved "
+            f"{h['preserved_runs']} keyed runs (ids intact, sequence restarts at "
+            f"{h['sequence_start']}); dropped {h['dropped_runs']} NULL-keyed runs for "
+            f"re-indexing (parse_state rewound for {len(h['rewound_files'])} file(s)); "
+            f"backup {h['backup']}\n"
+        )
+        counts = refresh(con)  # incremental: only the rewound files re-read
+    else:
+        counts = refresh(con, full=args.full)
     warning = (
         ""
         if not counts.get("zero_block_files")
@@ -2707,7 +2870,7 @@ def cmd_refresh(con, args) -> str:
         )
     )
     return (
-        f"indexed: {counts['files']} files, {counts['runs']} new runs, "
+        heal_note + f"indexed: {counts['files']} files, {counts['runs']} new runs, "
         f"{counts['skipped_pending']} pending tails, {counts['parse_errors']} parse errors"
     ) + warning
 
@@ -2888,25 +3051,39 @@ def main(argv: list[str] | None = None) -> int:
     con = connect()
     try:
         if args.cmd != "refresh":
-            counts = refresh(con)
-            if counts.get("zero_block_files"):
+            defects = _index_schema_defects(con)
+            if defects:
+                # Auto-refresh would land every new run with a NULL run_id
+                # (the store path keys rows via RETURNING run_id against a
+                # schema whose default is gone). Pause ingestion until the
+                # index is healed; query verbs stay usable read-only, but
+                # their answers can be stale.
                 print(
-                    "WARNING: report file(s) yielded zero parseable blocks over newly-read "
-                    f"bytes — writer drifted off the shared grammar: "
-                    f"{', '.join(counts['zero_block_files'])}",
+                    "WARNING: gate index schema lost its constraints (inserts would "
+                    "land with NULL run_ids) — auto-refresh skipped; run "
+                    "`gate_query refresh --full` to heal in place.",
                     file=sys.stderr,
                 )
-            if counts["skipped_pending"]:
-                print(
-                    "WARNING: gate report has an incomplete trailing run; it is not indexed yet. "
-                    "Retry after the gate finishes.",
-                    file=sys.stderr,
-                )
-            if counts["parse_errors"]:
-                print(
-                    f"WARNING: gate report parser rejected {counts['parse_errors']} block(s).",
-                    file=sys.stderr,
-                )
+            else:
+                counts = refresh(con)
+                if counts.get("zero_block_files"):
+                    print(
+                        "WARNING: report file(s) yielded zero parseable blocks over newly-read "
+                        f"bytes — writer drifted off the shared grammar: "
+                        f"{', '.join(counts['zero_block_files'])}",
+                        file=sys.stderr,
+                    )
+                if counts["skipped_pending"]:
+                    print(
+                        "WARNING: gate report has an incomplete trailing run; it is not indexed yet. "
+                        "Retry after the gate finishes.",
+                        file=sys.stderr,
+                    )
+                if counts["parse_errors"]:
+                    print(
+                        f"WARNING: gate report parser rejected {counts['parse_errors']} block(s).",
+                        file=sys.stderr,
+                    )
         fn = {
             "latest": cmd_latest,
             "recent": cmd_recent,
@@ -2925,8 +3102,17 @@ def main(argv: list[str] | None = None) -> int:
             # Check mode: report drift only (no auto-refresh, no writes);
             # exit 1 when the index is behind — the search-fresh convention.
             counts = refresh(con, full=args.full, check=True)
+            defects = _index_schema_defects(con)
+            if defects:
+                print(
+                    "INDEX SCHEMA DEFECTS — run `gate_query refresh --full` to heal "
+                    "in place (keyed runs preserved; NULL-keyed runs re-indexed):",
+                    file=sys.stderr,
+                )
+                for d in defects:
+                    print(f"- {d}", file=sys.stderr)
             print(_refresh_check_message(counts))
-            return 1 if counts["changed_files"] else 0
+            return 1 if (counts["changed_files"] or defects) else 0
         print(fn(con, args))
     finally:
         con.close()
