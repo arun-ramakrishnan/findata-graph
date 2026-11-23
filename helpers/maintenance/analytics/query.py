@@ -14,7 +14,9 @@ SIDES = ("duckdb", "sqlite", "sources")
 
 def connect_snapshots(repo_root: Path | None = None) -> duckdb.DuckDBPyConnection:
     """Mount every snapshot table as a ``<side>__<table>`` view."""
-    con = duckdb.connect()
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    con = duckdb.connect(**memory_cap_config())
     root = Path(repo_root) / "snapshots" / "parquet" if repo_root else DEFAULT_SNAPSHOTS
     for side in SIDES:
         side_dir = root / side

@@ -104,10 +104,11 @@ def word_overlap_match_sql(
         (best_match_name, score) or (None, 0.0) — identical semantics.
     """
     import duckdb
+    from helpers.core.duckdb_shared import memory_cap_config
 
     own_conn = conn is None
     if own_conn:
-        conn = duckdb.connect()
+        conn = duckdb.connect(**memory_cap_config())
     try:
         _register(conn, entities)
 

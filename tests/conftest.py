@@ -26,6 +26,13 @@ sys.path.insert(0, str(REPO_ROOT))
 from helpers.misc.database_integrity_check import DatabaseIntegrityChecker  # noqa: E402
 from helpers.validators.verify_notes import NotesVerifier  # noqa: E402
 from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
+from tests.duckdb_cap import install as install_duckdb_cap  # noqa: E402
+
+# Default DuckDB memory cap for every TEST-SIDE `duckdb.connect` (the test
+# tree's own ~230 sites, capped once per process instead of edited one by
+# one). Installed at import so each xdist worker has it before any test module
+# loads; rationale and design in tests/duckdb_cap.py.
+install_duckdb_cap()
 
 
 # --------------------------------------------------------------------------- #

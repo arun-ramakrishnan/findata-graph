@@ -38,6 +38,7 @@ import math
 import os
 import re
 import socket
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, cast
@@ -250,17 +251,46 @@ def connect_shared(
 # 16 GB box), which can drive the machine to swap under concurrent FTS /
 # materialization legs. Measured trial (2026-11-11, duckdb_read_side_tuning
 # trial): 5 GB (and even 512 MB) is performance-neutral on every read leg,
-# so cap all real connections here. Pure `:memory:` scratch, benches, and
-# the standalone trial script keep their own limits. Operator cap
+# so cap all real connections here. Operator cap
 # 2026-11-23: 2 GB max per connection (the 2026-11-23 gate-arc swap storm
 # was driven by multi-worker materialization; each worker's claim is now
 # capped while read legs stay neutral).
+# Enforced 2026-11-23 (operator: "restrict its memory to 2GB max"): every
+# `duckdb.connect` under helpers/ and app.py passes `**memory_cap_config()`
+# — in-memory instances included, since a bare `duckdb.connect()` claims
+# the 11.2 GiB default above. Guard: tests/test_static_checks.py
+# `test_no_uncapped_duckdb_connect_outside_allowlist`. No category is
+# exempt — benches and research one-shots included (operator ruling
+# 2026-11-23: they have driven the box to swap before). The one bare script
+# that cannot import this package (helpers/misc/parquet_textconv.py, a git
+# textconv driver) passes the same limit inline; the guard checks that
+# literal against MEMORY_LIMIT. Test-side connects are capped by
+# tests/conftest.py, which installs MEMORY_LIMIT as the default. Capped
+# connections also spill to the system temp dir, never a cwd-relative `.tmp`
+# (operator ruling 2026-11-23: "everyone should use TMPDIR, not .tmp") —
+# see temp_directory().
 MEMORY_LIMIT = "2GB"
 
 
+def temp_directory() -> str:
+    """Spill directory for capped connections (operator ruling 2026-11-23:
+    "everyone should use TMPDIR, not .tmp").
+
+    DuckDB defaults ``temp_directory`` to a cwd-relative ``.tmp`` for
+    in-memory databases, so an in-memory instance pushed past its cap would
+    litter ``<cwd>/.tmp``; this resolves the first set of TMPDIR/TEMP/TMP
+    and falls back to :func:`tempfile.gettempdir`."""
+    for var in ("TMPDIR", "TEMP", "TMP"):
+        value = os.environ.get(var)
+        if value:
+            return value
+    return tempfile.gettempdir()
+
+
 def memory_cap_config() -> dict[str, Any]:
-    """``duckdb.connect`` kwargs enforcing the repo memory cap."""
-    return {"config": {"memory_limit": MEMORY_LIMIT}}
+    """``duckdb.connect`` kwargs enforcing the repo memory cap and the
+    TMPDIR spill rule (:func:`temp_directory`)."""
+    return {"config": {"memory_limit": MEMORY_LIMIT, "temp_directory": temp_directory()}}
 
 
 def unsigned_ext_kwargs() -> dict[str, Any]:

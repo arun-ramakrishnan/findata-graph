@@ -45,6 +45,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.maintenance.price_sync import OUT_PATH  # noqa: E402
 
 #: (subject side, description) per event class — the subject's ENTITY
@@ -79,7 +80,7 @@ def load_prices(parquet: Path = OUT_PATH) -> dict[str, list[tuple[str, float, fl
     """``symbol -> [(week, close, volume)]`` sorted ascending, from the parquet."""
     import duckdb
 
-    duck = duckdb.connect()
+    duck = duckdb.connect(**memory_cap_config())
     try:
         duck.execute(f"CREATE VIEW px AS SELECT * FROM read_parquet('{parquet}')")  # noqa: S608  constant path
         out: dict[str, list[tuple[str, float, float]]] = {}

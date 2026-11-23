@@ -50,6 +50,7 @@ import warnings  # noqa: E402
 
 warnings.filterwarnings("ignore", category=SyntaxWarning)  # HGX docstrings
 
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.graph import hyper_centralities as hc  # noqa: E402
 from helpers.graph import hyper_communities as hcm  # noqa: E402
 
@@ -111,7 +112,7 @@ def load_incidence_duckdb(path: Path, max_edges: int | None) -> dict[str, list[s
     """
     import duckdb
 
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         limit = f" LIMIT {int(max_edges)}" if max_edges is not None else ""
         rel = con.execute(

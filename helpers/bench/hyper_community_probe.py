@@ -37,6 +37,7 @@ import numpy as np  # noqa: E402
 
 from sklearn.metrics import adjusted_rand_score  # noqa: E402
 
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.graph.hyper_communities import _exclude_degenerate, fit_communities  # noqa: E402
 
 
@@ -111,7 +112,7 @@ def onager_louvain(con, seed=42):
 def run_case(edges, truth, k, seed):
     import duckdb
 
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         try:
             con.execute("INSTALL onager")
@@ -221,7 +222,7 @@ def run_case_bip(edges, truth, k, seed):
     """Both incidence-native legs vs the projection baseline; ARI vs truth and vs each other."""
     import duckdb
 
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         try:
             con.execute("INSTALL onager")

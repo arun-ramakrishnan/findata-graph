@@ -57,7 +57,9 @@ NEAR_DUP_SEEDS: list[tuple[str, str, str, list[float]]] = [
 def near_dup_con() -> duckdb.DuckDBPyConnection:
     """A fresh in-memory DuckDB with v_note_embeddings seeded (schema per
     query.py:1556-1558). Caller closes the connection."""
-    con = duckdb.connect()
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    con = duckdb.connect(**memory_cap_config())
     con.execute(
         """
         CREATE TABLE v_note_embeddings (

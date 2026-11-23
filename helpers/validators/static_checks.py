@@ -1267,6 +1267,178 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
     return failures
 
 
+# --------------------------------------------------------------------------- #
+# DuckDB memory cap (2026-11-23 operator cap: 2 GB max per connection)         #
+# --------------------------------------------------------------------------- #
+
+#: Calls that return the repo cap config (`connect_kwargs` is onager's thin
+#: wrapper over `memory_cap_config`).
+_DUCKDB_CAP_HELPERS = frozenset({"memory_cap_config", "connect_kwargs"})
+
+#: Escape hatch for a site that cannot apply the cap in either supported
+#: form. Empty today — an entry needs a comment saying why. This is the
+#: single home of the allowlist; the pytest twin
+#: (tests/test_static_checks.py) drives this module rather than keeping its
+#: own copy.
+_DUCKDB_CONNECT_ALLOWLIST: dict[str, str] = {}
+
+
+def _inline_cap_literal(node: ast.Call) -> str | None:
+    """``memory_limit`` from an inline ``config={"memory_limit": "..."}``
+    keyword — the form for a bare script that cannot import the cap helper
+    (helpers/misc/parquet_textconv.py, a git textconv driver). None when the
+    call carries no such literal."""
+    for kw in node.keywords:
+        if kw.arg != "config" or not isinstance(kw.value, ast.Dict):
+            continue
+        for key, value in zip(kw.value.keys, kw.value.values, strict=False):
+            if (
+                isinstance(key, ast.Constant)
+                and key.value == "memory_limit"
+                and isinstance(value, ast.Constant)
+                and isinstance(value.value, str)
+            ):
+                return value.value
+    return None
+
+
+def _duckdb_cap_aliases(tree: ast.AST) -> tuple[set[str], set[str], list[tuple[str, int]]]:
+    """Collect duckdb module/fn aliases and cap-helper assignment vars for one file."""
+    mod_aliases: set[str] = set()
+    fn_aliases: set[str] = set()
+    cap_vars: list[tuple[str, int]] = []  # (name, assignment line)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            mod_aliases.update(a.asname or a.name for a in node.names if a.name == "duckdb")
+        elif isinstance(node, ast.ImportFrom) and node.module == "duckdb":
+            fn_aliases.update(a.asname or a.name for a in node.names if a.name == "connect")
+        elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+            func = node.value.func
+            if (
+                func.id if isinstance(func, ast.Name) else getattr(func, "attr", None)
+            ) in _DUCKDB_CAP_HELPERS:
+                cap_vars.extend(
+                    (t.id, node.lineno) for t in node.targets if isinstance(t, ast.Name)
+                )
+    return mod_aliases, fn_aliases, cap_vars
+
+
+def _duckdb_cap_file_violations(text: str, rel: str, *, limit: str) -> list[str]:
+    """Per-file half of the DuckDB memory-cap guard (see
+    check_duckdb_memory_cap). ``limit`` is duckdb_shared.MEMORY_LIMIT,
+    injected by the caller so this stays a pure function the unit-test twin
+    can drive with fake sources.
+
+    AST-based (a grep cannot tell a capped call from a bare one). A call is
+    capped in one of three forms: a cap helper is called inside it —
+    ``duckdb.connect(p, **memory_cap_config())``; a ``**name`` keyword names a
+    variable assigned from a cap helper earlier in the file (``kw =
+    connect_kwargs()``); or, for a bare script that cannot import the helper,
+    an inline ``config={"memory_limit": ...}`` whose literal equals ``limit``.
+    Honours ``import duckdb as X`` and ``from duckdb import connect as X``.
+    No path category is skipped.
+    """
+    if rel in _DUCKDB_CONNECT_ALLOWLIST:
+        return []
+    tree = ast.parse(text)
+    mod_aliases, fn_aliases, cap_vars = _duckdb_cap_aliases(tree)
+
+    file_hits: list[int] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Attribute) and func.attr == "connect":
+            if not (isinstance(func.value, ast.Name) and func.value.id in mod_aliases):
+                continue
+        elif isinstance(func, ast.Name) and func.id in fn_aliases:
+            pass
+        else:
+            continue
+        capped = any(
+            sub is not node
+            and isinstance(sub, ast.Call)
+            and (
+                (sub.func.id if isinstance(sub.func, ast.Name) else getattr(sub.func, "attr", None))
+                in _DUCKDB_CAP_HELPERS
+            )
+            for sub in ast.walk(node)
+        )
+        if not capped:
+            capped = any(
+                kw.arg is None
+                and isinstance(kw.value, ast.Name)
+                and any(name == kw.value.id and line <= node.lineno for name, line in cap_vars)
+                for kw in node.keywords
+            )
+        if not capped:
+            # Inline form: compliant only while the literal tracks MEMORY_LIMIT.
+            capped = _inline_cap_literal(node) == limit
+        if not capped:
+            file_hits.append(node.lineno)
+    # ast.walk is breadth-first: restore source order within the file.
+    return [f"{rel}:{line}" for line in sorted(file_hits)]
+
+
+def check_duckdb_memory_cap(scope: set[Path] | None = None) -> list[str]:
+    """P0: every ``duckdb.connect`` in production code (helpers/ + app.py)
+    must carry the repo memory cap (operator 2026-11-23: "restrict its
+    memory to 2GB max"; the 2026-11-23 gate-arc swap storm was driven by
+    concurrent uncapped claims).
+
+    The cap rides per call site via
+    ``helpers.core.duckdb_shared.memory_cap_config()``; onager's
+    ``connect_kwargs()`` wraps it. Capped connections also spill to the
+    system temp dir, never a cwd-relative ``.tmp`` (same ruling —
+    ``temp_directory()`` rides in the same config). A bare script with no
+    package import path passes the same limit inline
+    (``config={"memory_limit": ...}``, checked against MEMORY_LIMIT;
+    helpers/misc/parquet_textconv.py). ``tests/`` is exempt: test-side
+    connects are capped at runtime by ``tests/duckdb_cap.py`` (installed at
+    conftest import), and the unit-test twin
+    (tests/test_static_checks.py
+    ::test_no_uncapped_duckdb_connect_outside_allowlist) drives this check
+    full-tree.
+
+    A scope restricts to dirty files (dirty-gating); None falls back to
+    the module-global _DIRTY_PY_SCOPE (itself None = full). The scope pin,
+    allowlist, and inline-literal rule apply identically on both paths.
+    """
+    if scope is None:
+        scope = _DIRTY_PY_SCOPE
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from helpers.core.duckdb_shared import MEMORY_LIMIT  # noqa: PLC0415
+
+    failures: list[str] = []
+    if scope is not None:
+        candidates = sorted(
+            p
+            for p in scope
+            if p.suffix == ".py" and p.is_file() and not any(part in SKIP_DIRS for part in p.parts)
+        )
+    else:
+        candidates = [
+            p for p in REPO_ROOT.rglob("*.py") if not any(part in SKIP_DIRS for part in p.parts)
+        ]
+    for py in candidates:
+        try:
+            rel = py.relative_to(REPO_ROOT).as_posix()
+        except ValueError:
+            continue
+        # P0: production code only (helpers/ + app.py). tests/ are
+        # runtime-capped by tests/duckdb_cap.py; desktop/, scripts/ and
+        # gitignored scratch never enter the pinned scope.
+        if not (rel == "app.py" or rel.startswith("helpers/")):
+            continue
+        try:
+            text = py.read_text(encoding="utf-8")
+            failures.extend(_duckdb_cap_file_violations(text, rel, limit=MEMORY_LIMIT))
+        except OSError, SyntaxError:  # noqa: S112  # best-effort; skip item on failure
+            continue
+    return failures
+
+
 _EMB_DECODE_IDENT_RE = re.compile(r"emb|vec", re.IGNORECASE)
 
 
@@ -2218,6 +2390,12 @@ CHECKS = [
     ("OKF conformance", check_okf_conformance_contract),
     ("Dependency pinning", check_dependency_pinning),
     ("SQLite helper usage", check_sqlite_helper_usage),
+    # duckdb_cap S1 (2026-11-23): every duckdb.connect outside tests/ carries
+    # the repo memory cap (helpers.core.duckdb_shared.MEMORY_LIMIT + the
+    # TMPDIR spill rule) — the 2026-11-23 gate-arc swap storm was driven by
+    # concurrent uncapped claims; tests/ are runtime-capped by conftest
+    # (tests/duckdb_cap.py).
+    ("DuckDB memory cap", check_duckdb_memory_cap),
     ("Embedding decode chokepoint", check_embedding_decode_chokepoint),
     ("DB meta generation", check_db_meta_generation),
     ("Data format (parquet zstd + Arrow in flight)", check_data_format),

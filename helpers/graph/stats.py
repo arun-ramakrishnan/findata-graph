@@ -852,13 +852,18 @@ def _print_structure_metrics() -> None:
         try:
             import duckdb as _dq
 
+            from helpers.core.duckdb_shared import memory_cap_config
             from helpers.misc.duckdb_lock import connect_with_lock_retry
 
             # S2 (duckdb_transient_lock_retry): a stamp holding the file
             # RW is transient from a reader's viewpoint — retry, don't
             # fail the stats report.
             _gcon = connect_with_lock_retry(
-                lambda: _dq.connect(str(_PROJECT_ROOT / "memory" / "graph.duckdb"), read_only=True)
+                lambda: _dq.connect(
+                    str(_PROJECT_ROOT / "memory" / "graph.duckdb"),
+                    read_only=True,
+                    **memory_cap_config(),
+                )
             )
             try:
                 rows = _gcon.execute("SELECT metric, value FROM v_graph_structure").fetchall()

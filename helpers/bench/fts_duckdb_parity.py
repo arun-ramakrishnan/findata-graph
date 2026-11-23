@@ -31,6 +31,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 EVAL_SET = REPO / "helpers" / "misc" / "embed_eval_questions.json"
 WINDOWS = 1024  # app.py inner LIMIT
@@ -111,7 +112,7 @@ def build_duckdb(corpus: list[dict], path: Path):
 
     if path.exists():
         path.unlink()
-    con = duckdb.connect(str(path))
+    con = duckdb.connect(str(path), **memory_cap_config())
     try:
         con.execute("INSTALL fts")
         con.execute("LOAD fts")
@@ -151,7 +152,7 @@ def duckdb_search(db_path: Path, or_expr: str) -> list[str]:
 
     global _DDB_CON
     if _DDB_CON is None:
-        _DDB_CON = duckdb.connect(str(db_path), read_only=True)
+        _DDB_CON = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
     rows = _DDB_CON.execute(
         "SELECT file_path, fts_main_notes.match_bm25(id, ?) AS s FROM notes"
         " WHERE s IS NOT NULL ORDER BY s DESC LIMIT ?",

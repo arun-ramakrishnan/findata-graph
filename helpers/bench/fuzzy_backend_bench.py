@@ -22,6 +22,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.core.fuzzy_duckdb import word_overlap_match_sql  # noqa: E402
 from helpers.core.fuzzy_match import word_overlap_match  # noqa: E402
 
@@ -117,7 +118,7 @@ def main() -> int:
 
     import duckdb
 
-    conn = duckdb.connect()
+    conn = duckdb.connect(**memory_cap_config())
     sql_ms = _time_backend(
         lambda q: word_overlap_match_sql(q, entities, conn=conn), queries, args.repeat
     )

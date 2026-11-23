@@ -357,9 +357,11 @@ def _graph_build_etag() -> str | None:
         else:
             # Cold start: no singleton yet, so a read-only connection is safe.
             import duckdb
+
+            from helpers.core.duckdb_shared import memory_cap_config
             from helpers.graph.query import DUCKDB_PATH
 
-            con = duckdb.connect(str(DUCKDB_PATH), read_only=True)
+            con = duckdb.connect(str(DUCKDB_PATH), read_only=True, **memory_cap_config())
             try:
                 r = con.execute("SELECT value FROM _build_meta WHERE key='built_at'").fetchone()
             finally:

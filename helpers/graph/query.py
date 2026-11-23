@@ -1946,7 +1946,9 @@ def update_extensions() -> list[tuple[str, str]]:
     Not called by ``connect()`` — the ~5s network round-trip would
     dominate warm-connect cost (see §18).
     """
-    con = duckdb.connect()
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    con = duckdb.connect(**memory_cap_config())
     try:
         # DuckDB exposes installed extensions via duckdb_extensions().
         before = {

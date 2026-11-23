@@ -1002,7 +1002,7 @@ def compact_via_copy(db_path: Path) -> dict:
                 flush=True,
             )
 
-        work = duckdb.connect(":memory:")
+        work = duckdb.connect(":memory:", **ds.memory_cap_config())
         try:
             work.execute("INSTALL fts")
             work.execute("LOAD fts")

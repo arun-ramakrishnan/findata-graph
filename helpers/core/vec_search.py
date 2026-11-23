@@ -152,8 +152,9 @@ def _resolve_cache_conn(conn):
         return open_cache_conn()
     if not main_file:
         import duckdb
+        from helpers.core.duckdb_shared import memory_cap_config
 
-        return duckdb.connect(":memory:")
+        return duckdb.connect(":memory:", **memory_cap_config())
     return open_cache_conn()
 
 

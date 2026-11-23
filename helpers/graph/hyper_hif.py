@@ -91,11 +91,12 @@ def write_hif_parquet(
 ) -> dict[str, Path]:
     """Live store → three zstd parquet tables with HIF column names."""
     import duckdb
+    from helpers.core.duckdb_shared import memory_cap_config
 
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     ph = ", ".join("?" for _ in sources)
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         con.execute(_attach_src_sql(db_path))
         nodes = con.sql(
@@ -184,10 +185,11 @@ def validate_hif_roundtrip(
 ) -> dict[str, int]:
     """Assert fidelity across store ↔ parquet ↔ JSON skin. Raises on drift."""
     import duckdb
+    from helpers.core.duckdb_shared import memory_cap_config
 
     tbls = read_hif_parquet(out_dir)
     ph = ", ".join("?" for _ in sources)
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         con.execute(_attach_src_sql(db_path))
 

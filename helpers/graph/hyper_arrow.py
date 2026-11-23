@@ -56,8 +56,9 @@ def _in_clause(sources: list[str]) -> str:
 def _from_live(sources: list[str], db_path: Path | str) -> pa.Table:
     """SQLite (read-only) through DuckDB's sqlite scanner → Arrow."""
     import duckdb
+    from helpers.core.duckdb_shared import memory_cap_config
 
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         con.execute(f"ATTACH '{db_path}' AS src (TYPE SQLITE, READ_ONLY)")
         rel = con.sql(
@@ -76,10 +77,11 @@ def _from_snapshot(sources: list[str], parquet_dir: Path) -> pa.Table:
     """zstd parquet snapshots via pyarrow, joined in flight (zero SQLite)."""
     import duckdb
     import pyarrow.parquet as pq
+    from helpers.core.duckdb_shared import memory_cap_config
 
     edges = pq.read_table(parquet_dir / HYPER_EDGES_PARQUET)
     incs = pq.read_table(parquet_dir / HYPER_INCIDENCES_PARQUET)
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         con.register("e", edges)
         con.register("i", incs)
@@ -202,8 +204,9 @@ def incidence_query(table: pa.Table, sql: str, params: list | None = None) -> pa
     scan reads the caller's buffers zero-copy (§10 in-flight rule).
     """
     import duckdb
+    from helpers.core.duckdb_shared import memory_cap_config
 
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         con.register("incidence", table)
         rel = con.sql(sql, params=params or [])

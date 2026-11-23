@@ -922,7 +922,9 @@ def _nse_names() -> list[str]:
         return []
     import duckdb  # noqa: PLC0415  (canonical lane only; keep module import light)
 
-    con = duckdb.connect(str(NSE_SOURCE), read_only=True)
+    from helpers.core.duckdb_shared import memory_cap_config  # noqa: PLC0415
+
+    con = duckdb.connect(str(NSE_SOURCE), read_only=True, **memory_cap_config())
     try:
         return [
             r[0]

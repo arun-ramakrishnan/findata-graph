@@ -29,6 +29,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.maintenance.price_sync import OUT_PATH  # noqa: E402
 
 SURVIVORSHIP_CAVEAT = (
@@ -48,7 +49,7 @@ def entity_week_census() -> dict:
     if not OUT_PATH.exists():
         raise FileNotFoundError(f"no price parquet at {OUT_PATH} — run price_sync.py build first")
     con = connect(read_only=True)
-    duck = duckdb.connect()
+    duck = duckdb.connect(**memory_cap_config())
     try:
         duck.execute(
             f"CREATE VIEW px AS SELECT * FROM read_parquet('{OUT_PATH}')"  # noqa: S608  constant path

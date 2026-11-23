@@ -28,6 +28,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 SNAPSHOT = _REPO_ROOT / "bench_data" / "alpha_research" / "linkpred_snapshot.parquet"
 PREREG = _REPO_ROOT / "doc" / "local" / "evaluations" / "linkpred_precision_prereg.md"
@@ -102,7 +103,7 @@ def score() -> int:
     import duckdb
 
     con = connect(read_only=True)
-    duck = duckdb.connect()
+    duck = duckdb.connect(**memory_cap_config())
     try:
         duck.execute(
             f"CREATE VIEW snap AS SELECT * FROM read_parquet('{SNAPSHOT}')"  # noqa: S608  constant path

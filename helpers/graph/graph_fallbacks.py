@@ -40,6 +40,7 @@ import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
 
+from helpers.core.duckdb_shared import memory_cap_config
 from helpers.graph.onager import (
     LP_HUB_DEGREE_CAP,
     PREF_ATTACH_COMPUTE_FLOOR,
@@ -249,7 +250,7 @@ def with_onager_connection(con: duckdb.DuckDBPyConnection | None = None):
             yield shared
         return
     if con is None:
-        con = duckdb.connect()
+        con = duckdb.connect(**memory_cap_config())
         try:
             yield con
         finally:

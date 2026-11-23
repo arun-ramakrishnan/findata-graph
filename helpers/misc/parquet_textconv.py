@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 
 try:
     import duckdb
@@ -50,7 +51,21 @@ def _cell_limit() -> int:
 def main(path: str) -> int:
     limit = _rows_limit()
     cell = _cell_limit()
-    con = duckdb.connect(database=":memory:")
+    # Inline literal: git runs this file as a bare script (sys.path[0] is
+    # helpers/misc/), so helpers.core.duckdb_shared is not importable here.
+    # Mirrors duckdb_shared.MEMORY_LIMIT (2 GB operator cap, 2026-11-23);
+    # tests/test_static_checks.py `test_duckdb_cap_guard_flags_only_uncapped_sites`
+    # flags drift between the two.
+    con = duckdb.connect(
+        database=":memory:",
+        config={
+            "memory_limit": "2GB",
+            # Spill to the system temp dir, never a cwd-relative .tmp
+            # (operator ruling 2026-11-23); the guard checks the key's
+            # presence, not this env expression.
+            "temp_directory": os.environ.get("TMPDIR") or tempfile.gettempdir(),
+        },
+    )
     _count_row = con.execute("SELECT count(*) FROM read_parquet(?)", [path]).fetchone()
     if _count_row is None:  # COUNT(*) always returns exactly one row
         raise RuntimeError(f"count query returned no rows for {path}")

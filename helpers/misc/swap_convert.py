@@ -64,6 +64,7 @@ sys.path.insert(0, str(REPO))  # noqa: E402
 import duckdb  # noqa: E402
 
 from helpers.core.db import connect as sqlite_connect  # noqa: E402
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.misc.swap_fk_integrity import scan_orphans  # noqa: E402
 
 DEFAULT_SOURCE = REPO / "memory" / "research.db"
@@ -345,7 +346,7 @@ def _build(source: Path, dest: Path) -> tuple[dict, float]:
     if tmp.exists():
         tmp.unlink()
     t0 = time.time()
-    con = duckdb.connect(str(tmp))
+    con = duckdb.connect(str(tmp), **memory_cap_config())
     try:
         con.execute("LOAD sqlite_scanner")
         con.execute(f"ATTACH '{source}' AS rs (TYPE sqlite, READ_ONLY)")
@@ -423,7 +424,7 @@ def _parity(source: Path, dest: Path, schema: dict) -> tuple[bool, dict[str, Any
     tables = schema["tables"]
 
     live = sqlite3.connect(f"file:{source}?mode=ro", uri=True)
-    duck = duckdb.connect(str(dest), read_only=True)
+    duck = duckdb.connect(str(dest), read_only=True, **memory_cap_config())
     try:
         # 1. row counts + column order + declared types, 33/33 carried
         for t, spec in tables.items():

@@ -69,6 +69,8 @@ def _rebuild(dest: Path) -> float:
     """CTAS-convert the live store into 'dest'; returns seconds taken."""
     import duckdb  # local: only needed on the rebuild path
 
+    from helpers.core.duckdb_shared import memory_cap_config
+
     dest.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_str = tempfile.mkstemp(prefix=".swap_fk_gate_", suffix=".duckdb", dir=str(dest.parent))
     os.close(fd)
@@ -76,7 +78,7 @@ def _rebuild(dest: Path) -> float:
     tmp.unlink()
     t0 = time.time()
     tables = _sqlite_tables()
-    con = duckdb.connect(str(tmp))
+    con = duckdb.connect(str(tmp), **memory_cap_config())
     try:
         con.execute("LOAD sqlite_scanner")
         con.execute(f"ATTACH '{SOURCE}' AS rs (TYPE sqlite, READ_ONLY)")
@@ -127,7 +129,9 @@ def main(argv: list[str] | None = None) -> int:
 
     import duckdb  # local: only needed on the check path
 
-    con = duckdb.connect(str(store), read_only=True)
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    con = duckdb.connect(str(store), read_only=True, **memory_cap_config())
     try:
         findings, checked = scan_orphans(con)
     finally:

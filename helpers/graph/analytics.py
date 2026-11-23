@@ -471,7 +471,9 @@ def fetch(name: str, root: Path = DEFAULT_SNAPSHOTS) -> Report | list[Report]:
         raise ValueError(f"unknown report {name!r} (choose from {list(REPORTS)})")
     if not root.exists():
         raise FileNotFoundError(f"snapshot tree {root} not found (run make snapshot)")
-    con = duckdb.connect()
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    con = duckdb.connect(**memory_cap_config())
     try:
         return _FETCHERS[name](root, con)
     finally:

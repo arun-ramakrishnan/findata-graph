@@ -15,6 +15,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+from helpers.core import duckdb_shared  # noqa: E402
 from helpers.validators import static_checks as sc  # noqa: E402
 
 
@@ -362,6 +363,162 @@ def test_no_sqlite3_connect_outside_allowlist():
         "Route through connect() or, if you have a documented reason, add the "
         "path to _SQLITE3_CONNECT_ALLOWLIST.\n\nViolations:\n  " + "\n  ".join(violations)
     )
+
+
+# --------------------------------------------------------------------------- #
+# duckdb.connect memory-cap discipline (2026-11-23 operator cap: 2 GB max)     #
+# --------------------------------------------------------------------------- #
+# The classifier lives in helpers/validators/static_checks.py as the single
+# home shared by the dirty-scope validator (check_duckdb_memory_cap, rendered
+# in the qa static_checks step) and this pytest twin (the tests below drive
+# sc._duckdb_cap_file_violations and sc.check_duckdb_memory_cap directly).
+# The cap itself: helpers.core.duckdb_shared.memory_cap_config() —
+# memory_limit (2 GB operator cap, 2026-11-23) + temp_directory (TMPDIR,
+# never a cwd-relative .tmp — same ruling). No category is exempt (benches
+# and research one-shots have driven the box to swap before); the single-file
+# allowlist is the escape hatch, and it lives next to the classifier.
+
+
+def test_duckdb_cap_guard_flags_only_uncapped_sites():
+    """The guard's per-file classifier (helpers/validators/static_checks.py
+    ::_duckdb_cap_file_violations): capped inline, capped via a variable, and
+    an inline literal that tracks MEMORY_LIMIT pass; a bare connect (including
+    through an import alias), a wrong variable, and a stale inline literal are
+    all flagged. The allowlist honours its escape hatch."""
+    stale = "5GB" if duckdb_shared.MEMORY_LIMIT != "5GB" else "6GB"
+    mod_src = (
+        "import duckdb\n"
+        "import duckdb as _dq\n"
+        "from duckdb import connect as _connect\n"
+        "from helpers.core.duckdb_shared import memory_cap_config\n"
+        "\n"
+        "GOOD_INLINE = duckdb.connect(':memory:', **memory_cap_config())\n"
+        "\n"
+        "\n"
+        "def f():\n"
+        "    from helpers.graph.onager import connect_kwargs\n"
+        "\n"
+        "    kw = connect_kwargs()\n"
+        "    return duckdb.connect(str(1), read_only=True, **kw)\n"
+        "\n"
+        "\n"
+        "BAD_ALIAS = _dq.connect()\n"
+        "BAD_FROM = _connect(':memory:')\n"
+        "BAD_BARE = duckdb.connect()\n"
+        "BAD_WRONG_VAR = duckdb.connect(':memory:', **unrelated)\n"
+        "GOOD_LITERAL = duckdb.connect(database=':memory:', "
+        "config={'memory_limit': '" + duckdb_shared.MEMORY_LIMIT + "'})\n"
+        "BAD_STALE_LITERAL = duckdb.connect(database=':memory:', "
+        "config={'memory_limit': '" + stale + "'})\n"
+    )
+    assert sc._duckdb_cap_file_violations(
+        mod_src, "helpers/core/mod.py", limit=duckdb_shared.MEMORY_LIMIT
+    ) == [
+        "helpers/core/mod.py:16",
+        "helpers/core/mod.py:17",
+        "helpers/core/mod.py:18",
+        "helpers/core/mod.py:19",
+        "helpers/core/mod.py:21",
+    ]
+    bench_src = "import duckdb\n\ncon = duckdb.connect()\n"
+    assert sc._duckdb_cap_file_violations(
+        bench_src, "helpers/bench/probe.py", limit=duckdb_shared.MEMORY_LIMIT
+    ) == ["helpers/bench/probe.py:3"]
+    textconv_src = (
+        "import duckdb\n\n"
+        "con = duckdb.connect(database=':memory:', "
+        "config={'memory_limit': '" + duckdb_shared.MEMORY_LIMIT + "'})\n"
+    )
+    assert (
+        sc._duckdb_cap_file_violations(
+            textconv_src, "helpers/misc/parquet_textconv.py", limit=duckdb_shared.MEMORY_LIMIT
+        )
+        == []
+    )
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(sc, "_DUCKDB_CONNECT_ALLOWLIST", {"helpers/bench/probe.py": "why"})
+        assert (
+            sc._duckdb_cap_file_violations(
+                bench_src, "helpers/bench/probe.py", limit=duckdb_shared.MEMORY_LIMIT
+            )
+            == []
+        )
+
+
+def test_no_uncapped_duckdb_connect_outside_allowlist():
+    """Guard: every duckdb.connect under helpers/ + app.py applies the repo
+    memory cap (helpers.core.duckdb_shared.MEMORY_LIMIT, 2 GB since 2026-11-23)
+    — production, maintenance, benches and research one-shots alike.
+
+    A new connect site must pass ``**memory_cap_config()`` (or onager's
+    ``**connect_kwargs()``). A bare script with no package import path passes
+    the same limit inline (``config={"memory_limit": ...}``, checked against
+    MEMORY_LIMIT). Only a site that can do neither goes into
+    ``_DUCKDB_CONNECT_ALLOWLIST`` (in helpers/validators/static_checks.py,
+    the single home of this guard), WITH a comment.
+    """
+    violations = sc.check_duckdb_memory_cap()
+
+    assert not violations, (
+        "duckdb.connect() without the repo memory cap. Each site claims DuckDB's "
+        "default limit (~70% of RAM) and can drive the box to swap under "
+        "concurrent legs. Pass **memory_cap_config() "
+        "(helpers.core.duckdb_shared), or the same limit inline where the "
+        "helper cannot be imported, or, with a documented reason, add the path "
+        "to _DUCKDB_CONNECT_ALLOWLIST in helpers/validators/static_checks.py.\n\n"
+        "Violations:\n  " + "\n  ".join(violations)
+    )
+
+
+def test_conftest_caps_test_side_duckdb_connects():
+    """tests/conftest.py installs (tests/duckdb_cap.py) the repo defaults —
+    MEMORY_LIMIT + the TMPDIR spill dir — for every test-side
+    ``duckdb.connect`` (the test tree's own ~230 sites are capped once per
+    process, not edited one by one): the bare default is capped, a caller's
+    ``config`` keys survive, and a caller's own ``memory_limit`` or
+    ``temp_directory`` win.
+
+    ``duckdb.connect`` may carry later wrappers by now (the hermeticity
+    recorder), so the uncapped baseline comes from ``duckdb_cap.REAL_CONNECT``
+    rather than from the attribute itself."""
+    import duckdb
+    from tests import duckdb_cap
+
+    real = duckdb_cap.REAL_CONNECT
+    assert duckdb.connect is not real
+
+    def limit(con: object) -> str:
+        return con.execute("SELECT current_setting('memory_limit')").fetchone()[0]
+
+    def spill(con: object) -> str:
+        return con.execute("SELECT current_setting('temp_directory')").fetchone()[0]
+
+    uncapped = real(":memory:", config={})
+    try:
+        bare_default = limit(uncapped)
+    finally:
+        uncapped.close()
+    capped = limit(duckdb.connect(":memory:"))
+    assert spill(duckdb.connect(":memory:")) == duckdb_shared.temp_directory()
+    assert spill(duckdb.connect(":memory:")) == duckdb_shared.temp_directory()
+    assert capped == limit(real(":memory:", **duckdb_shared.memory_cap_config()))
+    assert capped != bare_default
+
+    own = duckdb.connect(":memory:", config={"memory_limit": "512MB"})
+    try:
+        assert limit(own) == limit(real(":memory:", config={"memory_limit": "512MB"}))
+        assert limit(own) != capped
+    finally:
+        own.close()
+    tuned = duckdb.connect(":memory:", config={"threads": "1"})
+    try:
+        threads = tuned.execute("SELECT current_setting('threads')").fetchone()[0]
+        assert str(threads) == "1"
+        assert limit(tuned) == capped
+    finally:
+        tuned.close()
+    # duckdb.connect() rejects config=None itself; the wrapper normalises it.
+    assert limit(duckdb.connect(":memory:", config=None)) == capped
 
 
 # --------------------------------------------------------------------------- #

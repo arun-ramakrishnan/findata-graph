@@ -97,8 +97,9 @@ def build(  # noqa: C901 — batch/retry/merge state machine reads best linear
     old_rows: list[dict] = []
     if fill_missing and OUT_PATH.exists():
         import duckdb
+        from helpers.core.duckdb_shared import memory_cap_config
 
-        duck = duckdb.connect()
+        duck = duckdb.connect(**memory_cap_config())
         try:
             duck.execute(
                 f"CREATE VIEW px AS SELECT * FROM read_parquet('{OUT_PATH}')"  # noqa: S608  constant path
@@ -207,11 +208,12 @@ def build(  # noqa: C901 — batch/retry/merge state machine reads best linear
 def coverage() -> int:
     """Row census over the stored parquet: totals, depth quantiles, failures."""
     import duckdb
+    from helpers.core.duckdb_shared import memory_cap_config
 
     if not OUT_PATH.exists():
         print(f"no parquet at {OUT_PATH.relative_to(_REPO_ROOT)} — run build first")
         return 1
-    duck = duckdb.connect()
+    duck = duckdb.connect(**memory_cap_config())
     try:
         duck.execute(
             f"CREATE VIEW px AS SELECT * FROM read_parquet('{OUT_PATH}')"  # noqa: S608  constant path

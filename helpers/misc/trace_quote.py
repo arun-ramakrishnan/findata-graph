@@ -722,7 +722,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     try:
-        con = duckdb.connect(args.db)
+        con = duckdb.connect(args.db, **memory_cap_config())
     except Exception as exc:  # noqa: BLE001
         print(f"error: could not open trace store: {exc}", file=sys.stderr)
         return 1

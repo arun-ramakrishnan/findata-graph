@@ -32,6 +32,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.graph.hyper_predict import (  # noqa: E402
     _candidates,
     _jaccard_scores,
@@ -53,7 +54,7 @@ def _load_with_validity(source: str):
     """Load incidence rows with valid_from for one family."""
     import duckdb
 
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         con.execute(
             f"ATTACH '{_PROJECT_ROOT / 'memory' / 'research.db'}' AS src (TYPE SQLITE, READ_ONLY)"

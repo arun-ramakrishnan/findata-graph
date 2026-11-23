@@ -47,6 +47,8 @@ warnings.filterwarnings("ignore", category=SyntaxWarning)  # HGX docstrings
 
 import numpy as np  # noqa: E402
 
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
+
 if TYPE_CHECKING:
     from scipy.sparse import csr_matrix
 
@@ -112,7 +114,7 @@ def lane_dyadic(edges: list[tuple[int, ...]], *, analytics: bool) -> dict:
     """
     import duckdb
 
-    con = duckdb.connect()
+    con = duckdb.connect(**memory_cap_config())
     try:
         try:
             con.execute("INSTALL onager")
