@@ -51,6 +51,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import DEFAULT_DB_PATH, connect  # noqa: E402
+from helpers.core.vec_search import _is_duckdb_conn  # noqa: E402
 
 SOURCE_REF = "derive:event_participants"
 AGENT_ID = "derive_event_participants"
@@ -196,16 +197,72 @@ def apply_participants(
     if dry_run:
         return stats
     with conn:
-        for eid in dropped_events:
-            conn.execute("DELETE FROM event_participants WHERE event_id = ?", (eid,))
-        for eid, rows in participants.items():
-            conn.execute("DELETE FROM event_participants WHERE event_id = ?", (eid,))
-            conn.executemany(
-                "INSERT INTO event_participants (event_id, participant, role, source_ref) "
-                "VALUES (?, ?, ?, ?)",
-                [(eid, participant, role, SOURCE_REF) for participant, role in rows],
-            )
+        if _is_duckdb_conn(conn):
+            _replace_participants_duckdb(conn, participants, dropped_events)
+        else:
+            for eid in dropped_events:
+                conn.execute("DELETE FROM event_participants WHERE event_id = ?", (eid,))
+            for eid, rows in participants.items():
+                conn.execute("DELETE FROM event_participants WHERE event_id = ?", (eid,))
+                conn.executemany(
+                    "INSERT INTO event_participants (event_id, participant, role, source_ref) "
+                    "VALUES (?, ?, ?, ?)",
+                    [(eid, participant, role, SOURCE_REF) for participant, role in rows],
+                )
     return stats
+
+
+def _replace_participants_duckdb(conn, participants, dropped_events) -> None:
+    """DuckDB write shape for the whole rebuild: one DELETE + one INSERT.
+
+    The live store holds 2,786 participant rows over 2,029 events (read
+    ­only count 2026-11-24), so the old loop issued ~2,029 per-event
+    DELETEs plus one executemany per event — ~4,000 DuckDB statements at
+    ~1.9 ms each. Stage every touched (event_id, participant, role,
+    source_ref) in one Arrow relation; one DELETE clears all replaced or
+    dropped events and one INSERT SELECT writes the new rows. No
+    SELECT DISTINCT: the old per-row INSERT let the PK reject duplicate
+    (event, participant, role) pairs, and this keeps that contract.
+    """
+    touched = list(dropped_events) + list(participants)
+    if not touched:
+        return
+    import pyarrow as pa  # lazy: only the DuckDB research store needs it
+
+    stage = [
+        (eid, participant, role, SOURCE_REF)
+        for eid, rows in participants.items()
+        for participant, role in rows
+    ]
+    # helpers.core.db's _DuckDBConn PROXY has no register(); the raw
+    # connection does, and registration is session-scoped.
+    raw = getattr(conn, "raw", conn)
+    raw.register("_dep_events", pa.table({"event_id": pa.array(touched, type=pa.int32())}))
+    if stage:
+        rel = pa.table(
+            {
+                "event_id": pa.array([r[0] for r in stage], type=pa.int32()),
+                "participant": pa.array([r[1] for r in stage]),
+                "role": pa.array([r[2] for r in stage]),
+                "source_ref": pa.array([r[3] for r in stage]),
+            }
+        )
+        raw.register("_dep_participants", rel)
+    try:
+        conn.execute(
+            "DELETE FROM event_participants WHERE event_id IN "
+            "(SELECT DISTINCT event_id FROM _dep_events)"
+        )
+        if stage:
+            conn.execute(
+                "INSERT INTO event_participants "
+                "(event_id, participant, role, source_ref) "
+                "SELECT event_id, participant, role, source_ref FROM _dep_participants"
+            )
+    finally:
+        raw.unregister("_dep_events")
+        if stage:
+            raw.unregister("_dep_participants")
 
 
 def derive(db_path: str | Path = DEFAULT_DB_PATH, *, apply: bool = False) -> dict:

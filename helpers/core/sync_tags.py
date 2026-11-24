@@ -49,7 +49,7 @@ if str(_REPO_ROOT) not in sys.path:
 from helpers.core.countries import COUNTRY_VOCABULARY  # noqa: E402
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.vec_search import _is_duckdb_conn  # noqa: E402
-from helpers.graph.sector_membership import put_sector_membership  # noqa: E402
+from helpers.graph.sector_membership import SECTOR_HYPER_TYPE  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 from helpers.core.frontmatter import (  # noqa: E402
     extract_tags as split_front_matter,
@@ -167,6 +167,165 @@ def company_geo_violations(entity_type: str, tags: list[str]) -> list[str]:
 NOTE_TAG_CATEGORIES = ("series", "publisher", "company")
 
 
+def _bulk_insert(conn, table: str, cols: tuple[str, str], rows: list[tuple[str, str]]) -> None:
+    """INSERT OR IGNORE semantics in ONE statement on DuckDB.
+
+    DuckDB's python ``executemany`` executes the prepared statement once
+    per row (~1.9 ms each on a PK-indexed table — the sync_tags perf leg
+    spent 13.8 s on 7,431 tag inserts; proposal
+    sync_tags_duckdb_setbased). Register the rows as an Arrow relation
+    and insert set-wise: SELECT DISTINCT carries INSERT OR IGNORE's
+    duplicate tolerance without interpolating SQL literals. SQLite keeps
+    ``executemany`` — per-statement overhead is microseconds there.
+    """
+    if not rows:
+        return
+    if not _is_duckdb_conn(conn):
+        conn.executemany(
+            f"INSERT OR IGNORE INTO {table} ({cols[0]}, {cols[1]}) VALUES (?, ?)",  # noqa: S608  # table/cols are call-site literals (entity_tags/note_tags)
+            rows,
+        )
+        return
+    import pyarrow as pa  # lazy: only the DuckDB research store needs it
+
+    # helpers.core.db.connect returns a _DuckDBConn PROXY exposing .raw;
+    # register/unregister live on the raw connection, not on the proxy.
+    raw = getattr(conn, "raw", conn)
+    rel = pa.table({cols[0]: [r[0] for r in rows], cols[1]: [r[1] for r in rows]})
+    raw.register("_sync_tags_bulk", rel)
+    try:
+        conn.execute(
+            f"INSERT INTO {table} ({cols[0]}, {cols[1]}) "  # noqa: S608  # table/cols are call-site literals
+            f"SELECT DISTINCT {cols[0]}, {cols[1]} FROM _sync_tags_bulk"  # noqa: S608  # same literals
+        )
+    finally:
+        raw.unregister("_sync_tags_bulk")
+
+
+def _apply_sector_updates(conn, sector_updates: list[tuple[str, str]]) -> int:
+    """Derive entities.sector_classification in ONE UPDATE on DuckDB.
+
+    Same IS DISTINCT FROM guard as the old per-row sweep: already-matching
+    rows are untouched. DuckDB wire connections report rowcount -1 for
+    UPDATE — clamp to 0 as the old code did. SQLite keeps ``executemany``.
+    """
+    if not sector_updates:
+        return 0
+    updates = list(dict.fromkeys(sector_updates))  # first wins, like the sweep
+    if not _is_duckdb_conn(conn):
+        cur = conn.cursor()
+        cur.executemany(
+            "UPDATE entities SET sector_classification = ? "
+            "WHERE name = ? AND sector_classification IS DISTINCT FROM ?",
+            [(canonical, name, canonical) for canonical, name in updates],
+        )
+        return max(cur.rowcount or 0, 0)
+    import pyarrow as pa  # lazy: only the DuckDB research store needs it
+
+    raw = getattr(conn, "raw", conn)
+    rel = pa.table(
+        {
+            "canonical": [canonical for canonical, _ in updates],
+            "name": [name for _, name in updates],
+        }
+    )
+    raw.register("_sync_tags_sector", rel)
+    try:
+        cur = conn.execute(
+            "UPDATE entities SET sector_classification = s.canonical "
+            "FROM _sync_tags_sector s "
+            "WHERE entities.name = s.name "
+            "AND entities.sector_classification IS DISTINCT FROM s.canonical"
+        )
+    finally:
+        raw.unregister("_sync_tags_sector")
+    return max(cur.rowcount or 0, 0)
+
+
+def _bulk_put_sector_membership(conn, pairs: list[tuple[str, str]]) -> int:
+    """Set-based D17 sweep: the same contract as one
+    ``put_sector_membership(..., preserve_source_ref=True)`` per pair, but
+    O(1) statements on DuckDB.
+
+    The per-company loop is 1,216 x (edge SELECT + incidence INSERT) —
+    7.57 s on the scratch store, the whole residual after S1/S2 (proposal
+    sync_tags_duckdb_setbased S4). SQLite keeps the old loop; its tests
+    pin that path.
+    """
+    pairs = list(dict.fromkeys(pairs))
+    if not pairs:
+        return 0
+    if not _is_duckdb_conn(conn):
+        from helpers.graph.sector_membership import put_sector_membership
+
+        added = 0
+        for canonical, name in pairs:
+            if put_sector_membership(
+                conn,
+                name,
+                canonical,
+                source_ref="sync_tags",
+                preserve_source_ref=True,
+            ):
+                added += 1
+        return added
+
+    import pyarrow as pa  # lazy: only the DuckDB research store needs it
+
+    raw = getattr(conn, "raw", conn)
+    rel = pa.table({"canonical": [c for c, _ in pairs], "name": [n for _, n in pairs]})
+    edges = {
+        label: int(edge_id)
+        for label, edge_id in conn.execute(
+            "SELECT label, id FROM hyper_edges WHERE edge_type = ?",
+            (SECTOR_HYPER_TYPE,),
+        ).fetchall()
+    }
+    missing = sorted({canonical for canonical, _ in pairs} - edges.keys())
+    if missing:
+        conn.executemany(
+            "INSERT INTO hyper_edges (edge_type, label, source_ref) VALUES (?, ?, ?)",
+            [(SECTOR_HYPER_TYPE, label, "sector_membership") for label in missing],
+        )
+        edges.update(
+            (label, int(edge_id))
+            for label, edge_id in conn.execute(
+                "SELECT label, id FROM hyper_edges WHERE edge_type = ?",
+                (SECTOR_HYPER_TYPE,),
+            ).fetchall()
+        )
+    raw.register("_sync_tags_membership", rel)
+    try:
+        new_pairs = conn.execute(
+            "SELECT p.canonical, p.name FROM _sync_tags_membership p "
+            "JOIN hyper_edges he ON he.label = p.canonical "
+            "AND he.edge_type = ? "
+            "WHERE NOT EXISTS (SELECT 1 FROM hyper_incidences hi "
+            "WHERE hi.edge_id = he.id AND hi.entity_name = p.name)",
+            (SECTOR_HYPER_TYPE,),
+        ).fetchall()
+        # INSERT OR IGNORE keeps the loop's idempotence; one statement for
+        # all companies instead of one per company.
+        conn.execute(
+            "INSERT OR IGNORE INTO hyper_incidences "
+            "(edge_id, entity_name, valid_from, valid_to) "
+            "SELECT he.id, p.name, NULL, NULL FROM _sync_tags_membership p "
+            "JOIN hyper_edges he ON he.label = p.canonical "
+            "AND he.edge_type = ?",
+            (SECTOR_HYPER_TYPE,),
+        )
+    finally:
+        raw.unregister("_sync_tags_membership")
+    if new_pairs:
+        # Mirror put_sector_membership's n_members restamp for edges that
+        # actually gained rows (rare — steady state is 0 new incidences).
+        from helpers.graph.sector_membership import _refresh_member_count
+
+        for edge_id in sorted({edges[canonical] for canonical, _ in new_pairs}):
+            _refresh_member_count(conn, edge_id)
+    return len(new_pairs)
+
+
 def rebuild_note_tags(conn, root: Path | None = None) -> tuple[int, int]:
     """Rebuild ``note_tags`` (note_path x tag) from the source trees.
 
@@ -196,11 +355,7 @@ def rebuild_note_tags(conn, root: Path | None = None) -> tuple[int, int]:
                     bulk.append((p.relative_to(root).as_posix(), t))
     with conn:
         conn.execute("DELETE FROM note_tags")
-        if bulk:
-            conn.executemany(
-                "INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)",
-                bulk,
-            )
+        _bulk_insert(conn, "note_tags", ("note_path", "tag"), bulk)
     return len({n for n, _ in bulk}), len(bulk)
 
 
@@ -483,11 +638,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             # Full rebuild inside a transaction.
             with conn:
                 conn.execute("DELETE FROM entity_tags")
-                if bulk:
-                    conn.executemany(
-                        "INSERT OR IGNORE INTO entity_tags (entity_name, tag) VALUES (?, ?)",
-                        bulk,
-                    )
+                _bulk_insert(conn, "entity_tags", ("entity_name", "tag"), bulk)
                 # E5a: derive sector_classification from the note's sector/* tag so
                 # the column and the tag table stay in sync. IS DISTINCT FROM
                 # (not !=) handles NULL correctly AND skips rows where the value
@@ -496,17 +647,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 # parse-rejects plain `IS NOT <expr>` (only IS [NOT] NULL /
                 # IS [NOT] DISTINCT FROM are valid); IS DISTINCT FROM is the
                 # engine-neutral spelling with identical semantics (SQLite >= 3.39).
-                sector_changed = 0
-                if sector_updates:
-                    cur = conn.cursor()
-                    cur.executemany(
-                        "UPDATE entities SET sector_classification = ? "
-                        "WHERE name = ? AND sector_classification IS DISTINCT FROM ?",
-                        [(canonical, name, canonical) for canonical, name in sector_updates],
-                    )
-                    # DuckDB wire connections report rowcount -1 for UPDATE
-                    # (connection-level rowcount not tracked); clamp to 0.
-                    sector_changed = max(cur.rowcount or 0, 0)
+                sector_changed = _apply_sector_updates(conn, sector_updates)
                 # D17 residual (2026-10-27 Zetwerk orphan): the incidence
                 # store is canonical membership, but only create_entity /
                 # move_sector used to write it — a note gaining its sector
@@ -514,16 +655,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 # check_orphan_companies until a hand repair.
                 # preserve_source_ref: this sweep traverses every sector
                 # roster and must not restamp edges it didn't author.
-                membership_added = 0
-                for canonical, name in sector_updates:
-                    if put_sector_membership(
-                        conn,
-                        name,
-                        canonical,
-                        source_ref="sync_tags",
-                        preserve_source_ref=True,
-                    ):
-                        membership_added += 1
+                membership_added = _bulk_put_sector_membership(conn, sector_updates)
 
             inserted = conn.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
             total_entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]

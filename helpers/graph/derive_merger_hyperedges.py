@@ -64,6 +64,10 @@ if str(_REPO_ROOT) not in sys.path:
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import DEFAULT_DB_PATH, connect  # noqa: E402
 from helpers.graph.hyperedge_types import MERGER_HYPEREDGE_TYPES  # noqa: E402
+from helpers.graph.incidence_batch import (  # noqa: E402
+    _is_duckdb_conn,
+    bulk_replace_hyper_incidences,
+)
 
 MERGER_TYPE = "merger"
 DEMERGER_TYPE = "demerger"
@@ -293,7 +297,7 @@ def _ensure_agent(conn) -> None:
     )
 
 
-def apply_derivation(conn, facts: list[dict], *, dry_run: bool = True) -> dict:
+def apply_derivation(conn, facts: list[dict], *, dry_run: bool = True) -> dict:  # noqa: C901  # two-family dispatcher with a DuckDB/SQLite branch per family
     """Replace both families with ``facts``; return the change stats."""
     existing: dict[tuple[str, str], int] = {}
     for eid, edge_type, label in conn.execute(
@@ -333,6 +337,8 @@ def apply_derivation(conn, facts: list[dict], *, dry_run: bool = True) -> dict:
         # provenance questions) without producing anything.
         return stats
     _ensure_agent(conn)
+    duck = _is_duckdb_conn(conn)
+    stage: list[tuple] = []
     with conn:
         for edge_type, label in dropped:
             conn.execute(
@@ -359,11 +365,19 @@ def apply_derivation(conn, facts: list[dict], *, dry_run: bool = True) -> dict:
                     "source_tier = ? WHERE id = ?",
                     (props_json, SOURCE_REF, AGENT_ID, SOURCE_TIER, edge_id),
                 )
-                conn.execute("DELETE FROM hyper_incidences WHERE edge_id = ?", (edge_id,))
-            conn.executemany(
-                "INSERT INTO hyper_incidences (edge_id, entity_name, role) VALUES (?, ?, ?)",
-                [(edge_id, name, role) for name, role in fact["members"]],
-            )
+                if not duck:
+                    conn.execute("DELETE FROM hyper_incidences WHERE edge_id = ?", (edge_id,))
+            if duck:
+                stage.extend(
+                    (edge_type, label, name, None, role, None) for name, role in fact["members"]
+                )
+            else:
+                conn.executemany(
+                    "INSERT INTO hyper_incidences (edge_id, entity_name, role) VALUES (?, ?, ?)",
+                    [(edge_id, name, role) for name, role in fact["members"]],
+                )
+        if duck:
+            bulk_replace_hyper_incidences(conn, stage)
     return stats
 
 

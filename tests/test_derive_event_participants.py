@@ -337,3 +337,88 @@ def test_nparty_hyperedge_grows_through_full_store_path(conn):
     facets = dh.collect_event_facets(conn)
     assert facets["roles"][(f"jv:{eid}", "Beta")] == "lead_partner"
     assert facets["roles"][(f"jv:{eid}", "Gamma")] == "partner"
+
+
+class _CountingDuckDBConn:
+    """Delegate to a raw DuckDB conn, counting execute/executemany calls."""
+
+    def __init__(self, raw) -> None:
+        self.raw = raw
+        self.statements: list[str] = []
+        self.batches: list[str] = []
+
+    def execute(self, sql, *args, **kwargs):
+        self.statements.append(sql)
+        return self.raw.execute(sql, *args, **kwargs)
+
+    def executemany(self, sql, *args, **kwargs):
+        self.batches.append(sql)
+        return self.raw.executemany(sql, *args, **kwargs)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        # The repo's _DuckDBConn proxy commits/rolls back on exit; a raw
+        # duckdb connection CLOSES, which would invalidate later reads.
+        if exc_type is None:
+            self.raw.commit()
+        else:
+            self.raw.rollback()
+        return False
+
+    def __getattr__(self, name):
+        return getattr(self.raw, name)
+
+
+def test_duckdb_rebuild_is_two_statements_and_purges_dropped_events():
+    """P1 (proposal sync_tags_duckdb_setbased §7): the per-event DELETE +
+    executemany loop costs ~4,000 DuckDB statements on the live 2,786-row
+    store. It must become one DELETE for all touched events and one
+    INSERT SELECT — with dropped events still purged."""
+    duckdb = pytest.importorskip("duckdb")
+    conn = duckdb.connect(":memory:")
+    conn.execute("CREATE TABLE events (id BIGINT PRIMARY KEY, event_type VARCHAR)")
+    conn.execute("CREATE TABLE entities (name VARCHAR PRIMARY KEY)")
+    conn.executemany(
+        "INSERT INTO events VALUES (?, ?)",
+        [(1, "acquisition"), (2, "jv"), (3, "guidance")],
+    )
+    conn.executemany("INSERT INTO entities VALUES (?)", [("Alpha",), ("Beta",), ("Gamma",)])
+    dep.ensure_schema(conn)
+    conn.execute(
+        "INSERT INTO event_participants (event_id, participant, role, source_ref) "
+        "VALUES (3, 'Alpha', 'issuer', 'old')"
+    )
+    wrapped = _CountingDuckDBConn(conn)
+    participants = {
+        1: [("Alpha", "acquirer"), ("Beta", "target")],
+        2: [("Gamma", "partner")],
+    }
+    # apply_participants also SELECTs for its stats; count write statements.
+    stats = dep.apply_participants(wrapped, participants, dry_run=False)
+    assert stats["rows"] == 3
+    assert conn.execute(
+        "SELECT event_id, participant, role FROM event_participants ORDER BY 1, 2"
+    ).fetchall() == [
+        (1, "Alpha", "acquirer"),
+        (1, "Beta", "target"),
+        (2, "Gamma", "partner"),
+    ]
+    # One stats SELECT, then exactly one DELETE and one INSERT — no per-event
+    # loop, no executemany.
+    assert len(wrapped.statements) == 3
+    assert "SELECT" in wrapped.statements[0]
+    assert "DELETE FROM event_participants" in wrapped.statements[1]
+    assert "INSERT INTO event_participants" in wrapped.statements[2]
+    assert not wrapped.batches
+
+    # Idempotence: the same call again issues just DELETE + INSERT.
+    wrapped.statements.clear()
+    dep.apply_participants(wrapped, participants, dry_run=False)
+    writes = [
+        sql for sql in wrapped.statements if sql.lstrip().upper().startswith(("DELETE", "INSERT"))
+    ]
+    assert len(writes) == 2
+    assert not wrapped.batches
+    assert conn.execute("SELECT COUNT(*) FROM event_participants").fetchone()[0] == 3

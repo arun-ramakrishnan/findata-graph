@@ -633,3 +633,114 @@ class TestEnrichFrontmatterPreservesAuthoredField:
         assert "subsector: Apparel_Retail" in out
         assert "industry: Internet Retail" in out
         assert "subsector" not in out.replace("subsector: Apparel_Retail", "")
+
+
+class _CountingDuckDBConn:
+    """Delegate to a raw DuckDB connection but count execute() statements.
+
+    ``raw`` makes ``_is_duckdb_conn`` recognise the proxy — the same duck
+    type shape the repo's own connection proxies expose.
+    """
+
+    def __init__(self, raw) -> None:
+        self.raw = raw
+        self.statements: list[str] = []
+        self.batches: list[str] = []
+
+    def execute(self, sql, *args, **kwargs):
+        self.statements.append(sql)
+        return self.raw.execute(sql, *args, **kwargs)
+
+    def executemany(self, sql, *args, **kwargs):
+        self.batches.append(sql)
+        return self.raw.executemany(sql, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self.raw, name)
+
+
+def test_duckdb_bulk_insert_is_one_statement_and_duplicate_safe():
+    """DuckDB write shape (proposal sync_tags_duckdb_setbased S1): the
+    7,431-row tag insert used to be 7,431 executemany statements (13.8 s).
+    It must be one INSERT SELECT, with OR IGNORE's duplicate tolerance."""
+    duckdb = pytest.importorskip("duckdb")
+    con = duckdb.connect(":memory:")
+    con.execute(
+        "CREATE TABLE entity_tags (entity_name VARCHAR, tag VARCHAR, "
+        "PRIMARY KEY (entity_name, tag))"
+    )
+    wrapped = _CountingDuckDBConn(con)
+    sync_tags._bulk_insert(
+        wrapped,
+        "entity_tags",
+        ("entity_name", "tag"),
+        [("A", "sector/x"), ("A", "sector/x"), ("B", "sector/y")],
+    )
+    assert con.execute("SELECT entity_name, tag FROM entity_tags ORDER BY 1, 2").fetchall() == [
+        ("A", "sector/x"),
+        ("B", "sector/y"),
+    ]
+    assert len(wrapped.statements) == 1
+    assert not wrapped.batches
+    assert "SELECT DISTINCT" in wrapped.statements[0]
+
+
+def test_duckdb_sector_sweep_is_one_update_and_skips_matching_rows():
+    """DuckDB write shape (S2): 1,216 per-company UPDATEs (8.4 s) must be
+    one UPDATE ... FROM, still skipping rows whose value already matches."""
+    duckdb = pytest.importorskip("duckdb")
+    con = duckdb.connect(":memory:")
+    con.execute("CREATE TABLE entities (name VARCHAR, sector_classification VARCHAR)")
+    con.execute(
+        "INSERT INTO entities VALUES ('Alpha', NULL), ('Beta', 'Automotive'), ('Gamma', 'Old')"
+    )
+    wrapped = _CountingDuckDBConn(con)
+    changed = sync_tags._apply_sector_updates(
+        wrapped, [("Automotive", "Alpha"), ("Automotive", "Beta"), ("Energy", "Gamma")]
+    )
+    assert changed == 2  # Beta was already correct — IS DISTINCT FROM guard
+    assert con.execute(
+        "SELECT name, sector_classification FROM entities ORDER BY name"
+    ).fetchall() == [
+        ("Alpha", "Automotive"),
+        ("Beta", "Automotive"),
+        ("Gamma", "Energy"),
+    ]
+    assert len(wrapped.statements) == 1
+    assert not wrapped.batches
+    assert "UPDATE entities SET" in wrapped.statements[0]
+
+
+def test_duckdb_membership_sweep_is_batched():
+    """D17 sweep (S4): 1,216 per-company edge lookups + incidence INSERTs
+    cost 7.57 s on the scratch store; the batch path must issue ONE
+    incidence INSERT and keep the idempotence / added-count contract."""
+    duckdb = pytest.importorskip("duckdb")
+    con = duckdb.connect(":memory:")
+    con.execute(
+        "CREATE TABLE hyper_edges (id INTEGER PRIMARY KEY, edge_type VARCHAR, "
+        "label VARCHAR, source_ref VARCHAR, properties VARCHAR)"
+    )
+    con.execute(
+        "CREATE TABLE hyper_incidences (edge_id INTEGER, entity_name VARCHAR, "
+        "valid_from DATE, valid_to DATE, PRIMARY KEY (edge_id, entity_name))"
+    )
+    con.execute(
+        "INSERT INTO hyper_edges VALUES (1, ?, 'Automotive', 'x', '{}'), "
+        "(2, ?, 'Energy', 'x', '{}')",
+        (sync_tags.SECTOR_HYPER_TYPE, sync_tags.SECTOR_HYPER_TYPE),
+    )
+    con.execute("INSERT INTO hyper_incidences VALUES (1, 'Beta', NULL, NULL)")
+    wrapped = _CountingDuckDBConn(con)
+    added = sync_tags._bulk_put_sector_membership(
+        wrapped,
+        [("Automotive", "Alpha"), ("Automotive", "Beta"), ("Energy", "Gamma")],
+    )
+    assert added == 2
+    assert con.execute(
+        "SELECT edge_id, entity_name FROM hyper_incidences ORDER BY 1, 2"
+    ).fetchall() == [(1, "Alpha"), (1, "Beta"), (2, "Gamma")]
+    assert not wrapped.batches
+    assert (
+        sum(s.startswith("INSERT OR IGNORE INTO hyper_incidences") for s in wrapped.statements) == 1
+    )

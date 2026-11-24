@@ -54,6 +54,10 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import DEFAULT_DB_PATH, connect  # noqa: E402
+from helpers.graph.incidence_batch import (  # noqa: E402
+    _is_duckdb_conn,
+    bulk_replace_hyper_incidences,
+)
 
 MEMBERSHIP_HYPER_TYPE = "org_membership"
 SOURCE_REF = "derive:org_membership"
@@ -132,6 +136,8 @@ def apply_derivation(conn, members: dict[str, dict[str, dict]], *, dry_run: bool
     }
     if dry_run:
         return stats
+    duck = _is_duckdb_conn(conn)
+    stage: list[tuple] = []
     with conn:
         for label in dropped_edges:
             conn.execute(
@@ -147,7 +153,8 @@ def apply_derivation(conn, members: dict[str, dict[str, dict]], *, dry_run: bool
                     "source_tier = ? WHERE id = ?",
                     (props_json, SOURCE_REF, AGENT_ID, SOURCE_TIER, edge_id),
                 )
-                conn.execute("DELETE FROM hyper_incidences WHERE edge_id = ?", (edge_id,))
+                if not duck:
+                    conn.execute("DELETE FROM hyper_incidences WHERE edge_id = ?", (edge_id,))
             else:
                 conn.execute(
                     "INSERT INTO hyper_edges (edge_type, label, properties, source_ref, "
@@ -165,20 +172,35 @@ def apply_derivation(conn, members: dict[str, dict[str, dict]], *, dry_run: bool
                     "SELECT id FROM hyper_edges WHERE edge_type = ? AND label = ?",
                     (MEMBERSHIP_HYPER_TYPE, label),
                 ).fetchone()[0]
-            conn.executemany(
-                "INSERT INTO hyper_incidences "
-                "(edge_id, entity_name, weight, role, valid_from) VALUES (?, ?, ?, ?, ?)",
-                [
+            if duck:
+                stage.extend(
                     (
-                        edge_id,
+                        MEMBERSHIP_HYPER_TYPE,
+                        label,
                         person,
                         facet["weight"],
                         facet["role"],
                         facet["valid_from"],
                     )
                     for person, facet in sorted(mems.items())
-                ],
-            )
+                )
+            else:
+                conn.executemany(
+                    "INSERT INTO hyper_incidences "
+                    "(edge_id, entity_name, weight, role, valid_from) VALUES (?, ?, ?, ?, ?)",
+                    [
+                        (
+                            edge_id,
+                            person,
+                            facet["weight"],
+                            facet["role"],
+                            facet["valid_from"],
+                        )
+                        for person, facet in sorted(mems.items())
+                    ],
+                )
+        if duck:
+            bulk_replace_hyper_incidences(conn, stage)
     return stats
 
 

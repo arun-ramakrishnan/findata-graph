@@ -45,6 +45,13 @@ entry number and stale DONE pointers):
   chains, S6 perf legs, S7 Mojo unit tests. Supersedes the snapshot in
   #463 for everything that landed after 2026-11-01.
 
+- `sync_tags_duckdb_setbased` (tooling/perf, filed 2026-11-24) — the
+  perf leg `sync_tags` regressed 0.68 s → ~28 s (budget 2.0 s) because
+  DuckDB's python `executemany` executes once per row; rewrite the
+  entity_tags / note_tags bulk insert and the sector UPDATE sweep as
+  set-based statements (register + one INSERT SELECT / one UPDATE FROM),
+  SQLite keeps the old path.
+
 - *(archived 2026-11-23)* — `misc_fix_gate_arc_maintenance` (tooling/,
   filed + executed 2026-11-23, completed.md #566 — the post-#565
   maintenance sweep in stgit patch `misc_fix`: gate-query index heal
