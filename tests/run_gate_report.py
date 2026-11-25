@@ -878,6 +878,11 @@ def main(argv: list[str] | None = None) -> int:
         # Same shape as SCRIPT_KNN_STRICT: direct `make rust-test` keeps the
         # skip for boxes without the toolchain.
         os.environ.setdefault("RUST_TEST_STRICT", "1")
+        # qa hard pin #3 (test_coverage_gap_sweep_nov24 §7 T1): a missing or
+        # stale graph_kernels .so SKIPS its kernel tests (24 measured on
+        # 2026-11-24), so qa would stay green with every Rust-graph pin gone.
+        # Same shape again: direct pytest runs keep the skip.
+        os.environ.setdefault("GRAPH_KERNELS_STRICT", "1")
     jobs = resolve_jobs(cli_jobs)
     print(f"(gate {name}: jobs={jobs})")
     started_dt = datetime.now()

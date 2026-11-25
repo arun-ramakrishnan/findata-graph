@@ -24,15 +24,29 @@ Failure rows carry attribution in the report's Status cell —
 ``✗ FAIL(budget, psi avg10 18.3%)`` — so a loaded box's red wall is
 readable as load, not regression (the run-1787 lesson). The ``FAIL``
 substring is invariant: gate_query's failure surfaces key on it.
+
+A leg may also declare a SKIP instead of a result: exit 0 with a line
+starting ``SKIP:`` on stdout (the documented contract for optional
+modules — extension-gated and live-store legs). 2026-11-24 lesson:
+``ok = rc == 0 and dt < budget`` scored such legs as fast passes —
+``l1_kernels`` "passed" at 0.19s against a 240s budget for six runs
+while its store was gone. A skip is now recorded SKIPPED — neither OK
+nor FAIL: it never counts toward ``passed``, the footer counts skips on
+their own, perf.json rows carry ``"status": "warn"`` (the gate_query
+perf-json.v1 adapter's non-pass slot; unknown statuses coerce to pass),
+the report gains a ``## <label> (SKIPPED)`` section, and the run still
+exits 0 when nothing actually failed.
 """
 
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import re
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -48,6 +62,9 @@ from helpers.misc import gate_retain  # noqa: E402  # imported after the sys.pat
 
 REPORT = REPO_ROOT / "outputs" / "perf_report.md"
 _TAIL_CAP = 2000  # per-leg stderr ceiling; matches gate_query's err_head cap
+# A leg's stdout skip declaration (see module docstring). Matched against
+# the whole stdout so a SKIP banner anywhere in the output counts.
+_SKIP_RE = re.compile(r"^SKIP:.*$", re.MULTILINE)
 
 # ── Artifact retention (gate_output_fidelity S4) ────────────────────────
 # Perf used to retain NOTHING: subprocess.run(capture_output=True) kept a
@@ -85,6 +102,48 @@ def _expand_scratch(args: list[str]) -> list[str]:
     scratch = Path(tempfile.mkdtemp(prefix="perf-scratch-"))
     _SCRATCH_DIRS.append(scratch)
     return [a.replace("{scratch}", str(scratch)) for a in args]
+
+
+_STORE_CLONE_DIR = REPO_ROOT / "outputs" / ".perf_clone"
+
+
+def _prepare_store_clone() -> Path | None:
+    """Copy the live research store (+ WAL) for the writer legs (S1).
+
+    Writer legs (`sync_tags --apply`) must not race real store holders: the
+    clone gives them a private, same-scale target. Read-only legs keep the
+    live store (RO opens coexist with holders; S0 retries cover the rest).
+    Returns None when there is no live store — the writer leg then fails on
+    its own, same as before the clone existed.
+    """
+    try:
+        from tests._live_store import live_store_path
+    except ImportError:  # pragma: no cover - tests/ always importable from REPO_ROOT
+        return None
+    src = live_store_path()
+    if src is None:
+        return None
+    wal = src.with_name(src.name + ".wal")
+    _STORE_CLONE_DIR.mkdir(parents=True, exist_ok=True)
+    dst = _STORE_CLONE_DIR / src.name
+    shutil.copy2(src, dst)
+    if wal.exists():
+        shutil.copy2(wal, dst.with_name(dst.name + ".wal"))
+    else:
+        dst.with_name(dst.name + ".wal").unlink(missing_ok=True)
+    return dst
+
+
+def _drop_store_clone(clone_db: Path | None) -> None:
+    if clone_db is not None:
+        shutil.rmtree(_STORE_CLONE_DIR, ignore_errors=True)
+
+
+def _expand_clone(args: list[str], clone_db: Path | None) -> list[str]:
+    """Replace the {clone_db} placeholder with the ephemeral store clone."""
+    if clone_db is None or not any("{clone_db}" in a for a in args):
+        return args
+    return [a.replace("{clone_db}", str(clone_db)) for a in args]
 
 
 def _cleanup_scratch() -> None:
@@ -200,7 +259,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # --apply (2026-09-03): guard unification made the bare run a dry-run
     # report; the leg times the write path it has always timed (and the 2.0s
     # budget was calibrated on).
-    ("sync_tags", ["helpers/core/sync_tags.py", "--apply"], 2.0),
+    ("sync_tags", ["helpers/core/sync_tags.py", "--apply", "--db", "{clone_db}"], 2.0),
     # 8.0s since 2026-08-19: the B1 corpus check gained the 108 newsletter
     # notes (frontmatter.newsletter.v1.json), ~+2s of jsonschema validation.
     # 10.0s since 2026-09-14: static_checks gained the S19 data-format AST
@@ -529,6 +588,37 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # bars remain the real gate; this outer budget only catches super-linear
     # decay of the harness itself.
     ("cosine_knn_ratios", ["Rust/bench/cosine_gate.py"], 25.0),
+    # test_coverage_gap_sweep S6 (2026-11-24): legs for the DuckDB
+    # cutover write paths + the new hyper-trails lane + semantic-pack
+    # reads. Budgets = quiet-box baseline x2 (house rule), measured
+    # 2026-11-24 without concurrent workload:
+    #   db_engine_10k  executemany 71.87/69.21/71.10s (10k row inserts
+    #                   through the house _DuckDBConn proxy — the
+    #                   pre-set-based per-row cost class); bulk Arrow
+    #                   rewrite 0.27/0.28/0.28s. The leg prints both
+    #                   shapes; the outer budget guards the slow one
+    #                   (the rewrite is a sub-second smoke).
+    #   hyper_trails   0.94/0.87/0.94s (--sources 200, build_bipartite
+    #                   from the live research store each invocation).
+    #   context_pack   1.21/1.26/1.17s (INFY.NS read over the live
+    #                   research store).
+    (
+        "db_engine_10k",
+        [
+            "helpers/bench/db_engine_write_bench.py",
+            "--db",
+            "{scratch}/db_engine_bench.duckdb",
+            "--rows",
+            "10000",
+        ],
+        150.0,
+    ),
+    (
+        "hyper_trails",
+        ["helpers/graph/hyper_trails.py", "--sources", "200", "--limit", "40"],
+        2.0,
+    ),
+    ("context_pack", ["helpers/graph/context_pack.py", "INFY.NS"], 2.6),
 ]
 
 
@@ -675,15 +765,18 @@ def _load_pressure_reason() -> str | None:
     return None
 
 
-def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, bool, str]:
-    """Run a single benchmark, return (elapsed_seconds, status, passed, stderr_tail).
+def run_one(
+    label: str, args: list[str], budget: float, clone_db: Path | None = None
+) -> tuple[float, str, bool, str, bool]:
+    """Run a single benchmark, return (elapsed_seconds, status, passed, stderr_tail, skipped).
 
     The tail (last ~2 KB of stderr) rides the result so failures surface in
     the report's ``## <label> (FAILED)`` sections — gate_query's err_head —
     without the old failure-time subprocess re-run (which doubled the cost
-    of every red leg and printed to a console nobody archives).
+    of every red leg and printed to a console nobody archives). For a
+    skipped leg the tail leads with the leg's own ``SKIP:`` line (stdout).
     """
-    argv = [sys.executable, *_expand_scratch(args)]
+    argv = [sys.executable, *_expand_clone(_expand_scratch(args), clone_db)]
     t0 = time.perf_counter()
     # communicate() (not a stdout loop) because a leg that writes more than
     # a pipe buffer to stderr while we block on stdout would deadlock; the
@@ -699,6 +792,26 @@ def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, boo
     dt = time.perf_counter() - t0
     stdout_text = out_raw.decode(errors="replace")
     stderr_text = err_raw.decode(errors="replace")
+    # Writer legs (sync_tags --apply) can lose a transient race with an
+    # unrelated store holder (a live gate leg, an agent peek). A lock
+    # conflict is retryable — the holder releases; a real failure is not.
+    # One retry after a short wait, re-measured from zero (the first
+    # attempt's timing is meaningless once it never got the store).
+    if proc.returncode != 0 and "Conflicting lock is held" in stderr_text:
+        print(f"  {label}: store lock conflict — retrying once after 15s", file=sys.stderr)
+        time.sleep(15)
+        t0 = time.perf_counter()
+        proc = subprocess.Popen(  # noqa: S603  # as above
+            argv,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
+            cwd=REPO_ROOT,
+        )
+        out_raw, err_raw = proc.communicate()
+        dt = time.perf_counter() - t0
+        stdout_text = out_raw.decode(errors="replace")
+        stderr_text = err_raw.decode(errors="replace")
     if _CURRENT_LOG_DIR is not None:
         gate_retain.write_step_log(
             _CURRENT_LOG_DIR / f"perf.{gate_retain.safe_label(label)}.log",
@@ -706,28 +819,85 @@ def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, boo
             stdout_text + stderr_text,
         )
     rc = proc.returncode
-    ok = rc == 0 and dt < budget
-    if rc != 0:
+    # A skip is a DECLARATION (exit 0 + a `SKIP:` line on stdout), not an
+    # absence of failure: before 2026-11-24 such a leg scored as a fast OK
+    # (l1_kernels "passed" at 0.19s against a 240s budget, six runs, while
+    # its store was gone).
+    skip_line = _SKIP_RE.search(stdout_text) if rc == 0 else None
+    skipped = skip_line is not None
+    ok = rc == 0 and not skipped and dt < budget
+    if skipped:
+        status = "SKIPPED"
+    elif rc != 0:
         status = "FAIL(rc)"
     elif dt >= budget:
         status = "OVER_BUDGET"
     else:
         status = "OK"
     tail = stderr_text.strip()[-_TAIL_CAP:]
-    return dt, status, ok, tail
+    if skipped:
+        tail = "\n".join(part for part in (skip_line.group(0), tail) if part)
+    return dt, status, ok, tail, skipped
+
+
+_MEDIAN_BUDGET_MAX = 10.0
+
+
+def _run_leg_median(
+    label: str,
+    args: list[str],
+    budget: float,
+    *,
+    clone_db: Path | None = None,
+    repeats: int = 3,
+) -> tuple[float, str, bool, str, bool]:
+    """Run one leg ``repeats`` times and judge the MEDIAN wall (S3).
+
+    Sub-10s legs are dominated by first-touch costs (cold clone WAL replay,
+    cold caches) and single-sample load spikes; the median of N reps is the
+    honest wall. Semantics: a SKIP rep returns immediately (skip dominates —
+    repeating a skip is waste); rc-clean reps form the median set, status is
+    recomputed from the median wall; the tail rides the rep closest to the
+    median; only when every rep fails rc does the last failure surface.
+    Per-rep logs land as ``perf.<label>#repK.log`` (rep 1 keeps the bare
+    name), so the runs stay individually inspectable.
+    """
+    goods: list[tuple[float, str, bool, str, bool]] = []
+    last: tuple[float, str, bool, str, bool] | None = None
+    for i in range(repeats):
+        rep_label = label if i == 0 else f"{label}#rep{i + 1}"
+        last = run_one(rep_label, args, budget, clone_db=clone_db)
+        dt, status, ok, tail, skipped = last
+        if skipped:
+            return last
+        if ok or status == "OVER_BUDGET":  # rc-clean: timing belongs in the median set
+            goods.append(last)
+    if not goods:
+        assert last is not None  # repeats >= 1 guarantees at least one rep ran
+        return last
+    walls = sorted(g[0] for g in goods)
+    mid = statistics.median(walls)
+    rep = min(goods, key=lambda g: abs(g[0] - mid))
+    ok = mid < budget
+    status = "OK" if ok else "OVER_BUDGET"
+    return mid, status, ok, rep[3], False
 
 
 def _run_all_benchmarks(
-    force: bool = False,
-) -> tuple[list[tuple[str, float, str, bool, float, str]], str | None, str | None]:
+    force: bool = False, clone_db: Path | None = None, repeats: int = 3
+) -> tuple[list[tuple[str, float, str, bool, float, str, bool]], str | None, str | None]:
     """Run every BENCHMARKS leg; returns (results, contended_from, contend_why).
 
     Extracted from main() (C901): the mid-run contention probe + the
     failure-stderr surface live here, the table/report tail stays in main.
     ``force=True`` (``--force``) skips the mid-run cutoff: rows still get
     pressure attribution, the run just never declares itself untrusted.
+    ``clone_db`` (S1) replaces the ``{clone_db}`` placeholder in writer-leg
+    argv so they measure against the ephemeral clone, not the live store.
+    ``repeats`` (S3, ``--repeats``) re-runs sub-10s-budget legs and judges
+    the median wall (1 = single run).
     """
-    results: list[tuple[str, float, str, bool, float, str]] = []
+    results: list[tuple[str, float, str, bool, float, str, bool]] = []
     contended_from: str | None = None
     contend_why: str | None = None
     for label, args, budget in BENCHMARKS:
@@ -744,11 +914,17 @@ def _run_all_benchmarks(
         # Pressure endpoints bracket the leg: avg10 before + after catches a
         # spike that started and ended inside the leg's window (avg60 lags).
         pre_load = _load_pressure_reason()
-        dt, status, ok, tail = run_one(label, args, budget)
+        if repeats > 1 and budget < _MEDIAN_BUDGET_MAX:
+            dt, status, ok, tail, skipped = _run_leg_median(
+                label, args, budget, clone_db=clone_db, repeats=repeats
+            )
+        else:
+            dt, status, ok, tail, skipped = run_one(label, args, budget, clone_db=clone_db)
         if contended_from is not None:
             status = "CONTENDED"
             ok = False
-        elif not ok:
+            skipped = False  # contention attribution wins: the row reads untrusted, not skipped
+        elif not ok and not skipped:
             post_load = _load_pressure_reason()
             load_frag = pre_load or post_load
             if load_frag:
@@ -756,7 +932,7 @@ def _run_all_benchmarks(
                 # the box was busy while it did (run 1787 lesson — a loaded
                 # box painted 15 legs red and read as a regression wall).
                 status = f"{status} [{load_frag}]"
-        results.append((label, dt, status, ok, budget, tail))
+        results.append((label, dt, status, ok, budget, tail, skipped))
         print(f" {dt:6.2f}s  [{status}]")
         if not ok and tail:
             print(f"    stderr: {tail[:200]}", file=sys.stderr)
@@ -774,9 +950,87 @@ def main(argv: list[str] | None = None) -> int:
         help="run through contention: skip the start refusal and the mid-run "
         "cutoff; rows keep pressure attribution, exit reflects results",
     )
+    parser.add_argument(
+        "--wait-minutes",
+        type=float,
+        default=5.0,
+        help="when the box is contended at start, poll for a quiet window up "
+        "to this long before refusing (0 = instant refusal, the old behavior)",
+    )
+    parser.add_argument(
+        "--repeats",
+        type=int,
+        default=3,
+        help="repetitions per sub-10s-budget leg; the median wall is judged "
+        "against the budget (1 = single run, the old behavior)",
+    )
     ns = parser.parse_args(argv)
 
     # ── run ──
+    global _CURRENT_LOG_DIR, _RUN_ID
+    # Exclusive run lock: two perf runs racing the same stores produce lock
+    # conflicts in the writable legs and lie in every leg's timings (2026-11-25:
+    # a background waiter run and a manual `make -j2 perf` overlapped). One
+    # run at a time; a second invocation refuses cleanly (exit 3, nothing
+    # appended) instead of corrupting both.
+    _lock_path = REPO_ROOT / "outputs" / ".perf_run.lock"
+    _lock_path.parent.mkdir(parents=True, exist_ok=True)
+    _lock_fd = os.open(_lock_path, os.O_CREAT | os.O_RDWR)  # noqa: S603  # literal flags; fixed path
+    try:
+        try:
+            fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            holder = _lock_path.read_text(encoding="utf-8", errors="replace").strip() or "unknown"
+            print(
+                f"perf refused — another perf run is active ({holder}); "
+                "perf runs are exclusive (outputs/.perf_run.lock)",
+                file=sys.stderr,
+            )
+            return 3  # the outer finally closes the fd
+        os.ftruncate(_lock_fd, 0)
+        os.write(_lock_fd, f"pid {os.getpid()} started {datetime.now():%Y-%m-%d %H:%M:%S}".encode())
+        # S2: quiet-window wait. The lock is ours; the box may still be busy with
+        # unrelated desktop load. One start probe always runs (the old refusal);
+        # --wait-minutes > 0 extends it into a 30s poll loop before refusing.
+        if not ns.force:
+            _deadline = time.monotonic() + max(ns.wait_minutes, 0.0) * 60.0
+            _reason = _contention_reason()
+            if _reason is not None and ns.wait_minutes > 0:
+                print(
+                    f"perf: box loaded ({_reason}) — waiting up to {ns.wait_minutes:g}m "
+                    "for a quiet window (poll 30s)",
+                    file=sys.stderr,
+                )
+            while _reason is not None and time.monotonic() < _deadline:
+                time.sleep(min(30.0, max(0.0, _deadline - time.monotonic())))
+                _reason = _contention_reason()
+            if _reason is not None:
+                waited = f" after {ns.wait_minutes:g}m wait" if ns.wait_minutes > 0 else ""
+                print(
+                    f"perf refused — box still contended{waited} ({_reason})",
+                    file=sys.stderr,
+                )
+                return 3
+        # S1: one ephemeral clone of the live store per run, taken BEFORE the
+        # first leg so no leg timing includes the copy; writer legs point at it
+        # via the {clone_db} placeholder. Dropped in the finally below.
+        clone_db: Path | None = None
+        try:
+            clone_db = _prepare_store_clone()
+            return _main_locked(argv, ns, clone_db=clone_db)
+        finally:
+            _drop_store_clone(clone_db)
+    finally:
+        # Every exit path after the open must release the lock — the refusal
+        # returns above included (a held flock would poison the rest of the
+        # process, e.g. every later test in the same pytest session).
+        fcntl.flock(_lock_fd, fcntl.LOCK_UN)
+        os.close(_lock_fd)
+
+
+def _main_locked(
+    argv: list[str] | None, ns: argparse.Namespace, clone_db: Path | None = None
+) -> int:
     global _CURRENT_LOG_DIR, _RUN_ID
     started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     _RUN_ID = gate_retain.run_id_now()
@@ -798,7 +1052,9 @@ def main(argv: list[str] | None = None) -> int:
         return 3
 
     t0 = time.perf_counter()
-    results, contended_from, contend_why = _run_all_benchmarks(force=ns.force)
+    results, contended_from, contend_why = _run_all_benchmarks(
+        force=ns.force, clone_db=clone_db, repeats=ns.repeats
+    )
 
     # ── table ──
     lines: list[str] = []
@@ -806,16 +1062,20 @@ def main(argv: list[str] | None = None) -> int:
     lines.append("Benchmark                              Time (s)   Budget   Status")
     lines.append("-" * 70)
     all_ok = True
-    for label, dt, status, ok, budget, _tail in results:
+    for label, dt, status, ok, budget, _tail, leg_skipped in results:
         flag = "✓" if ok else "✗"
         lines.append(f"  {label:.<36s} {dt:7.2f}  {budget:7.1f}s   {flag} {status}")
-        if not ok:
+        if not ok and not leg_skipped:
             all_ok = False
     lines.append("-" * 70)
 
-    passed = sum(1 for _label, _dt, _status, ok, _budget, _tail in results if ok)
+    passed = sum(1 for _l, _dt, _s, ok, _b, _t, _sk in results if ok)
+    skipped = sum(1 for _l, _dt, _s, _ok, _b, _t, leg_skipped in results if leg_skipped)
     total = len(results)
-    lines.append(f"  {passed}/{total} passed")
+    footer = f"  {passed}/{total} passed"
+    if skipped:
+        footer += f", {skipped} skipped"
+    lines.append(footer)
 
     table = "\n".join(lines)
     print(table)
@@ -839,7 +1099,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _retain_run_artifacts(
-    results: list[tuple[str, float, str, bool, float, str]],
+    results: list[tuple[str, float, str, bool, float, str, bool]],
     started: str,
     elapsed: float,
 ) -> str | None:
@@ -864,10 +1124,13 @@ def _retain_run_artifacts(
                 "name": label,
                 "seconds": round(dt, 3),
                 "budget_s": budget,
-                "status": "pass" if ok else "fail",
+                # gate_query's perf-json.v1 adapter accepts
+                # pass/fail/warn/info and COERCES anything else to pass —
+                # so a skip must ride "warn", never a bare "skip".
+                "status": ("warn" if skipped else "pass" if ok else "fail"),
                 "raw_status": status,
             }
-            for label, dt, status, ok, budget, _tail in results
+            for label, dt, status, ok, budget, _tail, skipped in results
         ],
     }
     try:
@@ -887,8 +1150,13 @@ def _md_status(status: str, ok: bool) -> str:
     parenthesised attribution is new (2026-10-24): budget vs rc vs
     contended vs load-coincident, so a loaded box's red wall reads as
     load, not regression. ``[frag]`` is appended by _run_all_benchmarks
-    when a leg failed under measured external pressure.
+    when a leg failed under measured external pressure. A skipped leg
+    renders ``⏸ SKIPPED`` — deliberately no ``OK`` (the TUI pass-count
+    keys on it) and no ``FAIL`` (failure surfaces must stay truthful);
+    gate_query's md parser maps any Status containing ``SKIP`` to info.
     """
+    if status == "SKIPPED":
+        return "⏸ SKIPPED"
     if ok:
         return "✓ OK"
     if status == "CONTENDED":
@@ -899,7 +1167,7 @@ def _md_status(status: str, ok: bool) -> str:
 
 
 def write_report(
-    results: list[tuple[str, float, str, bool, float, str]],
+    results: list[tuple[str, float, str, bool, float, str, bool]],
     started: str,
     elapsed: float,
     status_note: str | None = None,
@@ -922,7 +1190,11 @@ def write_report(
     """
     ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    passed = sum(1 for *_, ok, _, _ in results if ok)
+    # Explicit unpacks, NOT `*_, ok, _` star patterns: on the 7-tuple those
+    # bind ok to `budget` (a truthy float) — the exact run-4694-class bug
+    # the footer pin below guards.
+    passed = sum(1 for _l, _dt, _s, ok, _b, _t, _sk in results if ok)
+    skipped = sum(1 for _l, _dt, _s, _ok, _b, _t, leg_skipped in results if leg_skipped)
     total = len(results)
     artifacts_str = f"  ·  **Artifacts:** {artifact_dir}" if artifact_dir else ""
     md_lines: list[str] = []
@@ -935,22 +1207,33 @@ def write_report(
     if status_note:
         md_lines.append("")
         md_lines.append(f"**Status:** {status_note}")
-    md_lines.append(f"**Exit:** {0 if passed == total else 1}")
+    md_lines.append(f"**Exit:** {0 if passed + skipped == total else 1}")
     md_lines.append("")
     md_lines.append("| Benchmark | Time (s) | Budget | Status |")
     md_lines.append("|---|---|---|---|")
-    for label, dt, status, ok, budget, _tail in results:
+    for label, dt, status, ok, budget, _tail, _leg_skipped in results:
         flag = _md_status(status, ok)
         md_lines.append(f"| {label} | {dt:.2f} | {budget:.1f}s | {flag} |")
-    md_lines.append(f"| **{passed}/{total} passed** | | | |")
-    for label, _dt, status, ok, _budget, tail in results:
-        if ok:
+    footer = f"| **{passed}/{total} passed** | | | |"
+    if skipped:
+        footer = f"| **{passed}/{total} passed, {skipped} skipped** | | | |"
+    md_lines.append(footer)
+    for label, _dt, status, ok, _budget, tail, leg_skipped in results:
+        if ok or leg_skipped:  # a skip gets its own (SKIPPED) section below — never a FAILED one
             continue
         md_lines.append("")
         md_lines.append(f"## {label} (FAILED)")
         md_lines.append("")
         md_lines.append(f"status: {status}")
         md_lines.append(tail if tail else "(no stderr output)")
+    for label, _dt, status, _ok, _budget, tail, leg_skipped in results:
+        if not leg_skipped:
+            continue
+        md_lines.append("")
+        md_lines.append(f"## {label} (SKIPPED)")
+        md_lines.append("")
+        md_lines.append(f"status: {status}")
+        md_lines.append(tail if tail else "(no skip detail)")
     md_lines.append("")
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     with open(REPORT, "a") as f:

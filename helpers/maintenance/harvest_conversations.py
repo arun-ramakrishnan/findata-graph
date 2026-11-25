@@ -2594,7 +2594,7 @@ def _format_new_table(tally: dict, embed_rate: float | None, lane_order: tuple[s
         if notes:
             detail = f"{detail}  ({', '.join(notes)})" if detail else ", ".join(notes)
         rows.append((lane, n_s, n_p, detail or "—"))
-    w = max(len(r[0]) for r in rows)
+    w = max((len(r[0]) for r in rows), default=7)
     out = ["new-parts breakdown (new = sessions/source-lanes with new parts):"]
     out.append(f"  {'harness':<{w}}  new  parts  detail")
     for lane, n_s, n_p, detail in rows:

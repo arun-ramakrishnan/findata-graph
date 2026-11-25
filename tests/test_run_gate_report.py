@@ -473,17 +473,22 @@ def test_qa_harness_pins_rust_test_strict(tmp_path, monkeypatch):
     monkeypatch.setattr(rgr, "_publish_heartbeat", lambda lane, run_id: None)
     for const in ("OUTPUTS_ROOT", "_JUNIT_DIR", "_ARTIFACT_ROOT"):
         monkeypatch.setattr(rgr, const, tmp_path)
-    monkeypatch.delenv("RUST_TEST_STRICT", raising=False)
-
     # Advisory first: the pin is a process-global os.environ.setdefault, so
     # a qa run in the SAME process would leak it into any later gate (each
     # gate is its own process in practice — see the advisory: / qa: recipes).
+    # Under the real qa battery THIS pytest leg inherits all three pins from
+    # the harness process env — strip them so the advisory call proves the
+    # harness itself adds nothing outside qa.
+    for var in ("RUST_TEST_STRICT", "GRAPH_KERNELS_STRICT", "SCRIPT_KNN_STRICT"):
+        monkeypatch.delenv(var, raising=False)
     assert rgr.main(["advisory"]) == 0
     assert "RUST_TEST_STRICT" not in seen[-1]  # advisory no longer runs cargo test
+    assert "GRAPH_KERNELS_STRICT" not in seen[-1]  # kernel pins skip outside qa
 
     assert rgr.main(["qa"]) == 0
     assert seen[-1]["RUST_TEST_STRICT"] == "1"
     assert seen[-1]["SCRIPT_KNN_STRICT"] == "1"  # the precedent rides along
+    assert seen[-1]["GRAPH_KERNELS_STRICT"] == "1"  # missing/stale .so pin (T1)
 
 
 def test_exclusive_step_runs_after_pool_drains(tmp_path):

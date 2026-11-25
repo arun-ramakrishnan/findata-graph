@@ -312,7 +312,10 @@ class TestDeletedSessionsAreReported:
         _write(root, "opencode", "ses_gone", source="opencode:live")
         monkeypatch.setattr(hc, "_drift", lambda store, cr, lanes=None: [])
         monkeypatch.setattr(hc, "_coverage", lambda store: [])
-        out = hc.harvest(check=True, corpus_root=root, db=tmp_path / "meta.db")
+        # lanes=() skips the five-lane dry-run (the pending-parts table is
+        # not what this test asserts) — the 100s harvest dry-run is a
+        # regression since e0b3b99766 (2026-11-11).
+        out = hc.harvest(check=True, corpus_root=root, db=tmp_path / "meta.db", lanes=())
         assert out["stale_deleted"] == ["ses_gone"]
         assert out["stale_deleted_unresolved"] == ["ses_gone"]
         assert out["index_stale"] is False, "source drift is empty; the orphan gate is separate"
@@ -322,7 +325,7 @@ class TestDeletedSessionsAreReported:
         _write(root, "opencode", "ses_gone", source="orphan:opencode")
         monkeypatch.setattr(hc, "_drift", lambda store, cr, lanes=None: [])
         monkeypatch.setattr(hc, "_coverage", lambda store: [])
-        out = hc.harvest(check=True, corpus_root=root, db=tmp_path / "meta.db")
+        out = hc.harvest(check=True, corpus_root=root, db=tmp_path / "meta.db", lanes=())
         assert out["stale_deleted"] and not out["stale_deleted_unresolved"]
 
 
@@ -429,7 +432,7 @@ class TestProvenanceDriftIsChecked:
         monkeypatch.setattr(
             hc, "_provenance_drift", lambda cr, **kw: ["f.parquet: 3 row(s) a -> b"]
         )
-        out = hc.harvest(check=True, corpus_root=tmp_path, db=tmp_path / "m.db")
+        out = hc.harvest(check=True, corpus_root=tmp_path, db=tmp_path / "m.db", lanes=())
         assert out["stale_provenance"] == ["f.parquet: 3 row(s) a -> b"]
 
 
