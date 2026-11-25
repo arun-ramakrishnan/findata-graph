@@ -821,6 +821,84 @@ def _sample_flags(bars: btn.Bars, t1_eff: int, growth: float, dec: btn.Decision)
     return flags
 
 
+def _verdict_age(verdict: btn.Verdict | None) -> int | None:
+    """Seconds since the verdict's local wall-clock stamp (None if unknown)."""
+    if not (verdict and verdict.ts):
+        return None
+    try:
+        # The verdict clock is LOCAL wall time: RE_TS (:118) truncates
+        # each line's stamp to seconds with no offset, and the plugin's
+        # own log lines are local-naive (v0.1.209). Stamping UTC onto
+        # them put the parsed time hours in the future on this IST box:
+        # log_age=-19747s in every row (pending.md 2026-10-30). If the
+        # plugin ever emits offset-carrying stamps, widen RE_TS first.
+        t = datetime.strptime(verdict.ts[:19], "%Y-%m-%dT%H:%M:%S").astimezone()
+        return int(time.time() - t.timestamp())
+    except ValueError:
+        return None
+
+
+def _merged_counters(
+    watch: Watch, sid: str, is_session_scoped: bool, metrics: dict
+) -> tuple[int, int, dict, int, int, dict]:
+    """Per-session (or aggregate) tier counters, overlaid by bili_sessions
+    metrics when it has data. Returns (folds, saved, fires, absorbs,
+    absorb_credit, blocked)."""
+    # Per-session values (authoritative when --session is used); fallback to
+    # aggregate for global mode. 4 session-derived metrics added per
+    # user directive (m01639) to align with bili_sessions fields.
+    if is_session_scoped and sid:
+        folds = watch.per_session_folds.get(sid, 0)
+        saved = watch.per_session_saved.get(sid, 0)
+        fires = dict(watch.per_session_fires.get(sid, Counter()))
+        absorbs = watch.per_session_absorbs.get(sid, 0)
+        absorb_credit = watch.per_session_absorb_credit.get(sid, 0)
+    else:
+        folds = watch.folds
+        saved = watch.saved
+        fires = dict(watch.fires)
+        absorbs = watch.absorbs
+        absorb_credit = watch.absorb_credit
+
+    # Tier holdbacks are a CROSS-SESSION aggregate on Watch.blocked by
+    # design (doc/improvements/archive/tooling/bili_table_tier_watch_display_parity.md:77).
+    # A pinned session needs the per-session number, which the watcher does
+    # not track at all; take it from bili_sessions below.
+    blocked = dict(watch.blocked)
+    if metrics:
+        folds = int(metrics.get("folds", folds) or 0)
+        saved = int(metrics.get("saved", saved) or 0)
+        absorbs = int(metrics.get("absorbs", absorbs) or 0)
+        absorb_credit = int(metrics.get("absorb_credit", absorb_credit) or 0)
+    if metrics and is_session_scoped:
+        # The seed reads only the last SEED_BYTES of the live log (8 MB here),
+        # so fires/holdbacks older than that window are invisible to the
+        # watcher even when a session is pinned — measured 2026-11-24:
+        # ses_df6f1ad86 had 13 INJECT T1 lines across the archive+live log
+        # but the watcher saw 8 (5 archived, 3 inside the tail). bili_sessions
+        # parses the whole union, so its lifetime tier counters are the
+        # authoritative per-session values. Global mode keeps the watcher's
+        # aggregate semantics.
+        if "tier_fires" in metrics:
+            fires = dict(metrics["tier_fires"] or {})
+        if "tier_blocked" in metrics:
+            blocked = dict(metrics["tier_blocked"] or {})
+    return folds, saved, fires, absorbs, absorb_credit, blocked
+
+
+def _block_counts(state: btn.SessionState, metrics: dict) -> tuple[int, int]:
+    """(blocks_total, active_blocks): bili_sessions' merged view wins when
+    it has the fields."""
+    blocks_total = len(state.blocks)
+    active_blocks = len(state.active)
+    if metrics:
+        if metrics.get("blocks") is not None:
+            blocks_total = int(metrics.get("blocks") or 0)
+        if metrics.get("active_blocks") is not None:
+            active_blocks = int(metrics.get("active_blocks") or 0)
+    return blocks_total, active_blocks
+
+
 def build_sample(
     watch: Watch,
     bars: btn.Bars,
@@ -841,42 +919,14 @@ def build_sample(
     ord3 = dec.t3_pen > dec.t2_pen and dec.t3_pen > t1_eff
     flags = _sample_flags(bars, t1_eff, growth, dec)
 
-    age = None
-    if verdict and verdict.ts:
-        try:
-            # The verdict clock is LOCAL wall time: RE_TS (:118) truncates
-            # each line's stamp to seconds with no offset, and the plugin's
-            # own log lines are local-naive (v0.1.209). Stamping UTC onto
-            # them put the parsed time hours in the future on this IST box:
-            # log_age=-19747s in every row (pending.md 2026-10-30). If the
-            # plugin ever emits offset-carrying stamps, widen RE_TS first.
-            t = datetime.strptime(verdict.ts[:19], "%Y-%m-%dT%H:%M:%S").astimezone()
-            age = int(time.time() - t.timestamp())
-        except ValueError:
-            age = None
-
-    # Per-session values (authoritative when --session is used); fallback to
-    # aggregate for global mode. 4 session-derived metrics added per
-    # user directive (m01639) to align with bili_sessions fields.
-    is_session_scoped = session is not None
-    if is_session_scoped and sid:
-        folds = watch.per_session_folds.get(sid, 0)
-        saved = watch.per_session_saved.get(sid, 0)
-        fires = dict(watch.per_session_fires.get(sid, Counter()))
-        absorbs = watch.per_session_absorbs.get(sid, 0)
-        absorb_credit = watch.per_session_absorb_credit.get(sid, 0)
-    else:
-        folds = watch.folds
-        saved = watch.saved
-        fires = dict(watch.fires)
-        absorbs = watch.absorbs
-        absorb_credit = watch.absorb_credit
+    age = _verdict_age(verdict)
 
     # Session-lifetime counters: bili_sessions' merged dashboard+log view is
     # authoritative. Prefer it for fields it owns so the watcher and
     # bili_sessions table agree (hit rate, requests, nudges, cumulative tokens,
     # fold/absorb/block counts, saved ledger). Fall back to the watch's own
     # log-tail state when the dashboard/log merge has no data.
+    is_session_scoped = session is not None
     metrics = _session_metrics(sid) if sid else {}
     nudges = metrics.get("nudges", 0)
     # `or`, not a .get default: hit_pct=None (dashboard cacheHitPct null AND
@@ -888,19 +938,11 @@ def build_sample(
     degen_flag = bool(metrics.get("degenerate_folds", 0))
     cum_input = metrics.get("cum_input", 0)
     cached_input = metrics.get("cached_input", 0)
-    if metrics:
-        folds = int(metrics.get("folds", folds) or 0)
-        saved = int(metrics.get("saved", saved) or 0)
-        absorbs = int(metrics.get("absorbs", absorbs) or 0)
-        absorb_credit = int(metrics.get("absorb_credit", absorb_credit) or 0)
+    folds, saved, fires, absorbs, absorb_credit, blocked = _merged_counters(
+        watch, sid, is_session_scoped, metrics
+    )
 
-    blocks_total = len(state.blocks)
-    active_blocks = len(state.active)
-    if metrics:
-        if metrics.get("blocks") is not None:
-            blocks_total = int(metrics.get("blocks") or 0)
-        if metrics.get("active_blocks") is not None:
-            active_blocks = int(metrics.get("active_blocks") or 0)
+    blocks_total, active_blocks = _block_counts(state, metrics)
 
     return Sample(
         ts=verdict.ts if verdict else now_ts(),
@@ -930,7 +972,7 @@ def build_sample(
         # field bili_sessions shows). `act` is the live working set.
         blocks=blocks_total,
         act=active_blocks,
-        blocked=dict(watch.blocked),
+        blocked=blocked,
         reason=verdict.reason if verdict else "",
         tier=dec.tier,
         blocked_by=dec.blocked_by,

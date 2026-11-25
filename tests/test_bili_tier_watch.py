@@ -367,6 +367,42 @@ def test_without_a_pinned_session_the_counters_are_global():
     assert w.folds == 2
 
 
+def test_pinned_session_prefers_bili_sessions_lifetime_tier_counters(monkeypatch, tmp_path):
+    """A pinned sample must not report the tail's partial fires/aggregate blocked.
+
+    The 8 MB live-log seed hides fires/holdbacks older than that window, and
+    Watch.blocked sums EVERY session. bili_sessions parses the whole rotation
+    family per sid, so its tier_fires / tier_blocked are authoritative when
+    --session is set; global mode keeps the watcher's aggregate semantics.
+    """
+    blocked_nudge = (
+        "2026-11-16T08:11:17.000Z [info] [sess=ses_real1] [v=0.1.202] "
+        "nudge idle: usage=12.0% (104162/868928), growth=21191/20000 "
+        "(ref=79915, interval=30000), pendingT1=16073/30000 "
+        'model=deepseek-v4.1-flash-free, reason="max compressible 16073, '
+        'blocked: T1 (cadence)"'
+    )
+    w = btw.Watch()
+    w.consume(INJECT_REAL_SHAPE)
+    w.consume(blocked_nudge)
+    assert w.fires["T1"] == 1 and w.blocked["1"] == 1  # watcher's tail view
+
+    monkeypatch.setattr(
+        btw.bili_sessions,
+        "run_for_sid",
+        lambda sid: {"tier_fires": {"T1": 13, "T2": 0, "T3": 0}, "tier_blocked": {"1": 39}},
+    )
+    db = _make_db(tmp_path)
+    pinned = btw.build_sample(w, _bars(), db, session="ses_real1")
+    assert pinned.fires == {"T1": 13, "T2": 0, "T3": 0}
+    assert pinned.blocked == {"1": 39}
+    assert "blocked[1:39]" in pinned.render()
+
+    global_sample = btw.build_sample(w, _bars(), db)
+    assert global_sample.fires["T1"] == 1
+    assert global_sample.blocked == {"1": 1}
+
+
 def test_consume_parses_the_verdict():
     w = _watch_with()
     v = w.verdicts["s1"]
