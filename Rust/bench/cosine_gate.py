@@ -8,13 +8,13 @@ This gate covers two shape classes:
   at least 5x faster than the pure-Python reference; and
 * the live-note shape (19,356 rows x 512 dimensions) plus scale shapes at
   250,000 / 1,000,000 rows x 384 dimensions, where Rust loses to BLAS.
-  Those shapes carry a 0.14x floor: the point is to pin today's honest
+  Those shapes carry a 0.70x floor: the point is to pin today's honest
   gap and catch a regression, not to pretend Rust wins them. The 500,000
   middle point was dropped 2026-11-19: the measured ratio is flat
   (0.18-0.20x) across scales, so 250k and 1M bracket the regime and the
   middle row added ~1.7s of leg time with no additional signal.
 
-WHY THE SCALE FLOOR IS 0.14 AND NOT 0.40. A regression gate needs the floor to
+WHY THE SCALE FLOOR IS 0.70 AND NOT 0.14. A regression gate needs the floor to
 sit inside a non-empty window: it must exceed half the widest healthy ratio (so
 a deliberate 2x Rust slowdown lands below it) and stay under the narrowest
 healthy ratio (so a healthy build never trips it). The window is
@@ -24,10 +24,20 @@ band, not a low floor.
 Rayon thread count is what widens or narrows that band. Measured on the 4-core
 powersave reference box, medians across fresh processes:
 
-  Rayon 1:  live-note 0.170-0.218, 250k 0.187-0.201, 1000k 0.185-0.243
+  Rayon 1, SCALAR inner loop (pre-S1, 2026-11-25):
+            live-note 0.170-0.218, 250k 0.187-0.201, 1000k 0.185-0.243
             -> window (0.122, 0.170], usable.
+  Rayon 1, FUSED AVX2+FMA inner loop (S1, LANDED 2026-11-25, 3 fresh runs):
+            live-note 0.84-0.87, 250k 0.92-0.96, 1000k 0.91-0.95
+            -> window (0.48, 0.84], floor 0.70. The kernel reached parity
+            with BLAS at scale, so the floor was re-pinned by the window
+            rule (the old 0.14 would only have caught a ~6x slowdown).
+            The production leg kept its absolute bar: 717x512 moved
+            0.83 -> 0.44 ms (1.87x vs the scalar loop), ratio 2.8x ->
+            5.1-5.3x numpy, rust/pure 48x -> 90x.
   Rayon 4:  live-note 0.422-0.615, 250k 0.521-0.768, 1000k 0.557-0.737
             -> window (0.384, 0.422], ~9% wide, one noisy round from empty.
+            (Pre-S1 numbers; not re-measured post-S1.)
 
 With more Rayon workers the Rust lane gains speed but the band widens enough
 that a floor passing an idle box fails a busy one, and one catching a 2x
@@ -97,10 +107,11 @@ PURE_QUERIES = 5  # the pure loop is ~40x slower; 5 is plenty to time it
 MIN_VS_NUMPY = 1.3
 MIN_VS_PURE = 5.0
 
-# Scale/live bars: Rust currently loses, so pin the lower bound of that loss.
-# 0.14 sits inside the feasible window (0.122, 0.170] for the measured healthy
-# band under the single-worker pin; see the module docstring for the algebra.
-MIN_SCALE_VS_NUMPY = 0.14
+# Scale/live bars: the S1 fused kernel sits at parity with BLAS, so pin the
+# floor of that healthy band. 0.70 sits inside the feasible window
+# (0.48, 0.84] measured post-S1 under the single-worker pin; see the module
+# docstring for the algebra and the pre-S1 history.
+MIN_SCALE_VS_NUMPY = 0.70
 SCALE_ROUNDS = 5
 # Two similarities within this distance are the same answer on the scale
 # shapes (float32 accumulation order differs between Rust and BLAS).

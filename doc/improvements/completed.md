@@ -17425,3 +17425,27 @@ S3 median-of-N for noise-prone legs + S4 `memory_query` regression diagnosis
 (box-state artifact, no code change; budget stays 3.0). 55 pins in
 `tests/test_run_perf_benchmarks.py`; ruff/format/ty clean. Real-run validation
 landed in the perf report under the new harness in a quiet window.
+
+## 572. Rust SIMD cosine kernel + hop-histogram lanes (all-universe, contract pair) + PPR attribution Python pass
+
+**Date:** filed + executed 2026-11-25 · **Area:** `Rust/cosine_knn` +
+`Rust/graph_kernels` + `helpers/graph/scipy_bridge.py` +
+`helpers/graph/ppr_edge_attribution.py` (archived proposal
+`doc/improvements/archive/graph/rust_simd_cosine_hop_histogram.md`)
+
+S1 fused per-row cosine kernel (dot + row-norm in one AVX2+FMA sweep,
+runtime-selected; production 717×512 0.826 → 0.442 ms = 1.87× vs the
+scalar loop; scale shapes 4.9×, ratios now 0.84–0.96 of BLAS, kernel at
+parity; gate floor re-pinned 0.14 → 0.70 by the window rule). S2
+pure-Rust hop-histogram lane (`graph_kernels.hop_hist_sources`, 8th
+export; the per-hop histogram folded into the BFS, exact integers only)
+behind the `SB_RUST` selector for the all-universe stamp pass: 32.91 s
+scipy → 3.32 s kernel = **9.91×** in-process, closeness + structure
+exact, harmonic ≤ 1.7e-16 rel. S4 routes the live contract
+closeness + harmonic pair through the same lane: 7.54 s → 0.56 s =
+**13.4×** (closeness bit-identical). S5 PPR edge-attribution Python
+pass: one-fetch projection family (10/10 projections byte-exact) +
+numpy top-k → `run()` 6.09 s → 2.3 s = **2.6×**, report JSON EXACT,
+bench leg 2.31 s (was 6.4–9.1). S3 `similar_notes` port stayed parked
+on the #450 evidence; S6 survey leftovers parked. `stamp-centrality`
+re-time still owed (operator-owned maint chain).

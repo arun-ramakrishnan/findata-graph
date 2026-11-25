@@ -67,6 +67,7 @@ EXPORTED_LANES = (
     "all_pairs_bfs_stats",
     "brandes_fold_sources",
     "core_bfs_sources_batch",
+    "hop_hist_sources",
     "limited_bfs_sources",
     "personalized_pagerank",
     "personalized_pagerank_batch",

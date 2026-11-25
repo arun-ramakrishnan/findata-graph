@@ -954,6 +954,139 @@ pub fn core_bfs_distances(indptr: &[i32], indices: &[i32], sources: &[i32]) -> V
     out
 }
 
+/// One BFS from `src`, folding per-hop frontier sizes into `hist`, where
+/// `hist[h - 1]` counts nodes at hop `h`. Returns the eccentricity (max
+/// hop that gained nodes; 0 when nothing is reachable). `dist`/`hist`
+/// must be `len(n)` (hop ≤ n-1, so one row is always enough); the caller
+/// resets `hist[0..level]` before the next source (`level` may exceed the
+/// returned ecc by one — the empty final level also touches the bucket).
+fn hop_hist_into(
+    indptr: &[i32],
+    indices: &[i32],
+    src: usize,
+    dist: &mut [i32],
+    hist: &mut [u64],
+    frontier: &mut Vec<u32>,
+    next: &mut Vec<u32>,
+) -> u32 {
+    dist.fill(-1);
+    dist[src] = 0;
+    frontier.clear();
+    frontier.push(src as u32);
+    let mut level: usize = 0;
+    while !frontier.is_empty() {
+        level += 1;
+        next.clear();
+        for &v in frontier.iter() {
+            let lo = indptr[v as usize] as usize;
+            let hi = indptr[v as usize + 1] as usize;
+            for &w in &indices[lo..hi] {
+                let wu = w as usize;
+                if dist[wu] < 0 {
+                    dist[wu] = level as i32;
+                    next.push(w as u32);
+                }
+            }
+        }
+        hist[level - 1] += next.len() as u64;
+        std::mem::swap(frontier, next);
+    }
+    (level - 1) as u32
+}
+
+/// Per-source fold results from one chunk of sources: `hist` holds the
+/// rows concatenated, each trimmed to its own eccentricity (bucket `b` of
+/// a row counts hop `b + 1`).
+struct HopHistChunk {
+    reach: Vec<u64>,
+    sum_d: Vec<u64>,
+    ecc: Vec<u32>,
+    hist: Vec<u64>,
+}
+
+const HOP_CHUNK: usize = 256;
+
+/// Batched per-source BFS hop-histogram fold — the all-universe stamp
+/// reduction moved into the BFS (proposal rust_simd_cosine_hop_histogram
+/// S2). One pass over the graph per source; no distance row is ever
+/// materialized. Returns `(reach, sum_d, ecc, hist_flat, width)`:
+/// per source `reach` counts reachable nodes (self excluded), `sum_d` is
+/// the exact integer distance sum over those pairs, `ecc` the max hop,
+/// and `hist_flat` is the row-major `[sources.len(), width]` histogram —
+/// bucket `b` of a row counts hop `b + 1`, rows shorter than `width`
+/// zero-padded. `width` is the global max eccentricity (0 when no source
+/// reaches anything). Exact integers only; Python keeps the float
+/// formulas (`cnt @ (1.0 / hops)`, WF closeness) so each has one
+/// definition.
+pub fn hop_hist_fold(
+    indptr: &[i32],
+    indices: &[i32],
+    sources: &[i32],
+) -> (Vec<u64>, Vec<u64>, Vec<u32>, Vec<u64>, usize) {
+    let k = sources.len();
+    let parts: Vec<HopHistChunk> = sources
+        .par_chunks(HOP_CHUNK)
+        .map(|chunk| {
+            let n = indptr.len() - 1;
+            let mut dist = vec![-1i32; n];
+            let mut scratch = vec![0u64; n];
+            let mut frontier: Vec<u32> = Vec::with_capacity(n);
+            let mut next: Vec<u32> = Vec::with_capacity(n);
+            let mut out = HopHistChunk {
+                reach: Vec::with_capacity(chunk.len()),
+                sum_d: Vec::with_capacity(chunk.len()),
+                ecc: Vec::with_capacity(chunk.len()),
+                hist: Vec::new(),
+            };
+            for &s in chunk {
+                let ecc = hop_hist_into(
+                    indptr,
+                    indices,
+                    s as usize,
+                    &mut dist,
+                    &mut scratch,
+                    &mut frontier,
+                    &mut next,
+                );
+                let e_us = ecc as usize;
+                let reach: u64 = scratch[..e_us].iter().sum();
+                let sum_d: u64 = scratch[..e_us]
+                    .iter()
+                    .enumerate()
+                    .map(|(h, c)| ((h + 1) as u64) * c)
+                    .sum();
+                out.reach.push(reach);
+                out.sum_d.push(sum_d);
+                out.ecc.push(ecc);
+                out.hist.extend_from_slice(&scratch[..e_us]);
+                for x in &mut scratch[..e_us] {
+                    *x = 0;
+                }
+            }
+            out
+        })
+        .collect();
+    let mut reach = Vec::with_capacity(k);
+    let mut sum_d = Vec::with_capacity(k);
+    let mut ecc = Vec::with_capacity(k);
+    let mut hist_all = Vec::new();
+    for p in parts {
+        reach.extend_from_slice(&p.reach);
+        sum_d.extend_from_slice(&p.sum_d);
+        ecc.extend_from_slice(&p.ecc);
+        hist_all.extend_from_slice(&p.hist);
+    }
+    let width = ecc.iter().copied().max().unwrap_or(0) as usize;
+    let mut hist_flat = vec![0u64; k * width];
+    let mut off = 0usize;
+    for (i, &e) in ecc.iter().enumerate() {
+        let e_us = e as usize;
+        hist_flat[i * width..i * width + e_us].copy_from_slice(&hist_all[off..off + e_us]);
+        off += e_us;
+    }
+    (reach, sum_d, ecc, hist_flat, width)
+}
+
 /// Two-accumulator Brandes fold over a batch of core sources.
 ///
 /// `indptr`/`indices` are the FULL projection CSR (both directions) and
@@ -1060,6 +1193,63 @@ fn core_bfs_sources_batch<'py>(
     Ok(PyArray2::from_owned_array(py, arr))
 }
 
+/// Return shape of `hop_hist_sources`: per-source `(reach, sum_d, ecc)`
+/// plus the row-major hop histogram — exact integers only.
+type HopHistArrays<'py> = (
+    Bound<'py, PyArray1<u64>>,
+    Bound<'py, PyArray1<u64>>,
+    Bound<'py, PyArray1<u32>>,
+    Bound<'py, PyArray2<u64>>,
+);
+
+/// Batched per-source BFS hop-histogram fold (see `hop_hist_fold`):
+/// `(reach: uint64[k], sum_d: uint64[k], ecc: uint32[k],
+/// hist: uint64[k, width])`, exact integers only. The all-universe stamp
+/// lane derives the float aggregates in Python so the formulas keep one
+/// definition (`helpers/graph/scipy_bridge.py`).
+#[pyfunction]
+fn hop_hist_sources<'py>(
+    py: Python<'py>,
+    indptr: PyReadonlyArray1<'py, i32>,
+    indices: PyReadonlyArray1<'py, i32>,
+    sources: PyReadonlyArray1<'py, i32>,
+) -> PyResult<HopHistArrays<'py>> {
+    let ip: &[i32] = indptr.as_slice()?;
+    let ix: &[i32] = indices.as_slice()?;
+    let srcs: &[i32] = sources.as_slice()?;
+    if ip.is_empty() {
+        return Err(PyValueError::new_err(
+            "indptr must carry at least the [0] terminator",
+        ));
+    }
+    if ip.windows(2).any(|w| w[0] > w[1]) {
+        return Err(PyValueError::new_err("indptr must be non-decreasing"));
+    }
+    let n = ip.len() - 1;
+    if *ip.last().unwrap() as usize != ix.len() {
+        return Err(PyValueError::new_err("indptr[-1] must equal len(indices)"));
+    }
+    if ix.iter().any(|&v| v < 0 || v as usize >= n) {
+        return Err(PyValueError::new_err("indices out of range"));
+    }
+    if srcs.iter().any(|&v| v < 0 || v as usize >= n) {
+        return Err(PyValueError::new_err("sources out of range"));
+    }
+    let (reach, sum_d, ecc, hist, width) = py.detach(|| hop_hist_fold(ip, ix, srcs));
+    let k = srcs.len();
+    let reach_arr = ndarray::Array1::from(reach);
+    let sum_arr = ndarray::Array1::from(sum_d);
+    let ecc_arr = ndarray::Array1::from(ecc);
+    let hist_arr = ndarray::Array2::from_shape_vec((k, width), hist)
+        .map_err(|e| PyValueError::new_err(format!("hist shape: {e}")))?;
+    Ok((
+        PyArray1::from_owned_array(py, reach_arr),
+        PyArray1::from_owned_array(py, sum_arr),
+        PyArray1::from_owned_array(py, ecc_arr),
+        PyArray2::from_owned_array(py, hist_arr),
+    ))
+}
+
 #[pymodule]
 fn graph_kernels(m: &Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(all_pairs_bfs_stats, m)?)?;
@@ -1069,12 +1259,13 @@ fn graph_kernels(m: &Bound<'_, pyo3::types::PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(personalized_pagerank_batch, m)?)?;
     m.add_function(wrap_pyfunction!(brandes_fold_sources, m)?)?;
     m.add_function(wrap_pyfunction!(core_bfs_sources_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(hop_hist_sources, m)?)?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{all_pairs_hist, all_pairs_hist_seq, stats_from_hist};
+    use super::{all_pairs_hist, all_pairs_hist_seq, hop_hist_fold, stats_from_hist};
 
     fn path_csr(n: usize) -> (Vec<i32>, Vec<i32>) {
         // undirected path 0-1-...-(n-1)
@@ -1246,6 +1437,84 @@ mod tests {
         let (reach0, hists0) = super::limited_bfs_hists(&ip, &ix, &sources, n_e, 0);
         assert!(reach0.iter().all(|&r| r == 0));
         assert_eq!(hists0.len(), sources.len()); // width 1, all zeros
+    }
+
+    #[test]
+    fn hop_hist_fold_matches_hand_checked_graphs() {
+        // path 0-1-2-3-4: source 0 ecc 4 reach 4 sum_d 10, row [1,1,1,1];
+        // source 2 ecc 2 reach 4 sum_d 6, row [2,2,0,0] (width is global)
+        let (ip, ix) = path_csr(5);
+        let (reach, sum_d, ecc, hist, width) = hop_hist_fold(&ip, &ix, &[0, 2]);
+        assert_eq!(reach, [4, 4]);
+        assert_eq!(sum_d, [10, 6]);
+        assert_eq!(ecc, [4, 2]);
+        assert_eq!(width, 4);
+        assert_eq!(hist, [1, 1, 1, 1, 2, 2, 0, 0]);
+
+        // two isolates: nothing reachable anywhere → width 0, empty hist
+        let ip = vec![0i32, 0, 0];
+        let (reach, sum_d, ecc, hist, width) = hop_hist_fold(&ip, &[], &[0, 1]);
+        assert_eq!(reach, [0, 0]);
+        assert_eq!(sum_d, [0, 0]);
+        assert_eq!(ecc, [0, 0]);
+        assert_eq!(width, 0);
+        assert!(hist.is_empty());
+
+        // star, center 0: source 0 → reach n-1, sum_d n-1, ecc 1;
+        // leaf → reach n-1, sum_d 1 + 2*(n-2), ecc 2
+        let n = 10usize;
+        let mut ip = vec![0i32];
+        let mut ix = Vec::new();
+        for l in 1..n {
+            ix.push(l as i32);
+        }
+        ip.push(ix.len() as i32);
+        for _ in 1..n {
+            ix.push(0);
+            ip.push(ix.len() as i32);
+        }
+        let (reach, sum_d, ecc, hist, width) = hop_hist_fold(&ip, &ix, &[0, 1]);
+        assert_eq!(reach, [(n - 1) as u64, (n - 1) as u64]);
+        assert_eq!(sum_d, [(n - 1) as u64, 1 + 2 * ((n - 2) as u64)]);
+        assert_eq!(ecc, [1, 2]);
+        assert_eq!(width, 2);
+        // center row [hop1 = 9]; leaf row [hop1 = 1 (the center), hop2 = 8]
+        assert_eq!(hist, [(n - 1) as u64, 0, 1, (n - 2) as u64]);
+    }
+
+    #[test]
+    fn hop_hist_fold_agrees_with_core_bfs_rows() {
+        // every source, path graph: the fold must agree with an independent
+        // recount over the core_bfs_distances rows (same BFS, two reductions)
+        let (ip, ix) = path_csr(33);
+        let sources: Vec<i32> = (0..33).collect();
+        let rows = super::core_bfs_distances(&ip, &ix, &sources);
+        let (reach, sum_d, ecc, hist, width) = hop_hist_fold(&ip, &ix, &sources);
+        for (i, row) in rows.chunks(33).enumerate() {
+            let mut counted = vec![0u64; width];
+            for &d in row {
+                if d > 0 {
+                    counted[d as usize - 1] += 1;
+                }
+            }
+            assert_eq!(reach[i], counted.iter().sum::<u64>());
+            assert_eq!(
+                sum_d[i],
+                counted
+                    .iter()
+                    .enumerate()
+                    .map(|(h, c)| ((h + 1) as u64) * c)
+                    .sum::<u64>()
+            );
+            assert_eq!(
+                ecc[i],
+                counted
+                    .iter()
+                    .rposition(|c| *c > 0)
+                    .map_or(0, |p| (p + 1) as u32)
+            );
+            assert_eq!(&hist[i * width..(i + 1) * width], &counted[..]);
+        }
     }
 }
 

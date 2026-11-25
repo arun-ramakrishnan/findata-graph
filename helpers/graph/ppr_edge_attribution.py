@@ -13,9 +13,11 @@ which share of a seed's PPR neighborhood?* Mechanics:
   ``onager.ECONOMIC_EDGE_TYPES``) — the same neighborhood diff with the
   projection itself as the treatment.
 
-This is a composition harness, not a new kernel lane: it calls
-``load_centrality_projection`` + ``personalized_pagerank_scores_multi``
-(the S1 batch API) and therefore inherits their lane guards and budgets.
+This is a composition harness, not a new kernel lane: it builds its
+projections from one typed-edge fetch
+(``scipy_bridge.centrality_typed_edge_rows``) and calls
+``personalized_pagerank_scores_multi`` (the S1 batch API), inheriting
+its lane guards and budgets.
 Read-only: never writes to the store (report/JSON go to
 ``bench_data/graph_kernels_ppr/``).
 
@@ -34,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from scipy.sparse import csr_matrix
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -44,7 +47,7 @@ from helpers.graph.scipy_bridge import (  # noqa: E402
     DEFAULT_DB_PATH,
     PPR_ALPHA_DEFAULT,
     PPR_INCLUDE_EDGE_TYPES,
-    load_centrality_projection,
+    centrality_typed_edge_rows,
     personalized_pagerank_scores_multi,
 )
 
@@ -75,10 +78,10 @@ def _resolve_cohort(
 
 
 def _topk_others(scores: np.ndarray, names: list[str], seed: str, k: int) -> list[str]:
-    pos = {n: i for i, n in enumerate(names)}
-    si = pos[seed]
+    si = names.index(seed)
     order = np.argsort(-np.asarray(scores, dtype=float))
-    return [names[int(j)] for j in order if int(j) != si][:k]
+    order = order[order != si][:k]
+    return [names[int(j)] for j in order]
 
 
 def _order_ranks(union: list[str], pos: dict[str, int], scores: np.ndarray) -> dict[str, int]:
@@ -193,6 +196,61 @@ def _projection_stats(A: Any) -> dict[str, int]:
     return {"entities": int(A.shape[0]), "edges": int(A.nnz // 2)}
 
 
+def _projection_family(
+    db_path: str | Path,
+    subsets: tuple[tuple[str, ...], ...],
+) -> dict[tuple[str, ...], tuple[Any, list[str]]]:
+    """Fetch the typed edge rows once, build one CSR per type-set.
+
+    Same construction as ``load_centrality_projection`` — alphabetically
+    sorted endpoint names as deterministic ids, canonical deduped
+    (min, max) pairs, symmetric binary CSR — masked in numpy per subset
+    after a single fetch (S5: the ten per-call reloads were 56% of the
+    run wall, proposal rust_simd_cosine_hop_histogram E12).
+    """
+    rows = centrality_typed_edge_rows(db_path)
+    uniq_names = sorted({r[0] for r in rows} | {r[1] for r in rows})
+    code = {n: i for i, n in enumerate(uniq_names)}
+    et_code: dict[str, int] = {}
+
+    def _et(et: str) -> int:
+        c = et_code.get(et)
+        if c is None:
+            c = et_code[et] = len(et_code)
+        return c
+
+    count = len(rows)
+    s_code = np.fromiter((code[r[0]] for r in rows), dtype=np.int64, count=count)
+    t_code = np.fromiter((code[r[1]] for r in rows), dtype=np.int64, count=count)
+    e_code = np.fromiter((_et(r[2]) for r in rows), dtype=np.int64, count=count)
+
+    family: dict[tuple[str, ...], tuple[Any, list[str]]] = {}
+    for subset in subsets:
+        inc = np.fromiter((et_code[t] for t in subset if t in et_code), dtype=np.int64)
+        mask = np.isin(e_code, inc) & (s_code != t_code)
+        s_k = s_code[mask]
+        t_k = t_code[mask]
+        node_codes = np.unique(np.concatenate([s_k, t_k]))
+        names_t = [uniq_names[c] for c in node_codes]
+        if node_codes.size:
+            pos_s = np.searchsorted(node_codes, s_k)
+            pos_t = np.searchsorted(node_codes, t_k)
+            eb = np.unique(
+                np.stack([np.minimum(pos_s, pos_t), np.maximum(pos_s, pos_t)], axis=1),
+                axis=0,
+            )
+            r = np.concatenate([eb[:, 0], eb[:, 1]])
+            c = np.concatenate([eb[:, 1], eb[:, 0]])
+            A = csr_matrix((np.ones(r.size), (r, c)), shape=(len(names_t),) * 2)
+        else:
+            A = csr_matrix(
+                (np.ones(0), (np.empty(0, dtype=np.int64), np.empty(0, dtype=np.int64))),
+                shape=(0, 0),
+            )
+        family[subset] = (A, names_t)
+    return family
+
+
 def run(
     db_path: str | Path = DEFAULT_DB_PATH,
     *,
@@ -207,13 +265,18 @@ def run(
     Relational full (the 8 PPR include types) is the base. Each ablated
     projection drops exactly one type; the seed cohort is diffed against
     the base. Then the economic projection (14 types) is diffed against
-    the relational base — the cross-projection treatment.
+    the relational base — the cross-projection treatment. All ten
+    projections come from one typed-edge fetch (``_projection_family``,
+    S5) instead of ten per-call reloads.
     """
     t0 = time.perf_counter()
     types = tuple(t for t in PPR_INCLUDE_EDGE_TYPES if t not in skip_types)
-    rel_full_A, rel_full_names = load_centrality_projection(
-        db_path, include_edge_types=PPR_INCLUDE_EDGE_TYPES
+    ablated_subsets = tuple(tuple(x for x in PPR_INCLUDE_EDGE_TYPES if x != t) for t in types)
+    family = _projection_family(
+        db_path,
+        (PPR_INCLUDE_EDGE_TYPES, *ablated_subsets, tuple(ECONOMIC_EDGE_TYPES)),
     )
+    rel_full_A, rel_full_names = family[PPR_INCLUDE_EDGE_TYPES]
     cohort, dropped_seeds = _resolve_cohort(rel_full_names, seeds, cohort_size)
     if not cohort:
         raise ValueError("PPR edge attribution: empty cohort after seed resolution")
@@ -223,10 +286,8 @@ def run(
     )
 
     ablation: dict[str, Any] = {}
-    for t in types:
-        A_t, names_t = load_centrality_projection(
-            db_path, include_edge_types=tuple(x for x in PPR_INCLUDE_EDGE_TYPES if x != t)
-        )
+    for t, subset in zip(types, ablated_subsets):
+        A_t, names_t = family[subset]
         kept = [s for s in cohort if s in names_t]
         scores_t = (
             personalized_pagerank_scores_multi(A_t, names_t, kept, alpha=alpha) if kept else {}
@@ -249,9 +310,7 @@ def run(
             "metrics": _aggregate(per_seed, top_k),
         }
 
-    eco_A, eco_names = load_centrality_projection(
-        db_path, include_edge_types=tuple(ECONOMIC_EDGE_TYPES)
-    )
+    eco_A, eco_names = family[tuple(ECONOMIC_EDGE_TYPES)]
     eco_kept = [s for s in cohort if s in eco_names]
     eco_scores = (
         personalized_pagerank_scores_multi(eco_A, eco_names, eco_kept, alpha=alpha)

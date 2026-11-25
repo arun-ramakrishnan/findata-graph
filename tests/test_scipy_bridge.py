@@ -11,7 +11,9 @@ involved — the bridge is SQLite-only by design).
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -829,6 +831,61 @@ def test_full_universe_stats_jobs2_matches_jobs1(monkeypatch):
     np.testing.assert_array_equal(two["closeness"], one["closeness"])
     np.testing.assert_allclose(two["harmonic"], one["harmonic"], rtol=1e-12)
     assert two["structure"] == one["structure"]
+
+
+def _hop_hist_lane_available() -> bool:
+    try:
+        import graph_kernels
+    except ImportError:
+        return False
+    return hasattr(graph_kernels, "hop_hist_sources")
+
+
+def test_full_universe_kernel_lane_matches_scipy_lane(monkeypatch):
+    """SB_RUST auto (kernel) vs off (scipy) on the componented oracle graph.
+
+    Kernel lane = archive/graph/rust_simd_cosine_hop_histogram.md S2: closeness
+    and the structure scalars must be EXACT; harmonic goes through the
+    histogram dot in both lanes and may differ by float reassociation only
+    (pinned rtol=1e-12; measured 1.7e-16 on the live projection).
+    """
+    if not _hop_hist_lane_available():
+        if os.environ.get("GRAPH_KERNELS_STRICT") == "1":
+            pytest.fail(
+                "graph_kernels lacks hop_hist_sources (stale build) under GRAPH_KERNELS_STRICT=1"
+            )
+        pytest.skip("graph_kernels.hop_hist_sources not installed")
+    A = _componented_csr()
+    monkeypatch.setenv("SB_RUST", "off")
+    ref = sb.full_universe_stats(A, jobs=1)
+    monkeypatch.delenv("SB_RUST", raising=False)  # auto -> kernel
+    ker = sb.full_universe_stats(A, jobs=1)
+    monkeypatch.setenv("SB_RUST", "force")
+    forced = sb.full_universe_stats(A, jobs=1)
+    monkeypatch.delenv("SB_RUST", raising=False)
+    for lane in (ker, forced):
+        np.testing.assert_array_equal(lane["closeness"], ref["closeness"])
+        np.testing.assert_allclose(lane["harmonic"], ref["harmonic"], rtol=1e-12)
+        assert lane["structure"] == ref["structure"]
+
+
+def test_full_universe_force_mode_is_loud_without_the_lane(monkeypatch):
+    """force + stale/missing extension raises; off stays a silent fallback."""
+    A = _componented_csr()
+    monkeypatch.setenv("SB_RUST", "off")  # incumbent scipy lane, silent
+    res = sb.full_universe_stats(A, jobs=1)
+    assert res["structure"]["components"] >= 4
+    try:
+        import graph_kernels as gk
+    except ImportError:
+        pytest.skip("graph_kernels not installed")
+    monkeypatch.setenv("SB_RUST", "force")
+    monkeypatch.delattr(gk, "hop_hist_sources", raising=False)  # stale build
+    with pytest.raises(RuntimeError, match="stale build"):
+        sb.full_universe_stats(A, jobs=1)
+    monkeypatch.setitem(sys.modules, "graph_kernels", None)  # extension gone
+    with pytest.raises(RuntimeError, match="not installed"):
+        sb.full_universe_stats(A, jobs=1)
 
 
 # --------------------------------------------------------------------------- #

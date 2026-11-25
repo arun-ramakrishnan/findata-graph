@@ -56,7 +56,11 @@ Open items below keep their revisit triggers inline; executed work is compressed
   max diff 1.8e-12). The remainder is scipy's heap `dijkstra` (~98 s
   CPU, ≈ 4.3 ms per source); the next lever is a compiled queue-BFS
   hop-histogram kernel in `graph_kernels` (Rust/PyO3 rung, fired for
-  BFS-shaped work) — operator's call. A real-run re-time of
+  BFS-shaped work) — operator's call. **FIRED 2026-11-25**:
+  `graph_kernels.hop_hist_sources` folds the per-hop histogram into the
+  BFS and serves both the all-universe pass (32.91 s → 3.32 s = 9.91×)
+  and the contract closeness/harmonic pair (7.54 s → 0.56 s = 13.4×)
+  behind `SB_RUST=auto` — see completed.md #572. A real-run re-time of
   `stamp-centrality` is still owed (maint chain is operator-owned).
 
 - **Parquet snapshot leg does not read the DuckDB research store — DONE
@@ -837,6 +841,13 @@ Open items below keep their revisit triggers inline; executed work is compressed
   2.4× slower than numpy on 4 threads. The fix direction is the per-row
   kernel, not more rayon. `Rust/bench/cosine_gate.py` now also covers the
   shapes where Rust loses (see pending.md:745-761 for the ANN note).**
+  **FIRED 2026-11-25: the per-row kernel landed** — `cosine_knn` now
+  scores rows with a fused dot + row-norm AVX2+FMA sweep: production
+  717×512 0.826 → 0.442 ms (1.87× vs the scalar loop, 5.1–5.3× numpy),
+  scale shapes 4.9× faster, ratios 0.84–0.96 of BLAS (parity — the
+  ceiling the 2026-11-18 analysis projected); `MIN_SCALE_VS_NUMPY`
+  re-pinned 0.14 → 0.70. "Cosine-shaped Rust stays closed" is hereby
+  re-opened and closed as WON — completed.md #572 (S1).**
 
 - **Mojo CSR-BFS kernel for the shortest_path_bfs leg — CLOSED
   UNNEEDED 2026-11-22 (completed.md #559, `mojo_csr_bfs_kernel`

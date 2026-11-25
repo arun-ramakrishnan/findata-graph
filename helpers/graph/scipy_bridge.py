@@ -60,6 +60,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from functools import partial
 import sys
 import time
@@ -151,6 +152,15 @@ LANE_BUDGETS: dict[str, float] = {
     PPR_LANE: 5.0,
 }
 
+
+#: Kernel-implementation selector for this bridge's BFS family — the
+#: all-universe stamp pass (proposal rust_simd_cosine_hop_histogram S2)
+#: and, from the same lane, the contract closeness/harmonic pair (S4).
+#: Same convention as ``L1C_RUST`` (``helpers/graph/l1_closeness.py``
+#: ``_rust_lane``): unset or "auto" = kernel when it imports, else scipy;
+#: "0"/"off"/"numpy" = the scipy lane; anything else = kernel or a loud
+#: RuntimeError (a silent fallback would hide a stale build).
+BRIDGE_RUST_VAR = "SB_RUST"
 
 #: Lane ownership — Onager keeps the healthy SQL lanes; scipy owns the
 #: restricted-source BFS family (this module) and the s-t lanes (Yen /
@@ -397,6 +407,64 @@ class FullUniverseStats(TypedDict):
     structure: dict[str, float | int]
 
 
+def _bridge_lane(var: str) -> str:
+    """Kernel-selector mode for ``var``: "off", "auto" or "force".
+
+    Same house convention as ``helpers/graph/l1_closeness.py::_rust_lane``
+    (which mirrors ``l1_betweenness``); see ``BRIDGE_RUST_VAR``.
+    """
+    raw = os.environ.get(var, "").strip().lower()
+    if raw in ("0", "off", "false", "no", "numpy"):
+        return "off"
+    if raw in ("", "auto"):
+        return "auto"
+    return "force"
+
+
+def _kernel_hop_hist(A: csr_matrix, sources: np.ndarray):
+    """Per-source BFS hop-histogram fold via ``graph_kernels``, or None.
+
+    ``None`` means the kernel lane is unavailable (extension missing or
+    stale, int32 overflow, mode off) and the caller keeps the scipy lane;
+    force mode raises instead. Returns ``(reach, sum_d, ecc, hist)`` as
+    exact int64 arrays — the float formulas stay with the caller so each
+    has one definition (proposal rust_simd_cosine_hop_histogram S2).
+    """
+    mode = _bridge_lane(BRIDGE_RUST_VAR)
+    if mode == "off":
+        return None
+    try:
+        import graph_kernels
+    except ImportError:
+        if mode == "force":
+            raise RuntimeError(
+                f"{BRIDGE_RUST_VAR} is set but graph_kernels is not installed"
+            ) from None
+        return None
+    if not hasattr(graph_kernels, "hop_hist_sources"):
+        if mode == "force":
+            raise RuntimeError(
+                f"{BRIDGE_RUST_VAR} is set but graph_kernels lacks hop_hist_sources "
+                "(stale build — run `make rust-install`)"
+            )
+        return None
+    n = A.shape[0]
+    if n >= 2**31 - 1 or A.nnz >= 2**31 - 1:
+        if mode == "force":
+            raise RuntimeError(f"{BRIDGE_RUST_VAR}: graph too large for int32 CSR")
+        return None
+    ip = np.ascontiguousarray(A.indptr, dtype=np.int32)
+    ix = np.ascontiguousarray(A.indices, dtype=np.int32)
+    src = np.ascontiguousarray(sources, dtype=np.int32)
+    reach, sum_d, ecc, hist = graph_kernels.hop_hist_sources(ip, ix, src)
+    return (
+        np.asarray(reach, dtype=np.int64),
+        np.asarray(sum_d, dtype=np.int64),
+        np.asarray(ecc, dtype=np.int64),
+        np.asarray(hist, dtype=np.int64),
+    )
+
+
 def full_universe_stats(A: csr_matrix, jobs: int = 4) -> FullUniverseStats:
     """One-pass all-universe lane: WF closeness/harmonic + structure scalars.
 
@@ -408,6 +476,13 @@ def full_universe_stats(A: csr_matrix, jobs: int = 4) -> FullUniverseStats:
     carries diameter / radius (giant-component convention) / APL /
     component counts. Both arrays are positional and align with
     ``load_projection``'s name order; see :class:`FullUniverseStats`.
+
+    Kernel lane (``SB_RUST``, default auto): when ``graph_kernels`` ships
+    ``hop_hist_sources``, every source is folded by one in-process Rust
+    call — the per-hop histogram is computed inside the BFS and no
+    distance row is ever materialized — and Python applies the SAME float
+    expressions as the scipy worker below (``jobs`` is inert on this
+    lane). The scipy sharded-dijkstra lane stays as oracle and fallback.
     """
     from scipy.sparse.csgraph import connected_components
 
@@ -428,6 +503,45 @@ def full_universe_stats(A: csr_matrix, jobs: int = 4) -> FullUniverseStats:
     n_comp, comp = connected_components(A, directed=False)
     sizes = np.bincount(comp, minlength=n_comp)
     giant = int(sizes.argmax())
+    ker = _kernel_hop_hist(A, np.arange(n))
+    if ker is not None:
+        reach, sum_d, ecc, hist = ker
+        width = hist.shape[1]
+        if width:
+            hops = np.arange(1, width + 1, dtype=np.int64)
+            # Same expression as the scipy worker's histogram reduction;
+            # trailing zero columns (rows shorter than the global width)
+            # reorder nothing, so harmonic matches bit for bit.
+            harm = hist @ (1.0 / hops)
+        else:
+            harm = np.zeros(n, dtype=np.float64)
+        r = reach + 1  # restore the self count for WF (worker convention)
+        sd = sum_d.astype(np.float64)
+        clo_wf = np.where(
+            sd > 0, (n - 1) / np.where(sd > 0, sd, 1.0) * ((r - 1.0) / (n - 1.0)) ** 2, 0.0
+        )
+        has_reach = reach > 0
+        ecc_all = ecc[has_reach]
+        giant_rows = (comp == giant) & has_reach
+        ecc_giant = ecc[giant_rows]
+        diameter = float(ecc_all.max()) if ecc_all.size else 0.0
+        # any reach implies a ≥2-node largest component, so ecc_giant is
+        # non-empty here; the 0.0 mirrors the worker's no-shard-reach case
+        radius = float(ecc_giant.min()) if ecc_giant.size else 0.0
+        total_sum = float(sd.sum())
+        total_cnt = int(reach.sum())
+        return {
+            "closeness": clo_wf.astype(np.float64),
+            "harmonic": np.asarray(harm, dtype=np.float64),
+            "structure": {
+                "diameter": int(diameter),
+                "radius": int(radius),
+                "avg_path_length": (total_sum / total_cnt) if total_cnt else 0.0,
+                "reachable_pairs": total_cnt,
+                "components": int(n_comp),
+                "largest_component": int(sizes[giant]),
+            },
+        }
     bounds = [
         (i * n // jobs, (i + 1) * n // jobs)
         for i in range(jobs)
@@ -563,7 +677,31 @@ def compute(
     default per scipy_graph_bridge §5 — the split is a budget lever).
     ``return_counts`` adds the per-row finite-reach count (Wasserman-Faust
     input for the all-universe lane); default keeps the 2-tuple contract.
+
+    Kernel lane (``SB_RUST``, default auto; proposal
+    rust_simd_cosine_hop_histogram S4): one in-process
+    ``graph_kernels.hop_hist_sources`` call replaces the sharded
+    ``dijkstra`` + the float64 distance matrix. Closeness is bit-identical
+    (``sum_d`` stays an exact integer); harmonic is the same sum
+    re-associated through the hop histogram (pinned rtol=1e-12; measured
+    4.1e-16 on the live contract). ``jobs`` is inert on this lane.
     """
+    ker = _kernel_hop_hist(A, src)
+    if ker is not None:
+        reach, sum_d, _ecc, hist = ker
+        n = A.shape[1]
+        clo = (n - 1) / np.where(sum_d == 0, np.inf, sum_d)
+        width = hist.shape[1]
+        if width:
+            hops = np.arange(1, width + 1, dtype=np.int64)
+            # Same reduction as the all-universe kernel branch; trailing
+            # zero columns reorder nothing.
+            harm = hist @ (1.0 / hops)
+        else:
+            harm = np.zeros(A.shape[0], dtype=np.float64)
+        if return_counts:
+            return clo, harm, reach + 1
+        return clo, harm
     chunks = np.array_split(src, jobs)
     parts = fork_map(partial(_worker, A=A, return_counts=return_counts), chunks, jobs)
     clo = np.concatenate([p[0] for p in parts])
@@ -572,6 +710,26 @@ def compute(
         counts = np.concatenate([p[2] for p in parts])
         return clo, harm, counts
     return clo, harm
+
+
+def centrality_typed_edge_rows(
+    db_path: str | Path = DEFAULT_DB_PATH,
+    *,
+    read_only: bool = True,  # same in-process mode law as load_projection
+) -> list[tuple[str, str, str]]:
+    """Typed edge rows behind the centrality projections (one fetch).
+
+    ``_edge_rows`` projects the retired part_of/has_company pair back out
+    of the canonical sector hyperedges (2026-10-19). Exposed so the PPR
+    ablation family can fetch once and mask per type-set instead of
+    re-running the query per projection (proposal
+    rust_simd_cosine_hop_histogram S5).
+    """
+    con = connect(db_path, read_only=read_only, row_factory=None)
+    try:
+        return [(s, t, et) for s, t, et, _w in _edge_rows(con)]
+    finally:
+        con.close()
 
 
 def load_centrality_projection(
@@ -603,13 +761,7 @@ def load_centrality_projection(
     reachable only through excluded types are absent from the
     projection; the PPR seed guard reports them loudly.
     """
-    con = connect(db_path, read_only=read_only, row_factory=None)
-    try:
-        # _edge_rows projects the retired part_of/has_company pair back out
-        # of the canonical sector hyperedges (2026-10-19).
-        rows = [(s, t, et) for s, t, et, _w in _edge_rows(con)]
-    finally:
-        con.close()
+    rows = centrality_typed_edge_rows(db_path, read_only=read_only)
     if include_edge_types is not None:
         inc = frozenset(include_edge_types)
         kept = [(s, t) for s, t, et in rows if s != t and et in inc]

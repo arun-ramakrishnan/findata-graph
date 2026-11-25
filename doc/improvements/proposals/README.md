@@ -38,6 +38,21 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(none)* — the newest arc, `rust_simd_cosine_hop_histogram`, was filed
+  and executed the same day (2026-11-25); see the retired marker below.
+
+- *(archived 2026-11-25)* — `rust_simd_cosine_hop_histogram` (graph/,
+  filed + executed 2026-11-25, completed.md #572 — S1 fused SIMD per-row
+  kernel inside `cosine_knn` (AVX2+FMA runtime-selected; prod 717×512
+  0.83 → 0.44 ms = 1.87× vs scalar, scale shapes 4.9×, ratios now
+  0.84–0.96 of BLAS, gate floor re-pinned 0.14 → 0.70), S2 pure-Rust
+  hop-histogram lane for the all-universe stamp pass (3.32 s vs 32.91 s
+  scipy, 9.91×, closeness + structure exact), S4 kernel-routed contract
+  closeness + harmonic (0.56 s vs 7.54 s, 13.4×), S5 PPR
+  edge-attribution Python pass (one-fetch projection family, 6.09 s →
+  2.3 s, report EXACT); S3 `similar_notes` port stayed parked on the
+  #450 evidence.
+
 - *(archived 2026-11-25)* — `sql_duckdb_perf_audit` (database/, filed +
   executed 2026-11-25, completed.md #570 — evidence-first DuckDB/SQL/Quack
   audit of large-dataset and graph hot paths; all five P1-P5 unlock gates
