@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from tests import _tmp_hygiene as _th
 from tests._tmp_hygiene import (
     _default_pid_alive,
     prune_old_pytest_roots,
@@ -370,3 +371,130 @@ class TestFullTemplate:
             assert tpl_con.execute("SELECT COUNT(*) FROM entities").fetchone()[0] > 0
         finally:
             tpl_con.close()
+
+
+class TestTemplateCache:
+    """perf_followon item 3 (2026-11-24): the persistent cross-run template
+    cache. All pins run against a fake parquet axis + a tmp cache dir — the
+    real snapshots/ tree and outputs/.template_cache are never touched."""
+
+    @staticmethod
+    def _fake_axis(monkeypatch, tmp_path):
+        """A minimal restore axis: one real db_meta parquet + the DDL file."""
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        axis = tmp_path / "parquet"
+        snapdir = axis / "sqlite"
+        snapdir.mkdir(parents=True)
+        pq.write_table(
+            pa.table({"key": ["schema_version"], "value": ["17"]}),
+            snapdir / "db_meta.parquet",
+        )
+        (axis / "_schema.sqlite.sql").write_text("CREATE TABLE t(a INTEGER);\n")
+        monkeypatch.setattr(_th, "LEGACY_SNAPSHOT_DIR", snapdir)
+        monkeypatch.setattr(_th, "TEMPLATE_CACHE_DIR", tmp_path / "cache")
+        return axis
+
+    @staticmethod
+    def _factory(base: Path):
+        """Stand-in for pytest's tmp_path_factory shaped like an xdist worker."""
+
+        class _Factory:
+            def __init__(self):
+                self.n = 0
+
+            def getbastemp(self):
+                raise AssertionError("unused")
+
+            def getbasetemp(self):
+                d = base / f"popen-gw{self.n}"
+                self.n += 1
+                d.mkdir(parents=True, exist_ok=True)
+                return d
+
+        return _Factory()
+
+    def test_fingerprint_tracks_the_axis(self, monkeypatch, tmp_path):
+        """(path, size, mtime_ns) over the axis + DDL: touch one parquet and
+        the fingerprint moves; nothing else does."""
+        axis = self._fake_axis(monkeypatch, tmp_path)
+        fp1 = _th._template_fingerprint("schema_template.db")
+        parquet = axis / "sqlite" / "db_meta.parquet"
+        os.utime(parquet, (1e9, 1e9))
+        fp2 = _th._template_fingerprint("schema_template.db")
+        assert fp1 != fp2, "an axis mtime change must move the fingerprint"
+        os.utime(parquet, (1e9, 1e9))
+        assert _th._template_fingerprint("schema_template.db") == fp2, "stable for unchanged inputs"
+        assert _th._template_fingerprint("other.db") != fp2, "kind-keyed"
+
+    def test_hit_serves_cache_bytes_without_rebuilding(self, monkeypatch, tmp_path):
+        """Unchanged axis + a seeded cache entry → the template is a byte
+        copy of the cache; the builder never runs."""
+        self._fake_axis(monkeypatch, tmp_path)
+        cache = tmp_path / "cache"
+        cache.mkdir()
+        fp = _th._template_fingerprint("schema_template.db")
+        cached = cache / f"schema_template.db.{fp}.db"
+        cached.write_bytes(b"TEMPLATE-BYTES")
+        (cache / f"{cached.name}.size").write_text(str(len(b"TEMPLATE-BYTES")))
+
+        calls = []
+
+        def _boom(_dst):
+            calls.append(_dst)
+            raise AssertionError("cache hit must not rebuild")
+
+        target = _th._template_via_cache(tmp_path / "out.db", "schema_template.db", _boom)
+        assert target.read_bytes() == b"TEMPLATE-BYTES"
+        assert calls == []
+
+    def test_miss_builds_once_and_second_run_reuses_bytes(self, monkeypatch, tmp_path):
+        """Two independent 'runs' (separate run roots) with an unchanged
+        axis: the first builds and publishes, the second reflinks the cache
+        — identical bytes, one build."""
+        self._fake_axis(monkeypatch, tmp_path)
+        builds = []
+
+        def build(dst):
+            builds.append(dst.name)
+            dst.write_bytes(b"BUILD-" + str(len(builds)).encode())
+
+        run_a = self._factory(tmp_path / "runA")
+        run_b = self._factory(tmp_path / "runB")
+        t1 = _th._shared_template(run_a, "schema_template.db", build)
+        t2 = _th._shared_template(run_b, "schema_template.db", build)
+        assert len(builds) == 1, "the second run must be served from the cache"
+        assert t1.read_bytes() == t2.read_bytes() == b"BUILD-1"
+        assert t1 != t2, "each run still gets its own copy"
+
+    def test_axis_change_rebuilds(self, monkeypatch, tmp_path):
+        """A moved parquet mtime invalidates the fingerprint → rebuild."""
+        axis = self._fake_axis(monkeypatch, tmp_path)
+        builds = []
+
+        def build(dst):
+            builds.append(dst.name)
+            dst.write_bytes(b"BUILD")
+
+        _th._shared_template(self._factory(tmp_path / "runA"), "schema_template.db", build)
+        os.utime(axis / "sqlite" / "db_meta.parquet", (2e9, 2e9))
+        _th._shared_template(self._factory(tmp_path / "runB"), "schema_template.db", build)
+        assert len(builds) == 2, "a changed axis must rebuild"
+
+    def test_prune_keeps_the_newest_two(self, monkeypatch, tmp_path):
+        """Old fingerprints are pruned per kind, newest _TEMPLATE_KEEP kept."""
+        self._fake_axis(monkeypatch, tmp_path)
+        cache = tmp_path / "cache"
+        cache.mkdir()
+        for i, age in enumerate((100.0, 200.0, 300.0)):
+            stale = cache / f"schema_template.db.fp{i}.db"
+            stale.write_bytes(b"x")
+            past = time.time() - age
+            os.utime(stale, (past, past))
+        _th._prune_template_cache("schema_template.db")
+        left = sorted(p.name for p in cache.glob("schema_template.db.*.db"))
+        assert left == ["schema_template.db.fp0.db", "schema_template.db.fp1.db"]
+        assert not list(cache.glob("*.size")) or all(
+            (cache / f"{p.name}.size").exists() for p in cache.glob("schema_template.db.*.db")
+        ), "pruning removes the orphaned size sidecars"

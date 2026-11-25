@@ -75,6 +75,7 @@ the SQLite VACUUM and the snapshot refreshed together.
 """
 
 import argparse
+import datetime
 import logging
 import os
 import re
@@ -84,6 +85,14 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+# Python 3.12 deprecated the built-in datetime/date sqlite3 adapters;
+# every restore of the 604K-row snapshot fires ~525K DeprecationWarnings
+# (dominating the suite's warning budget). Re-register the identical
+# conforming adapters (same isoformat output) — registration replaces the
+# default and is idempotent.
+sqlite3.register_adapter(datetime.datetime, lambda d: d.isoformat(sep=" "))
+sqlite3.register_adapter(datetime.date, lambda d: d.isoformat())
 
 # `duckdb` is an optional dependency (imported lazily where it is actually
 # used). It appears at module scope only inside the string annotation of

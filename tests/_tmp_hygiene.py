@@ -43,13 +43,14 @@ heavy runs unless TMPDIR is exported.
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import logging
 import os
 import re
 import shutil
 import sqlite3
 import subprocess
-import tempfile
+
 import time
 from pathlib import Path
 
@@ -58,6 +59,20 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # template donors are now rebuilt from the tracked parquet restore axis.
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 LEGACY_SNAPSHOT_DIR = PROJECT_ROOT / "snapshots" / "parquet" / "sqlite"
+
+# perf_followon item 3 (2026-11-24): persistent cross-run template cache.
+# The once-per-run sharing above still rebuilds the donors on EVERY run —
+# the legacy-donor restore alone is ~16s. The donors are a deterministic
+# function of the tracked parquet restore axis, so their bytes only change
+# when that axis does: a fingerprint over (path, size, mtime_ns) of every
+# parquet under snapshots/parquet plus the tracked _schema.sqlite.sql keys
+# a cache dir (gitignored, under outputs/) that survives runs. A hit is a
+# reflink/copy out of the cache; a miss builds once under the cache flock
+# and publishes atomically. Bump TEMPLATE_CACHE_VERSION to invalidate every
+# cached build in one move (e.g. after a builder-semantics change).
+TEMPLATE_CACHE_VERSION = 1
+TEMPLATE_CACHE_DIR = PROJECT_ROOT / "outputs" / ".template_cache"
+_TEMPLATE_KEEP = 2  # newest fingerprints kept per template kind (disk bound)
 
 # A-fix (2026-08-21): downsample the production copy. A full-corpus cold
 # build costs ~1.2s and the build-mechanics tests build up to 3x each;
@@ -170,8 +185,16 @@ def build_schema_template(dst: Path, tmp_path_factory=None) -> Path:
     hit 2026-09-29); ``db_meta`` rows survive (schema_version/generation
     behavior under test matches the old copy_production_db path, which
     kept them).
+
+    Fast path (2026-11-24, perf item (2)): when a legacy donor is not
+    already materialized this run, build straight from the tracked
+    ``_schema.sqlite.sql`` + the tiny ``db_meta`` parquet instead of
+    restoring the full-corpus legacy donor and deleting every row — the
+    restore is ~16s for data this template never uses.
     """
-    donor = legacy_donor(tmp_path_factory) if tmp_path_factory else DB_PATH
+    if tmp_path_factory is not None:
+        return _build_schema_template_from_ddl(dst)
+    donor = DB_PATH
     src = sqlite3.connect(str(donor))
     out = sqlite3.connect(str(dst))
     try:
@@ -216,6 +239,47 @@ def build_schema_template(dst: Path, tmp_path_factory=None) -> Path:
     finally:
         out.close()
         src.close()
+    return dst
+
+
+def _build_schema_template_from_ddl(dst: Path) -> Path:
+    """Construct the schema-only template directly from the tracked DDL.
+
+    Mirrors the donor route's surface exactly: ``_schema.sqlite.sql``
+    executescript, the ``note_search_meta`` companion (created by
+    restore_sqlite_from_parquet), agent-trigger drops (donor parity), and
+    the live ``db_meta`` rows from their parquet export. Zero rows
+    elsewhere — everything else the schema-only consumers seed themselves.
+    """
+    import pyarrow.parquet as pq
+
+    schema_path = LEGACY_SNAPSHOT_DIR.parent / "_schema.sqlite.sql"
+    if not schema_path.exists():
+        raise FileNotFoundError(f"Schema DDL not found: {schema_path}")
+    out = sqlite3.connect(str(dst))
+    try:
+        out.executescript(schema_path.read_text())
+        out.execute(
+            "CREATE TABLE IF NOT EXISTS note_search_meta ("
+            " file_path TEXT PRIMARY KEY,"
+            " mtime REAL NOT NULL,"
+            " content_hash TEXT NOT NULL"
+            ")"
+        )
+        for (tname,) in out.execute(
+            "SELECT name FROM sqlite_master WHERE type='trigger' "
+            "AND name LIKE '%_agent_id_registered_%'"
+        ).fetchall():
+            out.execute(f'DROP TRIGGER "{tname}"')  # noqa: S608  # schema-constant prefix
+        meta = pq.read_table(LEGACY_SNAPSHOT_DIR / "db_meta.parquet")
+        out.executemany(
+            "INSERT INTO db_meta (key, value) VALUES (?,?)",
+            zip(meta.column("key").to_pylist(), meta.column("value").to_pylist()),
+        )
+        out.commit()
+        out.execute("VACUUM")
+    finally:
+        out.close()
     return dst
 
 
@@ -318,22 +382,94 @@ def _shared_template_locked(tmp_path_factory, filename: str, build) -> Path:
         shared = base.parent / "_worker_shared"
         shared.mkdir(parents=True, exist_ok=True)
         target = shared / filename
-        with open(shared / (filename + ".lock"), "w") as lockfh:
+    else:
+        # Single-process run: no peers to share with (the parent of a bare
+        # run root is shared ACROSS runs — wrong scope), so build locally.
+        target = tmp_path_factory.mktemp("template") / filename
+    return _template_via_cache(target, filename, build)
+
+
+def _template_fingerprint(filename: str) -> str:
+    """Content key over the donor inputs (perf_followon item 3).
+
+    Every parquet under the restore axis + the tracked DDL, keyed by
+    (repo-relative path, size, mtime_ns). The template ``filename`` and the
+    cache-layout version are folded in so a builder-semantics change can
+    invalidate the whole cache by bumping one constant.
+    """
+    h = hashlib.sha256()
+    h.update(f"v{TEMPLATE_CACHE_VERSION}\x00{filename}\x00".encode())
+    inputs = sorted(LEGACY_SNAPSHOT_DIR.parent.rglob("*.parquet"))
+    schema = LEGACY_SNAPSHOT_DIR.parent / "_schema.sqlite.sql"
+    if schema.is_file():
+        inputs.append(schema)
+    for p in inputs:
+        st = p.stat()
+        try:
+            key: Path = p.relative_to(PROJECT_ROOT)
+        except ValueError:  # test fakes live outside the repo — key by absolute path
+            key = p
+        h.update(f"{key}:{st.st_size}:{st.st_mtime_ns};".encode())
+    return h.hexdigest()[:16]
+
+
+def _cache_hit(cache_file: Path) -> bool:
+    """A cached build counts only when its size sidecar matches — the
+    sidecar is written after the atomic publish, so it doubles as a
+    completeness marker for anything a crashed run left behind."""
+    side = TEMPLATE_CACHE_DIR / (cache_file.name + ".size")
+    if not cache_file.is_file() or not side.is_file():
+        return False
+    try:
+        return cache_file.stat().st_size == int(side.read_text())
+    except OSError, ValueError:
+        return False
+
+
+def _template_via_cache(target: Path, filename: str, build) -> Path:
+    """Serve ``target`` from the persistent cache, building on a miss.
+
+    The cache file is the units of reuse; the per-run ``target`` is always
+    a fresh reflink/copy of it, so run isolation and the read-only donor
+    contract are unchanged. Concurrent runs of the same fingerprint flock
+    on the cache-side lock; the loser waits and then reflinks the winner's
+    publish. Never called for a live database — donors only (same rule as
+    reflink_or_copy).
+    """
+    TEMPLATE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_file = TEMPLATE_CACHE_DIR / f"{filename}.{_template_fingerprint(filename)}.db"
+    if not _cache_hit(cache_file):
+        with open(TEMPLATE_CACHE_DIR / (filename + ".lock"), "w") as lockfh:
             fcntl.flock(lockfh, fcntl.LOCK_EX)
-            if not target.exists():
-                # Build beside the target, publish atomically: a crashed
-                # builder leaves only an ignored .part for the next run.
-                with tempfile.NamedTemporaryFile(dir=shared, prefix=".part.", delete=False) as part:
-                    part_path = Path(part.name)
+            if not _cache_hit(cache_file):  # re-check under the lock
+                part = TEMPLATE_CACHE_DIR / f".part.{filename}.{os.getpid()}"
                 try:
-                    build(part_path)
-                    os.replace(part_path, target)
+                    build(part)
+                    os.replace(part, cache_file)  # atomic publish
+                    side = TEMPLATE_CACHE_DIR / (cache_file.name + ".size")
+                    side.write_text(str(cache_file.stat().st_size))
+                    _prune_template_cache(filename)
                 finally:
-                    part_path.unlink(missing_ok=True)
-        return target
-    # Single-process run: no peers to share with (the parent of a bare
-    # run root is shared ACROSS runs — wrong scope), so build locally.
-    return build(tmp_path_factory.mktemp("template") / filename)
+                    part.unlink(missing_ok=True)
+    return reflink_or_copy(cache_file, target)
+
+
+def _prune_template_cache(filename: str, *, keep: int = _TEMPLATE_KEEP) -> list[Path]:
+    """Keep the newest ``keep`` cached builds per template kind (call under
+    the kind's flock). Old fingerprints would otherwise pile up ~750 MB per
+    parquet-axis refresh; two strikes balance re-use against disk."""
+    entries = sorted(
+        (p for p in TEMPLATE_CACHE_DIR.glob(f"{filename}.*.db") if not p.name.startswith(".part.")),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    pruned: list[Path] = []
+    for stale in entries[keep:]:
+        side = TEMPLATE_CACHE_DIR / (stale.name + ".size")
+        side.unlink(missing_ok=True)
+        stale.unlink(missing_ok=True)
+        pruned.append(stale)
+    return pruned
 
 
 def prune_old_pytest_roots(current: Path, quiet_seconds: float = 1800.0) -> list[Path]:
