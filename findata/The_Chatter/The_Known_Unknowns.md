@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/alphabet
 - company/d_b_corp
 - company/dr_reddys_laboratories
@@ -24,6 +22,9 @@ tags:
 - company/polycab_india
 - company/spotify
 - company/ultratech_cement
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: The Known Unknowns 

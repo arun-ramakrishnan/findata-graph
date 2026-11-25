@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/dabur_india
 - company/fsn_e_commerce
 - company/jubilant_foodworks
@@ -17,6 +15,9 @@ tags:
 - company/pidilite_industries
 - company/sbi_life_insurance_company
 - company/tata_steel
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 <div align="center">

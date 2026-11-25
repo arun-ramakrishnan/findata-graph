@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/advanced_micro_devices
 - company/allcargo_logistics
 - company/arman_financial_services
@@ -28,6 +26,9 @@ tags:
 - company/titagarh_rail_systems
 - company/usha_martin
 - company/zydus_lifesciences
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Between the Numbers 

@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/apollo_hospitals
 - company/bharat_electronics
 - company/bharat_petroleum_corporation
@@ -16,11 +14,15 @@ tags:
 - company/godawari_power_ispat
 - company/grasim_industries
 - company/honasa_consumer
+- company/life_insurance_corporation_of_india_lic
 - company/mankind_pharma
 - company/rites
 - company/tata_steel
 - company/vodafone_idea
 - company/vrl_logistics
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 <div align="center">

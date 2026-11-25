@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/aditya_birla_fashion_and_retail
 - company/adobe
 - company/bank_of_baroda
@@ -21,6 +19,9 @@ tags:
 - company/tega_industries
 - company/united_breweries
 - company/xerox
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Pressure Points 

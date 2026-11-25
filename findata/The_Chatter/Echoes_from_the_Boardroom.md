@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/allied_blenders_and_distillers
 - company/arvind_fashions
 - company/bikaji_foods_international
@@ -25,6 +23,9 @@ tags:
 - company/restaurant_brands_asia
 - company/shree_pushkar_chemicals_fertilisers
 - company/spencers_retail
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Echoes from the Boardroom 

@@ -4,6 +4,7 @@ title: 'The Chatter: PNB, Central Bank of India, Rentomojo & More'
 tags:
 - company/central_bank_of_india
 - company/dodla_dairy_limited
+- company/manipal_payment_and_identity_solutions
 - company/rentomojo
 - publisher/zerodha
 - series/the_chatter
@@ -17,6 +18,7 @@ sources:
   title: 'The Chatter: PNB, Central Bank of India, Rentomojo & More'
   author: process:pdf_conv_md
   last_modified: '2026-10-08'
+---
 ---
 ---
 

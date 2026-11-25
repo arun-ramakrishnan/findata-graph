@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/antony_waste_handling_cell
 - company/bajaj_finance
 - company/container_corporation_of_india
@@ -23,6 +21,9 @@ tags:
 - company/steel_authority_of_india
 - company/studds_accessories
 - company/tata_power
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 <div align="center">

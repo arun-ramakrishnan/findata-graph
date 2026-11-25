@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/apple
 - company/bajaj_finance
 - company/bharat_petroleum_corporation
@@ -17,6 +15,9 @@ tags:
 - company/jsw_infrastructure
 - company/shoppers_stop
 - company/vishal_mega_mart
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Storm clouds and sunny skies 

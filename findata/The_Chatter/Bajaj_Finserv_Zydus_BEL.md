@@ -2,8 +2,14 @@
 type: newsletter
 title: 'The Chatter: Bajaj Finserv, Zydus, BEL, Thomas & More'
 tags:
-- series/the_chatter
+- company/bajaj_finserv
+- company/bharat_electronics
+- company/happiest_minds_technologies
+- company/marico
+- company/thomas_cook_india
+- company/zydus_lifesciences
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.1
   at: '2026-11-08T05:04:05Z'
@@ -14,6 +20,7 @@ sources:
   title: 'The Chatter: Bajaj Finserv, Zydus, BEL, Thomas & More'
   author: process:pdf_conv_md
   last_modified: '2026-11-08'
+---
 ---
 
 

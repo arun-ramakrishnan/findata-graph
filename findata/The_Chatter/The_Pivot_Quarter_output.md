@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/ashok_leyland
 - company/bharat_forge
 - company/canarys_automation
@@ -22,6 +20,9 @@ tags:
 - company/uno_minda
 - company/vedanta_ltd
 - company/welspun_corp_ltd
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 12/19/25, 9:13 PM

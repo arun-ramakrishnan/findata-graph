@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/arvind_limited
 - company/avanti_feeds
 - company/dr_lal_pathlabs
@@ -26,6 +24,9 @@ tags:
 - company/tata_steel
 - company/uflex
 - company/vijaya_diagnostic_centre
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: A Strange Quarter With Very Real Cracks 

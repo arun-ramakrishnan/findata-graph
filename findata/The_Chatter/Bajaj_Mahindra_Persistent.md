@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/astral_pipes
 - company/bajaj_auto
 - company/mahindra_mahindra
@@ -16,6 +14,9 @@ tags:
 - company/sterlite_technologies
 - company/thermax
 - company/timex_group_india
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 <div align="center">

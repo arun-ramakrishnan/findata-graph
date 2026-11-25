@@ -2,8 +2,12 @@
 type: newsletter
 title: 'The Chatter: SEBI, RBI, DIPAM, Jio, Wipro & More'
 tags:
-- series/the_chatter
+- company/bajaj_consumer_care
+- company/jio_financial_services
+- company/tips_music
+- company/wipro
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.0
   at: '2026-10-27T11:34:49Z'
@@ -14,6 +18,7 @@ sources:
   title: 'The Chatter: SEBI, RBI, DIPAM, Jio, Wipro & More'
   author: process:pdf_conv_md
   last_modified: '2026-10-27'
+---
 ---
 
 10/27/26, 4:57 PM The Chatter: SEBI, RBI, DIPAM, Jio, Wipro & More

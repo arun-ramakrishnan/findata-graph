@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/aarti_pharmalabs
 - company/bank_of_baroda
 - company/bmw
@@ -35,6 +33,9 @@ tags:
 - company/torrent_power
 - company/welspun_enterprises
 - company/westlife_foodworld
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Signals in Silence 

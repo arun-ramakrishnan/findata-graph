@@ -2,8 +2,12 @@
 type: newsletter
 title: 'The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More'
 tags:
-- series/the_chatter
+- company/cipla_limited
+- company/indus_towers
+- company/jsw_cement
+- company/sbi_life_insurance_company
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.0
   at: '2026-10-31T16:26:34Z'
@@ -14,6 +18,7 @@ sources:
   title: 'The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More'
   author: process:pdf_conv_md
   last_modified: '2026-10-31'
+---
 ---
 
 10/31/26, 9:48 PM The Chatter: SEBI, L&T, Cipla, SBI Life Insurance & More

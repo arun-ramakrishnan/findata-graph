@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/aarti_industries
 - company/adani_green
 - company/anheuser_busch_inbev
@@ -34,6 +32,7 @@ tags:
 - company/siemens_energy
 - company/symphony
 - company/tata_chemicals
+- company/titan
 - company/union_bank_of_india
 - company/united_breweries
 - company/unitedspirits
@@ -42,6 +41,9 @@ tags:
 - company/waaree_energies
 - company/wonderla_holidays
 - company/zee_entertainment_enterprises
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Embracing the Unknown 

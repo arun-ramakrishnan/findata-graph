@@ -2,8 +2,15 @@
 type: newsletter
 title: 'The Chatter: Sunil Mittal, Hitachi, Glenmark, Titagarh Rail, Wakefit & More'
 tags:
-- series/the_chatter
+- company/clean_max_enviro_energy_solutions
+- company/glenmark_pharmaceuticals
+- company/hitachi_energy_india
+- company/redington
+- company/sunil_bharti_mittal
+- company/titagarh_rail_systems
+- company/wakefit_innovations
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.1
   at: '2026-11-22T13:57:55Z'
@@ -14,6 +21,7 @@ sources:
   title: 'The Chatter: Sunil Mittal, Hitachi, Glenmark, Titagarh Rail, Wakefit & More'
   author: process:pdf_conv_md
   last_modified: '2026-11-22'
+---
 ---
 
 

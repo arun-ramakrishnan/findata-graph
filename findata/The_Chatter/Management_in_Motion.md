@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/abb_india
 - company/adani_enterprises
 - company/astral_pipes
@@ -30,8 +28,12 @@ tags:
 - company/p_g_hygiene_and_healthcare
 - company/rec
 - company/sheela_foam
+- company/sun_pharmaceutical_industries
 - company/upl
 - company/vodafone_idea
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Management in Motion 

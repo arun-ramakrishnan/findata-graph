@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/aadhar_housing_finance
 - company/adani_enterprises
 - company/amber_enterprises_india
@@ -16,6 +14,9 @@ tags:
 - company/infosys
 - company/jyothy_labs
 - company/kei_industries
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 <div align="center">

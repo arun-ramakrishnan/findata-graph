@@ -6,6 +6,7 @@ tags:
 - company/hexaware_technologies
 - company/max_financial_services
 - company/tata_consultancy_services
+- company/tempsens_instruments
 - publisher/zerodha
 - series/the_chatter
 generated:
@@ -18,6 +19,7 @@ sources:
   title: 'The Chatter: Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More'
   author: process:pdf_conv_md
   last_modified: '2026-08-29'
+---
 ---
 ---
 

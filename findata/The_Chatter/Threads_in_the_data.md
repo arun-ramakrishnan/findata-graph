@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/astral_pipes
 - company/avanti_feeds
 - company/berger_paints_india
@@ -22,6 +20,9 @@ tags:
 - company/patanjali_foods
 - company/racl_geartech
 - company/rain_industries
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 <div align="center">

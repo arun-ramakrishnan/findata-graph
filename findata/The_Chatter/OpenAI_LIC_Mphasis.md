@@ -2,8 +2,14 @@
 type: newsletter
 title: 'The Chatter: OpenAI, LIC, Mphasis, Mahindra & More'
 tags:
-- series/the_chatter
+- company/beml
+- company/bharat_forge
+- company/life_insurance_corporation_of_india_lic
+- company/mahindra_mahindra
+- company/mphasis
+- company/openai_india
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.1
   at: '2026-11-08T05:04:10Z'
@@ -14,6 +20,7 @@ sources:
   title: 'The Chatter: OpenAI, LIC, Mphasis, Mahindra & More'
   author: process:pdf_conv_md
   last_modified: '2026-11-08'
+---
 ---
 
 

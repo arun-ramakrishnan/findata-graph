@@ -2,8 +2,13 @@
 type: newsletter
 title: 'The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More'
 tags:
-- series/the_chatter
+- company/asian_paints
+- company/blue_star
+- company/gulf_oil_lubricants_india
+- company/motilal_oswal_financial_services
+- company/welspun_corp_ltd
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.0
   at: '2026-10-31T16:26:47Z'
@@ -14,6 +19,7 @@ sources:
   title: 'The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More'
   author: process:pdf_conv_md
   last_modified: '2026-10-31'
+---
 ---
 
 10/31/26, 9:49 PM The Chatter: SEBI, Asian Paints, Motilal Oswal, Gulf Oil & More

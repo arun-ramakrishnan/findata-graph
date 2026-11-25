@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/apex_frozen_foods_ltd
 - company/cmr_green_technologies
 - company/dev_information_technology
@@ -19,6 +17,9 @@ tags:
 - company/srigee_dlm
 - company/tata_consultancy_services
 - company/tenneco_clean_air_india
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 <div align="center">

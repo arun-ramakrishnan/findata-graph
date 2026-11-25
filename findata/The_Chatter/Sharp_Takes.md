@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/campus_activewear
 - company/company20_microns
 - company/cummins_india
@@ -17,6 +15,7 @@ tags:
 - company/general_insurance_corp_india
 - company/heidelbergcement_india
 - company/irctc
+- company/life_insurance_corporation_of_india_lic
 - company/linc_pen_and_plastics
 - company/medplus_health_services
 - company/monte_carlo_fashions
@@ -25,6 +24,9 @@ tags:
 - company/tbo_tek
 - company/tvs_supply_chain_solutions
 - company/unitedspirits
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Sharp Takes 

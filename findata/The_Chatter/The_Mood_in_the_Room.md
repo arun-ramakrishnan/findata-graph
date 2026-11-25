@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/amara_raja_energy_and_mobility
 - company/apex_frozen_foods_ltd
 - company/aurobindo_pharma
@@ -16,6 +14,7 @@ tags:
 - company/brigade_enterprises
 - company/can_fin_homes
 - company/glenmark_pharmaceuticals
+- company/indian_railway_finance
 - company/jindal_saw
 - company/kec_international
 - company/kellton_tech_solutions
@@ -24,6 +23,9 @@ tags:
 - company/skf_india
 - company/thomas_scott
 - company/timken_india
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: The Mood in the Room 

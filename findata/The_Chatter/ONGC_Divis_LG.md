@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/aarti_pharmalabs
 - company/aditya_birla_fashion_and_retail
 - company/aequs
@@ -21,6 +19,9 @@ tags:
 - company/pine_labs
 - company/redtape
 - company/v2_retail
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 <div align="center">

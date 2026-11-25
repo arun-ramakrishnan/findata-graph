@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/ahluwalia_contracts
 - company/astra_microwave_products
 - company/campus_activewear
@@ -28,6 +26,9 @@ tags:
 - company/sarveshwar_foods
 - company/td_power_systems
 - company/western_carriers_india
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 ---

@@ -2,8 +2,18 @@
 type: newsletter
 title: 'The Chatter: Eternal, Swiggy, IHCL, ICICI, HDFC, KEI & More'
 tags:
-- series/the_chatter
+- company/axis_bank
+- company/eternal_limited
+- company/hdfc_bank
+- company/icici_bank
+- company/indian_hotels
+- company/jammu_and_kashmir_bank
+- company/kei_industries
+- company/piramal_finance
+- company/shoppers_stop
+- company/swiggy
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.0
   at: '2026-10-27T11:34:44Z'
@@ -14,6 +24,7 @@ sources:
   title: 'The Chatter: Eternal, Swiggy, IHCL, ICICI, HDFC, KEI & More'
   author: process:pdf_conv_md
   last_modified: '2026-10-27'
+---
 ---
 
 10/27/26, 4:59 PM The Chatter: Eternal, Swiggy, IHCL, ICICI, HDFC, KEI & More

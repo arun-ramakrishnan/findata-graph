@@ -2,8 +2,14 @@
 type: newsletter
 title: 'The Chatter: HCLTech, RBL Bank, Canara Bank Zetwerk, IKEA India & More'
 tags:
-- series/the_chatter
+- company/anand_rathi_wealth
+- company/canara_bank
+- company/hcl_technologies
+- company/ikea
+- company/rbl_bank
+- company/zetwerk_manufacturing_business
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.0
   at: '2026-10-27T11:34:53Z'
@@ -14,6 +20,7 @@ sources:
   title: 'The Chatter: HCLTech, RBL Bank, Canara Bank Zetwerk, IKEA India & More'
   author: process:pdf_conv_md
   last_modified: '2026-10-27'
+---
 ---
 
 10/27/26, 4:56 PM The Chatter: HCLTech, RBL Bank, Canara Bank Zetwerk, IKEA India & More

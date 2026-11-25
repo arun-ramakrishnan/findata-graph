@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/acutaas_chemicals
 - company/aelea_commodities
 - company/can_fin_homes
@@ -28,6 +26,9 @@ tags:
 - company/varun_beverages
 - company/waaree_energies
 - company/yash_highvoltage
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Known Unknowns 

@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/acrysil
 - company/barbeque_nation_hospitality
 - company/colgate_palmolive_company
@@ -18,6 +16,7 @@ tags:
 - company/eureka_forbes_ltd
 - company/fortis_healthcare
 - company/geojit_financial_services
+- company/globus_spirits
 - company/grasim_industries
 - company/interglobe_aviation
 - company/ircon_international
@@ -34,6 +33,9 @@ tags:
 - company/teamlease_services
 - company/vrl_logistics
 - company/zen_technologies
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 ---

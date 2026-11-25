@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/anupam_rasayan_india
 - company/cyient
 - company/housing_and_urban_development_corporation
@@ -15,6 +13,9 @@ tags:
 - company/tata_consultancy_services
 - company/transport_corporation_of_india
 - company/varvee_global
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 12/27/25, 12:26 PM

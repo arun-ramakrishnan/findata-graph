@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/bharti_airtel
 - company/cyber_media_research_and_services
 - company/dollar_industries
@@ -20,6 +18,9 @@ tags:
 - company/tata_consultancy_services
 - company/tata_elxsi
 - company/yes_bank
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Doubling Down 

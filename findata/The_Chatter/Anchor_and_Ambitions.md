@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/asian_paints
 - company/axis_bank
 - company/bajaj_consumer_care
@@ -24,6 +22,9 @@ tags:
 - company/ultratech_cement
 - company/vishal_mega_mart
 - company/wework_india_management
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 <div align="center">

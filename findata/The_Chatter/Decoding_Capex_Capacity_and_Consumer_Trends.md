@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/ambuja_cement
 - company/centum_electronics
 - company/chalet_hotels
@@ -27,6 +25,9 @@ tags:
 - company/uber
 - company/uno_minda
 - company/v2_retail
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: Decoding Capex, Capacity, and Consumer Trends 

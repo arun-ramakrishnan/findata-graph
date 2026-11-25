@@ -6,8 +6,6 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/aadhar_housing_finance
 - company/aavas_financiers
 - company/aptus_value_housing_finance
@@ -23,6 +21,9 @@ tags:
 - company/pine_labs
 - company/vinfast_auto
 - company/walmart
+- publisher/zerodha
+- series/the_chatter
+---
 ---
 ---
 # The Chatter: A Quarter That Refuses To Behave 

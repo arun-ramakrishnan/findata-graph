@@ -2,8 +2,6 @@
 type: newsletter
 permalink: the-chatter/the-chatter-scaling-through-slowdowns-output
 tags:
-- series/the_chatter
-- publisher/zerodha
 - company/au_small_finance_bank
 - company/dixon_technologies
 - company/eternal_limited
@@ -25,6 +23,8 @@ tags:
 - company/south_indian_bank
 - company/tata_technologies
 - company/tips_music
+- publisher/zerodha
+- series/the_chatter
 visibility: public
 language: en
 last_updated: '2025-10-25'
@@ -33,6 +33,7 @@ generated:
   by: process:okf_backfill
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
+---
 ---
 ---
 

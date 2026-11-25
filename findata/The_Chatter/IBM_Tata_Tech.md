@@ -2,8 +2,12 @@
 type: newsletter
 title: 'The Chatter: PM Modi, CEA, FICCI, IBM, Tata Tech & More'
 tags:
-- series/the_chatter
+- company/canara_bank
+- company/ibm
+- company/kei_industries
+- company/tata_technologies
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-2.1
   at: '2026-11-22T13:58:02Z'
@@ -14,6 +18,7 @@ sources:
   title: 'The Chatter: PM Modi, CEA, FICCI, IBM, Tata Tech & More'
   author: process:pdf_conv_md
   last_modified: '2026-11-22'
+---
 ---
 
 
