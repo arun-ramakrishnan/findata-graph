@@ -25,6 +25,8 @@ from pathlib import Path
 
 import duckdb
 
+from tests._live_store import live_store_path  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 # Tier thresholds — vault_scaling.md §2/§4/§6 (rows are e_all_und DOUBLED rows).
@@ -53,8 +55,8 @@ def _graph_rows() -> int | None:
 
 
 def _note_count() -> int | None:
-    db = REPO_ROOT / "memory" / "research.db"
-    if not db.exists():
+    db = live_store_path()
+    if db is None:
         return None
     from helpers.core import db as db_mod
 

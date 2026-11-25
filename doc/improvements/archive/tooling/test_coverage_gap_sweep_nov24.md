@@ -1,9 +1,9 @@
 ---
 title: "Test coverage gap sweep #2 — re-pin the post-11-01 feature wave: Rust/Mojo in a blocking gate, then unit, fuzz, chain and perf slices"
-status: proposed
+status: executed
 filed: "2026-11-24"
-executed: null
-completed_md: null
+executed: "2026-11-25"
+completed_md: "569"
 area: "tests/ + Rust/ + Mojo/tests + Makefile"
 ---
 
@@ -241,7 +241,7 @@ makes every later test actually able to fail a gate. All tests hermetic
      the 4 where it fast-failed. The measured delta from the first three
      qa runs replaces the replay in Appendix B.
 
-- **S2 — Rust parity and boundary tests.**
+- **S2 — Rust parity and boundary tests.** EXECUTED 2026-11-24
   1. `tests/test_graph_kernels_parity.py`: `personalized_pagerank_batch`
      through `personalized_pagerank_scores_multi` against a scipy
      oracle on random CSR graphs (Hypothesis, moderate case count). The
@@ -254,8 +254,43 @@ makes every later test actually able to fail a gate. All tests hermetic
      `f32` range), column types other than blob/text.
   3. `personalized_pagerank_vec`: no importer; `ripwire --callers`
      first, then remove it or document it as test-only.
+  - LANDED: `tests/test_graph_kernels_parity.py` (batch-vs-spsolve
+    parity at 1e-9 rel on random binary CSR graphs, batch row ==
+    single-seed kernel, vec one-hot reduction, arbitrary teleport
+    sums-to-one, no-dangling linear-in-teleport, and the 10-case
+    malformed-input guard matrix) + `tests/test_embed_cache_boundary.py`
+    (codec pins: len%4, empty, legacy TEXT-JSON, malformed JSON,
+    dict/None; cache-layer dispatch pins via a native duckdb host conn:
+    corrupt → miss + embed, empty → miss, packed BLOB → hit, mixed).
+    `personalized_pagerank_vec` triage: it IS an exported kernel with
+    production-compatible guards — kept, and the tests above pin it
+    (documenting it as a tested surface rather than removing a Rust
+    function that sector scans may adopt). 28 new tests pass; ruff
+    clean; skips when the extension is absent.
+  - LANDED (Rust half, 2026-11-24 evening): `Rust/embed_cache/src/lib.rs`
+    `mod tests` grew 10 dedicated cases around the one pre-existing
+    lookup test (11 total): empty blob → miss (the Python codec decodes
+    `b""` to a zero-dim vector — recorded asymmetry); blob len not a
+    multiple of 4 (1,2,3,5,6,7,9); packed little-endian f32 round trip
+    incl. hand-packed `0x3F800000`/`0xC0000000` words and a 4-byte blob
+    = one dimension; legacy text JSON list accepted (ints, `1e2`, `[]`,
+    whitespace); 10 malformed-text cases (truncated, extra `]`, object,
+    string member, nested list, JSON string, null, bare number, empty,
+    trailing text) → miss; Null/Integer/Real → miss; lookup scoped to
+    the model; duplicate indices all answered + undecodable row → miss;
+    empty batch → no hits, no misses. Characterisation (probe, kept as
+    a pin `legacy_text_outside_f32_range_is_still_a_hit_today`):
+    serde_json reads f64 and casts, so `[1e40]` → `Some([inf])`,
+    `[1e-50]` → `Some([0.0])`, `[NaN]` → None — a finite guard in
+    `decode_embedding` would flip the first two to misses (follow-up
+    candidate). `cargo test -p embed_cache` 11 passed; `make rust-test`
+    (workspace) rc 0 — cosine_knn 7 + 8 proptest, embed_cache 11,
+    graph_kernels 12 + 9 proptest; `cargo fmt` + `clippy
+    --all-targets` clean. The parity file also grew the two §7-T1
+    sentinel pins (below), 18 tests total in that file.
 
-- **S3 — Python unit pins.**
+- **S3 — Python unit pins.** EXECUTED 2026-11-24 (items 1–2 evening;
+  item 3 decided + executed earlier the same day)
   1. `tests/test_maint_timing.py`: timing-record shape, the consumer
      contract the 16 importing helpers rely on, missing/None timing.
   2. `tests/test_algorithm_wrappers.py`: pin the wrapper signatures and
@@ -294,8 +329,40 @@ makes every later test actually able to fail a gate. All tests hermetic
      - `hyper_core_periphery`: its signal is reproduced by a SQL
        aggregate (S10, done) at Spearman +0.921; the 25 s HGX sampler
        stays an unwired probe.
+  - LANDED (items 1–2, 2026-11-24 evening): `tests/test_maint_timing.py`
+     (11 pins: run/phase row shape the query layer reads; explicit
+     elapsed beats derived and extra[:500]/summary[:2000] caps; run ids
+     continue at MAX+1; no target → nothing stored or printed; step
+     table on stderr only; exception → exit 1 + `ValueError: boom`
+     summary + the raised phase still recorded; failed write →
+     `[maint_timing] timing record skipped (` + exit code kept;
+     active/current stack routes the module-level `phase` to the
+     innermost timer; target precedence arg > `MAINT_TARGET` > "" and
+     cmd default `Path(sys.argv[0]).stem`; AST pin over `helpers/**` —
+     importers may import only {RunTimer, active, current, phase};
+     maint_query reads a recorded run back). `tests/test_algorithm_wrappers.py`
+     (7 pins: signatures + return annotations; query.py re-exports
+     exactly `__all__` ∪ {`_company_names`, `_label_to_edge_type`,
+     `_label_to_table`} by identity + AST, no same-named defs; label
+     registry mapping incl. BelongsToHierarchy→belongs_to,
+     ExposedTo→exposed_to, unknown → `ValueError`; `_company_names` is
+     the one SQL the wrappers issue (`SELECT name FROM v_company`);
+     Economic unweighted / named label `supplier_to` + as_of / weighted
+     variant; membership wrappers call the edge projection only, sorted).
+     Can-fail: 25 in-memory source mutations of the two modules, ALL
+     KILLED (driver in session scratch; pytest meta-path loader, never
+     writes to disk); it first found 2 gaps in my own tests (wcc data
+     had the lower cid on the alphabetically-first name; as_of was only
+     exercised on the named-label branch) — fixed in the tests, then
+     25/25. The importer-surface pin proven with a real stray file
+     (`from helpers.maintenance.maint_timing import _warn` → pin fails;
+     removed after). Findings: the module-level `mt.phase` context
+     manager has ZERO importers in helpers/ and tests/ (kept + tested;
+     deleting it is the operator's call); registry edge types
+     BelongsTo→`part_of`, SuppliesTo→`supplier_to`,
+     SubsidiaryOf→`subsidiary_of`. Both files ruff/format clean.
 
-- **S4 — Fuzz legs.**
+- **S4 — Fuzz legs.** EXECUTED 2026-11-24
   `test_fuzz_db_engine.py`, `test_fuzz_rank_fusion.py`,
   `test_fuzz_hyper_hif.py`, `test_fuzz_hyper_trails.py`,
   `test_fuzz_swap_convert.py`, `test_fuzz_name_tokens.py`. Each gets a
@@ -303,24 +370,90 @@ makes every later test actually able to fail a gate. All tests hermetic
   a can-fail proof (a hand-built bad input that the property rejects).
   `hyper_trails` is differential: Mojo dispatch result equals Python
   oracle on the same fixture, when Mojo is available.
+  - LANDED: all six files; 41 fuzz tests + 1 Mojo-gated skip (50
+    passed / 1 skipped including S5 chains in the same run). Property
+    focus: `_DuckDBConn` executemany/execute roundtrip + wrong-arity
+    rejection; RRF/anchored/two-leg fusion formula pins + position
+    monotonicity; HIF export/read roundtrip (nodes/edges/weights/footer
+    metadata) with empty-source → empty tables and missing-edge JOIN
+    drop can-fail; swap_convert view GLOB→regexp_matches translation,
+    NOCASE→lower(col) index translation, unparsed-SQL rejection; name
+    tokenizer determinism/memoization/NFKD accent fold/`&`≡" and
+    " equivalence + None rejection; hyper-trails differential vs an
+    even-hop BFS oracle with unknown-source ValueError + limit
+    truncation can-fail. Mojo dispatch leg skips unless
+    `MOJO_TRAIL_BFS=1` and the binary exists.
 
-- **S5 — Integration chains.**
+- **S5 — Integration chains.** EXECUTED 2026-11-24
   `test_integration_foreign_links_chain.py`,
   `test_integration_swap_chain.py`,
   `test_integration_hyper_trails_chain.py` (dispatch both ways),
   `test_integration_org_membership_chain.py`. Fixture stores only,
   mirroring `test_integration_hyper_family_chain.py`.
+  - LANDED: four chain files, 10 chain tests, all passing with the S4
+    fuzz set (50 passed / 1 skipped). Chains: foreign-links
+    validate→propose→scan_conflicts→apply (and re-apply idempotency +
+    conflict never overwritten); SQLite→DuckDB swap convert (row
+    parity, view regexp_matches, index lower(), rowid-alias sequence,
+    `_parity` ok); hyper-trails build_bipartite census → trail_distances
+    vs oracle → trail_source_stats shape → Rust kernel batch equals
+    scipy per-source (importorskip) → CSR bins written with matching
+    metadata; org-membership collect (latest valid_from wins) →
+    dry_run writes nothing → apply writes edges + `role` column →
+    idempotent re-run → shrinkage converges.
 
-- **S6 — Perf legs.**
+- **S6 — Perf legs.** EXECUTED 2026-11-24
   Add `hyper_trails`, `db_engine` and `context_pack` to `BENCHMARKS`,
   budgets = quiet-box baseline ×2 (house convention), 3 runs per leg.
+  - LANDED: three legs appended to `tests/run_perf_benchmarks.py`
+    `BENCHMARKS` (after `cosine_knn_ratios`): `db_engine_10k`
+    (`helpers/bench/db_engine_write_bench.py --db
+    {scratch}/db_engine_bench.duckdb --rows 10000`, budget 150.0s),
+    `hyper_trails` (`helpers/graph/hyper_trails.py --sources 200
+    --limit 40`, budget 2.0s), `context_pack`
+    (`helpers/graph/context_pack.py INFY.NS`, budget 2.6s). Measured
+    quiet-box baselines (2026-11-24, 3 runs each): db_engine
+    executemany 71.87/69.21/71.10s + bulk-Arrow rewrite
+    0.27/0.28/0.28s (per-row class ≈250× the rewrite class);
+    hyper_trails 0.94/0.87/0.94s; context_pack 1.21/1.26/1.17s.
+    Harness `run_one` sanity: all three legs OK (db_engine_10k
+    70.02s, hyper_trails 0.91s, context_pack 1.25s). New bench script
+    `helpers/bench/db_engine_write_bench.py` is idempotent (CREATE
+    TABLE IF NOT EXISTS + DELETE, unregister of `_bench_bulk`).
 
-- **S7 — Mojo unit tests.**
+- **S7 — Mojo unit tests.** EXECUTED 2026-11-24
   `Mojo/tests/test_list_utils.mojo`, `test_integrity_check_units.mojo`
   (the non-parity branches of the 82 KB module, chosen by reading it),
   and a differential test for the four untested `src/bench` kernels
   against their Python equivalents where one exists. `mojo-bench` stays
   manual; this slice does not reopen the bench gate.
+  - LANDED (unit half): `Mojo/tests/test_list_utils.mojo` (9 tests:
+    insertion/merge sort empty/sorted/reversed/duplicate/lexicographic,
+    merge==insertion on mixed, single, pairs) and `Mojo/tests/
+    test_integrity_check_units.mojo` (43 tests: uniq_sorted,
+    _ticker_dup_suppressed, subset, norm_underscore,
+    dir_structure_ok, filename_ok, name_ok, note_has_tag, csv_contains,
+    is_stopword, is_generic, meaningful_tokens, fuzzy_match). Both run
+    green via `mojo run -I Mojo/src/common -I Mojo/src/bench -I
+    Mojo/vendor/mojo-yaml/src -I Mojo/vendor/mojo-intel-gpu/src`
+    (43/43 pass; meaningful_tokens bridges Python lower fn).
+  - LANDED (diff half): `tests/test_mojo_bench_kernels.py` — 5
+    differential tests, all green with the built binaries (skip when
+    `Mojo/bin/<bin>` missing): `a2_topk_batch` vs plain-Python sorted
+    top-K (toy + sparse matrices); `bfs_bipartite_all_batch` vs
+    `trail_source_stats` oracle (reachable + hop_histogram per source,
+    `_mojo_bins`/`_mojo_batch_invoke` helpers reused);
+    `motifs_null_batch` vs `configuration_null` on the same RNG stream
+    (rel_tol 1e-9); `window_shingles` golden-fixture parity leg
+    (expects `parity: 210 / 210 passed (0 failed)`).
+  - NOTE (timing, not a cost): `TestSuite` prints
+    `PASS [ 51.409 ] test_meaningful_tokens_dedupes`, but the whole file
+    runs in 2.4 s including compile. The first `Python.evaluate` costs
+    ~0.05 s and TestSuite reports durations ×1000 once the Python bridge
+    is live in-process (probe: a standalone Mojo file timing the first
+    and later `Python.evaluate` calls with `perf_counter_ns`).
+    The qa `mojo-test` leg does not pay it.
+  - OPEN: none — S7 complete.
 
 - **S8 — cargo-fuzz targets for the Rust crates. PARKED 2026-11-24**
   (operator: nightly cannot be installed and slow builds are not
@@ -472,6 +605,40 @@ Alternatives considered:
 11. A defect found by any slice is recorded as a finding here and fixed
     in a separate targeted commit, never silently inside the slice.
 
+Measured close-out (2026-11-24 evening):
+
+1. S1 — pins green (B10 can-fail); `gate_query recent --gate qa
+   --last 3` shows `rust-test` and `mojo-test` on the last three
+   consecutive qa runs (4755 15.42s/12.41s ✓, 4768 16.19s/12.79s ✓,
+   4776 16.19s/10.80s ✓ — the runs' own verdicts at those timestamps
+   were FAIL/FAIL/PASS on other legs); the measured qa delta is in
+   Appendix B.
+2. S2 — parity file 18 passed with the kernel installed; `make
+   rust-test` green with the new `embed_cache` tests (11 in the lib);
+   wrong-oracle proof: scaling the spsolve oracle by `1 + 1e-6` in
+   memory fails `test_batch_matches_spsolve_per_seed` (1 failed /
+   17 passed) — Appendix A.
+3. S3 — all three green (11 + 7; 22 with `test_hyper_core_mass.py`).
+   `rg -n 'DEFAULT_DB_PATH' helpers/graph/hyper_arrow.py` is NOT empty
+   (4 hits) — the criterion predates S9: the constant stays as the
+   loader's default path but is routed through
+   `helpers.core.db.connect(path, read_only=True)`;
+   `rg -w hyper_hypergraphmt helpers app.py Makefile` is empty.
+4. S4 — `make fuzz` green (289 passed, 1 Mojo-gated skip, 48.21s).
+5. S5 — exact command green (12 passed).
+6. S6 — 3 quiet-box runs per new leg through the harness recipe, all
+   within budget; budgets recorded with the S6 LANDED block
+   (Appendix A rows added).
+7. S7 — `make mojo-test` green with the new files (7 files; twice on
+   2026-11-24).
+8. S8 — parked; not an acceptance criterion while parked.
+9. Full gate quartet on the final code — the ONLY open criterion;
+   needs the operator's go (S2–S7 + the §7 T1 pin + the live-gate
+   ports have landed since qa 4776).
+10. Eval gate — no bullet needed (no query-visible route in this arc).
+11. Findings recorded in the slice LANDED blocks and §7; none fixed
+    silently.
+
 | Projected outcome | Today | After |
 |---|---|---|
 | Rust/Mojo test legs that can fail `make qa` | 0 (`mojo-parity` only) | 2 (`rust-test`, `mojo-test`) — done in S1 |
@@ -547,6 +714,87 @@ test is written only where the measurement says it matters.
 | T4 | `Mojo/src/gpu/*` probes | is any on a built path (`make mojo-build`, `mojo-parity`) | test the built ones |
 | T5 | `rust-fuzz` | wall time of one full time-boxed run after S8 — deferred with S8 | advisory slot, or stay manual |
 
+All five measured 2026-11-24 (end of arc), before the final gate
+quartet:
+
+- **T1 — measured by run.** Blocking the import with the exact
+  exception a missing `.so` raises (`ModuleNotFoundError` with
+  `name=`) over the 7 test files that name `graph_kernels` (197
+  tests, `-m "not live" -n 4`): present 196 passed / 1 skipped;
+  absent 2 failed / 170 passed / 25 skipped — 24 tests skip because
+  the extension is gone (14 `personalized_pagerank_vec`, 3 core-bfs,
+  3 brandes, 2 ppr lanes, 1 extension-without-personalized_pagerank,
+  1 `importorskip`), 1 skip is the Mojo gate, 170 pass on the Python
+  fallback, and 2 fail by accident
+  (`tests/test_hyper_trails.py::test_kernel_batch_matches_scipy_pool_payload`,
+  `tests/test_hyper_incidence.py::TestLongestChains::test_capped_sampling_deterministic_and_labeled`).
+  A stale `.so` (importable, one lane short) skips with nothing
+  failing. Decision: strict pin, the `SCRIPT_KNN_STRICT` pattern —
+  `tests/test_graph_kernels_parity.py` gained
+  `test_every_exported_lane_is_present_under_qa` (under
+  `GRAPH_KERNELS_STRICT=1` a missing/stale lane list FAILS with
+  `make rust-install` in the message; without the env it skips) and
+  `test_lane_list_matches_the_crate_and_a_stale_build_is_named` (the
+  lane list is pinned against `wrap_pyfunction!` in
+  `Rust/graph_kernels/src/lib.rs`); `tests/run_gate_report.py` sets
+  `GRAPH_KERNELS_STRICT=1` for qa only, pinned in
+  `tests/test_run_gate_report.py`. Can-fail: blocked import + STRICT →
+  1 failed naming all 7 lanes; blocked without STRICT → skipped;
+  present → 18 passed. This hardens qa on purpose — operator veto
+  window before the gate arc.
+- **T2 — measured (rg over the live tree): none of the three binaries
+  has a production caller.** `FINDATA_RUST_EMBED_CACHE_LOOKUP`: 0
+  references in helpers/ and tests/ — the Python caller the docs cite
+  (`doc/local/engineering/rust_database.md:219` →
+  `helpers/core/embed_cache.py:94-116`) no longer exists
+  (embed_cache "stays backup-only", Makefile:542); `sha_s2` and
+  `trial` are manual harnesses (README + rust_database.md only).
+  Decision: no test written — they do not carry production. Propose
+  deleting `sha_s2.rs` + `trial.rs` and deciding on
+  `embed-cache-lookup.rs` (operator's call); the lib surface
+  (`decode_embedding`/`lookup_batch`) is what S2 pins.
+- **T3 — measured.** Reachable from production paths:
+  `helpers/bench/db_engine_write_bench.py` (the S6 perf leg,
+  `tests/run_perf_benchmarks.py:549`), `helpers/bench/hyper_predict_bank.py`
+  (Makefile:744), `helpers/maintenance/perf_smoke.py` (advisory report
+  step, `tests/run_gate_report.py:460`), `helpers/misc/swap_prep_census.py`
+  (advisory report step, `:466`). Not reachable: `build_route_p4`
+  (comments + a static-checks mention only) and 15 of the 17
+  `helpers/bench/*.py` (lint allowlists, doc mentions, comments).
+  Decision: no new unit pins written. OPEN: `perf_smoke` and
+  `swap_prep_census` always exit 0 (advisory), so an internal
+  regression is invisible to the report — follow-on candidate if
+  either grows a budget.
+- **T4 — measured: all 7 gpu `.mojo` are on a built path.**
+  `Makefile.mojo:18-24` builds every `Mojo/src/*/*.mojo` flat into
+  `Mojo/bin` (all 7 binaries exist); zero test/parity/helper
+  references outside the build. They are Level Zero hardware probes
+  (need a device + adjacent `.spv`). Decision: accept — the build leg
+  is their only gate; no runtime test written.
+- **T5 — deferred with S8** (unchanged).
+
+Arc finding (2026-11-24, close-out — acceptance 11): `rebuild_script_search`'s
+`.duckdb` lane DIED with `ERROR: Connection Error: Connection already
+closed!` (`make search-fresh` apply rc=2, twice, the second time with
+nothing else running). Root cause: the mojo/ts decl cache writes used
+`with conn:`; on the RAW `duckdb.connect` sidecar conn
+(`connect_script_db`) that CLOSES the connection on exit (duckdb 2.0.1,
+probed in isolation — even a fresh `duckdb.connect` to the same file
+then fails; the `_DuckDBConn` proxy at `helpers/core/db_engine.py:238`
+restores sqlite3 semantics only for funnel conns). Every later
+embed-cache lookup silently missed (the `except Exception: pass` in
+`__call__`), ~919 rows re-embedded uncached, every cache store failed,
+and the rebuild's final write raised. The latent bug surfaced only when
+a NEW Mojo unit took the INSERT path — S7's two new Mojo test files
+were the first. Fix: a `_doc_cache_write` helper (statement + explicit
+commit, engine-agnostic) at `helpers/maintenance/rebuild_script_search.py`
+for both call sites; pins `TestDocCacheWriteKeepsConnOpen` in
+`tests/test_rebuild_script_search_mojo.py` (2 tests; can-fail in memory
+by re-closing the conn after commit — both pins fail). The sweep for
+other `with conn:`-on-raw-duckdb sites: none left on this lane (the
+full/incremental writers at `_write_full`/`_write_incremental` are the
+legacy sqlite lane); the other rebuild sidecars are sqlite (safe).
+
 ## Appendix A — raw measurement log
 
 | Run | Command | Result | Notes |
@@ -564,6 +812,17 @@ test is written only where the measurement says it matters.
 | 11-24 | `BENCHMARKS` parse, `tests/run_perf_benchmarks.py:192` | 35 legs | Gap 7 |
 | 11-24 | `gate_query recent --gate qa --last 5` | 5 FAIL runs (runs 4621–4749) | not this arc; noted |
 | 11-24 | `sed -n 170,195p doc/procedures/gates.md` | integration dropped 11-09; `mojo-test` re-added to advisory 11-21 | corrections |
+| 11-24 | blocked-import run over the 7 `graph_kernels` test files (197 tests, `-m "not live" -n 4`) | present 196 ✓ / 1 skip; absent 2 fail / 170 ✓ / 25 skip (24 extension skips) | §7 T1 |
+| 11-24 | `pytest tests/test_graph_kernels_parity.py tests/test_run_gate_report.py -q` | 46 passed 4.89s; blocked + `GRAPH_KERNELS_STRICT=1` → 1 failed naming all 7 lanes; blocked without STRICT → skipped | §7 T1 pin can-fail |
+| 11-24 | `cargo test -p embed_cache`; `make rust-test` | 11 passed (1 pre-existing + 10 new); workspace rc 0 (cosine_knn 7+8, embed_cache 11, graph_kernels 12+9); fmt + clippy clean | S2 Rust half |
+| 11-24 | `pytest tests/test_maint_timing.py tests/test_algorithm_wrappers.py -q` | 18 passed; with `tests/test_hyper_core_mass.py` the batch is 22 passed | S3 |
+| 11-24 | S3 can-fail: 25 in-memory source mutations (pytest meta-path loader) | ALL KILLED after 2 test gaps found and fixed; stray-importer probe fails the AST pin | S3 acceptance |
+| 11-24 | S2 can-fail: spsolve oracle scaled ×(1+1e-6) in memory | `test_batch_matches_spsolve_per_seed` fails (1 failed / 17 passed) | acceptance 2 |
+| 11-24 | S5 exact command (4 chain files, `-q`) | 12 passed in 1.92s | acceptance 5 |
+| 11-24 | `make fuzz` | 289 passed, 1 skipped (Mojo gate), 48.21s, rc 0 | acceptance 4 |
+| 11-24 | S6 acceptance: 3 runs per new leg through the harness recipe (`run_one` semantics, fresh scratch, load 1.6–1.9) | db_engine_10k 67.42 / 68.25 / 68.64s < 150.0; hyper_trails 0.94–0.98s < 2.0; context_pack 1.21–1.29s < 2.6 | acceptance 6; budgets = baseline ×2 recorded in the S6 LANDED block |
+| 11-24 | `gate_query timing --leg rust-test\|mojo-test --last 8` | rust-test 15.42 / 16.19 / 16.19s ✓ and mojo-test 12.41 / 12.79 / 10.80s ✓ on qa runs 4755 / 4768 / 4776 (the last 3 consecutive qa runs) | acceptance 1 |
+| 11-24 | script-search rebuild root-cause repro + pins | 17 passed (`test_rebuild_script_search_{mojo,ts}.py`, 2 new pins); in-memory can-fail (close-after-commit) fails both | arc finding: `with conn:` closes a raw duckdb conn |
 
 ## Appendix B — S1 execution log (2026-11-24)
 
@@ -692,3 +951,292 @@ Use instead, per question:
   against HySC);
 - any new lane is judged by ARI against the incumbent before wiring,
   and needs the eval-gate bullet first if it touches a route.
+
+## Perf follow-on: graph connect() warm path (2026-11-24)
+
+Advisory deep dive (run 4777) flagged `test_refresh_resets_connection`
+at 186.9 s — the single largest live-invariants cost. Diagnosis and
+result:
+
+- Isolation: the test completes in ~3.1 s (cProfile-instrumented run
+  2026-11-24) and sequential live requests are ~0.5 s each (peers ×5:
+  0.78/0.48/0.49/0.49/0.51 s). The 186.9 s figure is therefore a
+  PARALLEL artifact (xdist + quack-wire served `memory/graph.duckdb`):
+  every connect() is wire-ATTACHed and every graph-algos/rebuild test
+  in other workers queues behind the exclusive `build.lock` flock, so
+  connect churn costs multiply under contention.
+- Change: `_build_graph_connection` now performs ONE authoritative
+  under-lock warmth probe (`warm = exists and _is_warm(...)`), used
+  for both the stale-unlink gate and `needs_build`; previously the
+  build path probed `_is_warm` twice (plus `_stale_not_cold`
+  separately). The F1 under-lock re-check semantic (test
+  `test_read_only_downgrade_under_lock`) is preserved — connect()'s
+  outer check is still NOT trusted once the build flock is held.
+  Redundant probe removal matters most under contention: fewer wire
+  opens per request → less time queued behind a builder's LOCK_EX.
+- Validation: `tests/test_api_graph_live.py` 30 passed, `tests/test_graph_disk.py`
+  + `tests/test_graph_stats.py` + `tests/test_integration_maint_chain.py`
+  95 passed / 1 skipped, ruff+format clean. Untouched: `_stale_not_cold`
+  raising `GraphCacheStaleError` when `GRAPH_STALE_REBUILD != inline`.
+- Fixed: (c) locking protocol — warm read-only opens now NEVER take
+  `<cache>.build.lock`; `connect()` verifies warmth outside the flock
+  and opens directly (`_open_read_only_connection`), with the
+  transient-lock ladder covering a builder that starts mid-open. Proof:
+  `tests/test_graph_disk.py::TestDiskBasics::test_warm_read_only_open_takes_no_build_lock`
+  holds the build flock and asserts the RO connect completes <5s.
+- Fixed: served-store clients (quack wire) never take the build flock
+  at all — the server coordinates writers, and a local build against a
+  served store is refused by the split-brain guard, so there is no
+  legitimate contender (`_build_graph_connection` now branches to a
+  lock-free `_open_or_build` for served stores). Proof:
+  `tests/test_graph_disk.py::TestStaleUnlinkServedGuard::test_served_open_takes_no_build_lock`
+  holds the flock and asserts the served open completes <5s.
+  (Why it was left over: the flock predates serving; the served branch
+  was added later inside the same locked wrapper, and since file-mode
+  builds of served stores were already refused, it was dead weight —
+  only visible once parallel wire-readers started queueing on it.)
+- Still open: (a) gate orchestration — split live-invariants so
+  graph-writers (graph_disk) and graph-readers never share an xdist
+  window; (b) per-request wire-connection reuse within one worker under
+  a read-only lease (touches the CONC-1 per-request-connection
+  contract, so a design change).
+
+## Perf follow-on: graph_disk/fuzz shared-fixture setup (2026-11-24)
+
+Profile of the once-per-run fixture build (xdist-shared via
+`_shared_template_locked`):
+
+- `restore_sqlite_from_parquet` (legacy donor, 604,622 rows / 30
+  tables): 16.3s — `executemany` INSERTs 9.9s, pyarrow `to_pylist`
+  3.3s, sqlite datetime adapters 2.6s, DeprecationWarnings (549K:
+  525,202 datetime + 23,963 date, Python 3.12+ deprecated adapters)
+  1.4s, commit 0.7s.
+- `build_trimmed_template` on top: backup 1.0s + trim DELETEs 4.8s +
+  VACUUM 1.9s (~7.7s).
+- `build_schema_template` reused the same donor (backup + wipe +
+  VACUUM ~3s) — but paid the full restore when it was the only
+  consumer (fuzz-only runs).
+
+Fixed:
+
+- `helpers/maintenance/snapshot_db.py`: idempotent re-registration of
+  the conforming datetime/date adapters (`d.isoformat(sep=" ")` /
+  `d.isoformat()`) — identical output, zero warnings: restore 16.3s →
+  13.6s, suite warning budget relieved.
+- `tests/_tmp_hygiene.py`: `build_schema_template` fast path
+  (`_build_schema_template_from_ddl`) — construct straight from the
+  tracked `_schema.sqlite.sql` + `db_meta.parquet` (3 rows) instead of
+  restoring the full-corpus donor and deleting every row. Parity
+  verified against the donor route: same table/trigger surface
+  (6 triggers post-drop), same `db_meta` rows, FTS5 empty. 1.8s vs
+  ~16s restore when no other fixture needs the donor. Consumers
+  validated: fuzz_shortest_path, snapshot_cycle, derive_events_cli,
+  extract_relations_cli, rebuild_schema, maint_chain, near_duplicates,
+  test_graph, note_writers — 156 passed.
+
+Still open: the legacy-donor restore (~16s) remains for the trimmed and
+full templates (they need data). Candidate follow-on: persist the three
+shared templates across runs keyed by a parquet-dir fingerprint
+(size/mtime of the 30 parquet + DDL) under a gitignored cache dir —
+removes the per-run setup tax entirely after the first run; not
+implemented here (semantic change to the once-per-run freshness
+contract).
+
+## Perf follow-on: scipy lane derive fuse (2026-11-24)
+
+Advisory live-invariants #3 (`test_dispatch_live_closeness_serving_stack_invariants`,
+~32.5s under gate 4777) was attributed to "serving-stack scans" —
+profiling showed the real cost is NOT the DB read: `load_projection`
++ `edge_rows` ≈ 0.6s of ~13s per lane run. The cost is the multi-source
+dijkstra + `fused_derive` over the 22.8k-node live projection, run
+twice per test (determinism assertion).
+
+Fixed: `helpers/graph/scipy_bridge.py` — `fused_derive` reworked to a
+single-buffer implementation. Old builds `F=isfinite(D)` +
+`M=where(F,D,0)` + two nested `where` temporaries for harmonic (~5× the
+D-sized buffers, GB scale); new keeps the same `M` reduction (bit-
+identical closeness, verified) and computes harmonic through one reused
+`inv` buffer. ~1.7× faster at live size. Verified offline: 54 scipy
+bridge tests + live tests — closeness test 32.5s gate → 19.4s isolated
+(was 25.4s cProfile before the change), betweenness twin 12.8s (was
+~18.1s gate). No API change; `jobs=1` deterministic default preserved
+(the perf leg already forks with `--jobs`).
+
+Still open: the dijkstra itself is the floor (~7–8s per run, inherent
+C work over 1,731 sources × 22.8k nodes). Parallelizing the live-serve
+lane with `jobs>1` would cut it ~3–4× (fork_map preserves order, so
+determinism holds) — deliberately NOT changed here because the lane's
+`jobs=1` single-process default is doctrine; a follow-on could add a
+gate-side `--jobs`/env override.
+
+## Perf follow-on: static-checks DuckDB user_version (2026-11-24)
+
+`make static-checks` broke after the research-store cutover: `check_db_meta_generation`
+(helpers/validators/static_checks.py) ran raw `PRAGMA user_version` on a
+store that now opens as DuckDB — `Catalog Error: Pragma Function with name
+user_version does not exist`. Fixed by using the engine-aware
+`helpers.core.db.get_user_version()` (SQLite → PRAGMA, DuckDB →
+`db_meta.schema_version`; both expected 17), matching the integrity
+checker's `db_engine.schema_version()` use. static-checks green again.
+
+## Perf follow-on: harvest check dry-run (2026-11-24)
+
+`test_check_path_populates_the_field` (and siblings) called
+`harvest(check=True)` with no `lanes`, which dry-runs ALL five lanes
+to build the pending-parts table even though the asserts only read
+`stale_*` fields. The dry-run is the entire cost (~102s cProfile:
+`_harvest_opencode` 55s + `_harvest_dsh` 36s + others). Fixed:
+- `harvest_conversations._format_new_table`: `w` guard default 7 so
+  an empty lane set renders (was `max()` over empty rows → ValueError).
+- tests pass `lanes=()` on the three check-path calls (the lane set is
+  a documented test-only knob; production callers still pass nothing =
+  all five lanes).
+
+Measured: tests/test_harvest_retention.py 2.1s total (was ~100s+ per
+check-path test). Regression source: e0b3b99766 (2026-11-11, per-harness
+new-parts tally).
+
+## Perf follow-on: fuzz schema template (2026-11-24)
+
+Verified the `build_schema_template` fast path (above) where it matters:
+tests/test_fuzz_shortest_path.py is now 7.4s wall / 277MB peak (was
+~24s setup + tests). No further change needed; the legacy-donor restore
+still serves trimmed/full templates (cross-run cache candidate recorded
+above).
+
+[EOF]
+
+## Live legs keyed to the retired store path (2026-11-24)
+
+Found while recording P4 of `sync_tags_duckdb_setbased.md`. Several legs
+ask "is this the live box?" by testing whether `memory/research.db`
+exists. The 2026-11-21 DuckDB cutover deleted that file; the store is its
+sibling `memory/research.duckdb`. The house door
+(`helpers.core.db.connect`) redirects `.db` to `.duckdb` whether or not
+the `.db` exists, so every loader kept working — only the existence
+*gates* broke, and a gate breaks by skipping.
+
+Evidence, qa 4776 and advisory 4777 junit (2026-11-24; the store was
+present on the box throughout):
+
+| leg | what the gate did | how it reads in the report |
+|---|---|---|
+| `tests/test_a2_candidates.py::test_a2_live`, `tests/test_l1_mst.py::test_live_replay`, `tests/test_scipy_matching.py::test_s3_sector_live`, `tests/test_no_confidence_level.py`, `tests/test_answerability_probe.py` | skipped ("live DB missing" / "absent" / "not available") | five skip lines, unmarked, inside the qa collection |
+| `tests/test_graph.py` — 85 test functions | module-level skip at collection | one "collection skipped"; no per-test line |
+| `tests/test_db_maint_duckdb.py` — the six DuckDB-backup tests | module-level skip at collection | one "collection skipped" |
+| `tests/test_derive_co_mentions.py` — four live tests | skipped | live leg |
+| perf legs `l1_kernels`, `ppr_edge_attribution` | printed `SKIP … (exit 0)` | scored OK |
+| `tests/test_tier_tripwire_advisory.py` note-count axis | returned `None` ("absent") | advisory line |
+
+The two perf legs had been vacuous since the cutover:
+`gate_query timing --leg <leg> --last 14` shows `l1_kernels` at
+0.19–0.27 s scored OK for six runs from 2026-11-22 08:46 to 2026-11-24
+12:01 (67.58–78.76 s on 2026-11-21), and `ppr_edge_attribution` at
+0.37–0.51 s scored OK for six runs (5.54–7.56 s before). Forced perf run
+4760, reported above as "32/35 within budget", counted both. `db_maint`'s
+DuckDB backup is the store's only backup leg and its tests were the
+module that had been skipped whole.
+
+Why nobody saw it: a zero-byte `memory/research.db` appeared in the tree
+at 17:19 that day (creator not attributed; removed by the operator), and
+while it existed every `.exists()` gate passed again — the ported tests
+ran green at 17:27, which is how the class was first noticed.
+
+Fix — one resolver, and a ratchet on the spelling:
+
+- `tests/_live_store.py`: `live_store_path()` asks the house door
+  (`ResearchEngine.from_env().resolve_path(None)`, so the engine selector
+  and `FINDATA_RESEARCH_DB_PATH` are honoured) and returns the store only
+  when it is a file; `require_live_store()` skips otherwise.
+- Eleven files gate through it now: the five qa tests above, the four
+  derive_co_mentions tests, the tier tripwire, `test_graph.py`,
+  `test_db_maint_duckdb.py`, and both bench scripts.
+  `tests/test_graph_disk.py::TestProductionPath` also *asserted* that the
+  retired file exists — stale since the cutover and masked by the
+  served-store skip; it asserts the resolved store now.
+- `tests/test_live_store_gate.py` pins the resolver against a fake repo
+  (stray legacy file present, legacy gone, rollback engine, no store,
+  env override, `require_live_store` skip) and ratchets the spelling: no
+  test file may name the retired path outside an allowlist that says why
+  (hermetic fixture roots; the five SQLite-dialect schema guards below).
+- `pytest.ini`: the `live` marker text and the comment above it name the
+  DuckDB store.
+
+Validation (2026-11-24 20:10, store present, no `memory/research.db`):
+the ten ported test modules run serial with
+`-m "live or not live"` — **220 passed, 1 skipped in 272.93 s**. The one
+skip is the designed served-store skip in
+`TestProductionPath::test_default_connect_uses_memory_graph_duckdb`.
+That run is the first since the cutover for the 85 `test_graph.py` tests
+and the six `db_maint` DuckDB-backup tests; both pass unchanged. Both
+bench legs run for real again: `tests/bench_l1_kernels.py` PASS in
+73.5 s (betweenness numpy 54.89 s vs Rust 5.02 s, 10.93×; closeness
+8.78 s vs 3.63 s, 2.42×) and `tests/bench_ppr_edge_attribution.py` PASS
+in 6.6 s (harness wall 6.20 s). `tests/test_live_store_gate.py` 10
+passed; ruff and `ruff format --check` clean on the fourteen touched
+files; no file reappeared at the retired path. Serial, not xdist — the
+gate's live leg still has to confirm it.
+
+Still open:
+
+- Five live schema guards in `tests/test_static_checks.py` (`LIVE_DB` at
+  `:859`) open the store with `sqlite3.connect` and assert
+  SQLite-dialect facts (`sqlite_master`, `EXPLAIN QUERY PLAN`, named
+  secondary indexes). They need a DuckDB port, which is a decision about
+  the canonical DuckDB schema — not a mechanical rewrite — and DuckDB has
+  no named secondary indexes for the index guards to assert.
+- The perf harness scores an exit-0 `SKIP` as OK: item 4 of
+  `perf_followon_gate_reuse_cache.md`.
+- `tests/bench_rebuild_scale.py` reads the SQLite source directly
+  (`:65`); manual only, and obsolete since the cutover.
+- The retired name is also six CLIs' `--db` default: P5 in
+  `sync_tags_duckdb_setbased.md`.
+
+## Gate-arc Phase 2 — qa baseline reds fixed (2026-11-25)
+
+The 2026-11-24 21:52 baseline battery (`make qa && make advisory &&
+make perf`) stopped at qa: 13/17 legs (8 pytest + lint + static_checks +
+schema-check FAIL; advisory/perf never started). All reds fixed and
+validated with TARGETED runs only, per gates.md:
+
+- static_checks ×3 + `test_frontmatter_schema` corpus-clean: one cause —
+  the perf_followon proposal was flipped `executed` while still live
+  with a non-canonical frontmatter. Fixed by ARCHIVING it
+  (completed.md #568, `archive/tooling/`).
+- lint-gates ×4 (`ruff_python/format_footprint` +
+  `ruff_sees_every_tracked_file` + mojo format): 6 ruff findings in the
+  sweep's own S4/S5 files (4× F401 unused imports, 2× F841) + 6 files
+  ruff-format drift + 1 Mojo file — fixed (`ruff --fix`/`format`,
+  `mojo-format`); `tests/test_lint_gates.py` 5/5.
+- `test_perf_writer_appends_run_chain`: the append-convention pin still
+  called `write_report` with the pre-SKIP 6-tuple — updated to the
+  7-tuple (follow-on item 4's shape).
+- `test_qa_harness_pins_rust_test_strict`: the pin delenv'd only
+  `RUST_TEST_STRICT`; under the real qa battery the pytest leg inherits
+  `GRAPH_KERNELS_STRICT`/`SCRIPT_KNN_STRICT` from the harness process,
+  so the advisory-first no-leak assert tripped on inherited env. The
+  pin now strips all three before the advisory call.
+- `test_schema_drift`: `schema/duckdb/corpus.sql` stale vs the live
+  store — the corpus-cache rewrite's `mtime FLOAT` → `DOUBLE` DDL
+  change; `make schema-dump` regenerated (1 file, drift check clean).
+
+Validation: 59 targeted pytest across the touched files, lint gates
+5/5, static-checks leg "All static checks passed", md-lint clean.
+Advisory + perf completed the interrupted baseline after these fixes
+(their numbers reflect the fixed tree); qa's red baseline stands as
+measured, with these targeted greens as the Phase 2 record.
+
+## Gate-arc Phase 4 — qa 4796 reds fixed (2026-11-25)
+
+qa run 4796 (15/17): three reds, all fixed and targeted-validated —
+(1) `helpers/core/parallelism.py` missing shebang (static_checks Helper
+shebangs); (2) `doc/improvements/proposals/perf_harness_revamp.md`
+frontmatter missing the `executed`/`completed_md` keys the corpus walker
+requires (added as `null` while the proposal is open); (3)
+`tests/test_get_tickers.py::TestVssRunIndex::test_parity_live_table_readonly`
+— `helpers/core/get_tickers.py` `load_entities()` opened the live store in
+writable config by default and its `except Exception` swallowed the
+config-conflict error under the parallel gate into `0 entities`; flipped to
+`connect(db_path, read_only=True)` (same reader doctrine as the
+derive_co_mentions fix). Standalone rerun: 27,754 entities; both tests
+pass; static_checks clean.

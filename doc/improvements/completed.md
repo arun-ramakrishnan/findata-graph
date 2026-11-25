@@ -17261,3 +17261,112 @@ only; gate_query corrections restore documented derived-index behaviour).
 Deferred: item 3 clean gate battery (operator go); compiled BFS kernel;
 549k pre-existing sqlite3-datetime DeprecationWarnings from
 `snapshot_db.py:1739`.
+
+## 567. sync_tags DuckDB set-based rewrite — the 28 s perf leg under budget, plus the corpus-load and verdict-write siblings and the P4 house-door fix
+
+**Date:** filed + executed 2026-11-24 · **Area:** `helpers/core/sync_tags.py`,
+`helpers/core/corpus.py`, `helpers/misc/markdown_lint.py`,
+`helpers/graph/derive_event_participants.py`, `helpers/graph/incidence_batch.py`,
+`helpers/maintenance/tag_international_entities.py`,
+`helpers/validators/static_checks.py`, tests
+
+Root cause of the sync_tags regression (0.68 s → 151.20 → 87.14 → 29.38 →
+28.49 s against a 2.0 s budget): DuckDB's python `executemany` executes one
+round-trip PER ROW. Rewrites, each with output-equality pins + in-memory
+can-fail proofs: entity_tags/note_tags bulk insert → registered Arrow
+relation + one INSERT SELECT (6,000 rows 0.70 s → 0.05 s); sector UPDATE
+sweep → one UPDATE FROM (0.70 s → 0.05 s); the perf leg now runs 1.43 s ✓
+(qa 4776, 17/17). Same-day siblings: corpus-cache load `_bulk_replace_cache_rows`
+(full-table DROP/CREATE + INSERT SELECT; 120–133 s → 1.4–2.3 s; root cause
+was a float32-quantized `mtime REAL` marking all 1,406 rows stale every
+load), markdown-lint `_bulk_record_verdicts` (one DELETE + one INSERT
+SELECT; 17.3 s → 1.07 s), derive_event_participants Arrow-staged
+`_replace_participants_duckdb` (33.16 s → 2.65 s), the
+`incidence_batch.bulk_replace_hyper_incidences` helper (statement-count
+win), and P4: `tag_international_entities` was broken-by-default since the
+DuckDB cutover — now opens through the house door
+(`db.connect(db_path, read_only=not apply)`), portable `IN (?,?,…)`
+lookup, one `INSERT … SELECT DISTINCT … WHERE NOT EXISTS` (first apply
+0.84–1.06 s → 0.015–0.016 s for 150 rows; test file 3 → 9 pins).
+Static-checks `check_db_meta_generation` made engine-aware
+(`helpers.core.db.get_user_version()`).
+
+Eval-gate: none needed — no query-visible semantics change; every write
+path is pinned output-identical (DuckDB and SQLite agree).
+Deferred: P5 — six sibling CLIs still broken-by-default on the retired
+`memory/research.db` default + raw `duckdb.connect` (psu_dyad_pass,
+mnc_arm_probe, mnc_dyad_pass, jv_dyad_census, foreign_links_generate,
+foreign_name_isin_probe); recorded as OPEN in pending.md.
+
+## 568 — Four perf follow-ons executed (live-lane scheduling, wire lease pool, template cache, SKIP visibility)
+
+`perf_followon_gate_reuse_cache.md` (filed 2026-11-24, archived to
+`doc/improvements/archive/tooling/`) — recorded when the 2026-11-24
+perf-regression sweep hit scope/doctrine boundaries; all four items
+executed the same day. (1) Gate orchestration: RESOLVED BY VERIFICATION —
+the exact gate lane shape (`pytest -m live -n auto --dist=loadscope`)
+ran at 203.5s wall / 271 passed / 6 skipped, below the pre-2026-11-22
+~219s baseline WITH more tests collected (277 vs ~186; the retired-path
+sweep re-enabled test_graph.py's 85), `test_refresh_resets_connection`
+out of the slowest 15 — the served no-flock connect had already removed
+the writer/reader queue; `xdist_group` gap stays recorded. (2) Per-worker
+wire lease pool in `app.py` (`_GRAPH_POOL_IDLE_TTL=5.0`,
+`_GRAPH_POOL_CAP=4`; borrow pops newest + probes `SELECT 1` + closes
+outside the lock; return parks with a timestamp, cap overflow closes
+oldest; drain on refresh and in fixtures; errored-request connections
+never re-served) — CONC-1 preserved exactly (exclusive leases, only
+sequential reuse amortized); pins in `tests/test_api_graph_unit.py`
+(103 passed; the drain-tuple bug was caught by the pins before any
+gate); `tests/bench_routes.py` best-of-3 three runs 2.71/2.80/2.77s vs
+4.07–5.62s pool-less history. (3) Persistent cross-run template cache in
+`tests/_tmp_hygiene.py` (`outputs/.template_cache` gitignored;
+fingerprint = `TEMPLATE_CACHE_VERSION` + sorted path/size/mtime_ns of
+every axis parquet + DDL; publish `.part` → `os.replace` under a
+per-kind flock with a size sidecar; `_prune_template_cache` keeps the
+newest two fingerprints) — consumers still get a fresh per-run copy, so
+per-run isolation and the read-only donor contract are unchanged;
+`TestTemplateCache` pins (28 passed); measured on the real axis: schema
+template 1.50s first run → 0.01s on cache hits, donor restore drops out
+of the gate critical path. (4) Perf-harness SKIP visibility in
+`tests/run_perf_benchmarks.py` (`run_one` 5-tuple with `skipped`, legs
+7-tuple; skipped legs print `⏸ SKIPPED`, never count as passed, never
+tag as load-fragmented, excluded from FAILED; footer
+`N/M passed, K skipped`; exit 0 iff `passed + skipped == total`;
+`perf.json` rows `status: warn` + `raw_status: SKIPPED` — the
+gate_query adapter accepts pass/fail/warn/info, never unknown;
+`## <leg> (SKIPPED)` report sections) — pins rewritten for the 7-tuple
+shapes (37 passed); `search_tui`/`gate_query` parsers verified
+compatible. Item 1's acceptance was countable without code because the
+sweep's protocol (c) fix had already landed; the remaining three were
+implemented with the pins and measurements recorded per item in the
+proposal.
+
+## 569 — Test coverage gap sweep #2: Rust/Mojo into the blocking gate, fuzz/integration/perf/Mojo suites, and the gate-arc fixes it surfaced
+
+Filed 2026-11-24 against the post-2026-11-01 feature wave that out-ran the
+tests (`doc/improvements/archive/tooling/test_coverage_gap_sweep_nov24.md`).
+S1 promoted `rust-test` + `mojo-test` into the blocking qa roster
+(`tests/run_gate_report.py`, `RUST_TEST_STRICT=1`, empty-roster guard).
+S2 added `tests/test_graph_kernels_parity.py` (PPR batch/vec parity vs
+`sparse_matrix`, malformed-input guard matrix, `GRAPH_KERNELS_STRICT=1`
+sentinels), `tests/test_embed_cache_boundary.py`, and ten decode-boundary
+cargo tests in `Rust/embed_cache/src/lib.rs`. S3 pinned maintenance timing
+(`tests/test_maint_timing.py`, 11 pins), graph algorithm wrappers
+(`tests/test_algorithm_wrappers.py`, 7 pins, 25/25 mutation-proof), and
+retired the HypergraphMT probe after its seats2 OOM — SQL replacements
+`core_mass_arrow` / `shared_group_pairs_arrow` in
+`helpers/graph/hyper_arrow.py` with a live loader fix (S9). S4 added six
+Hypothesis fuzz files (`make fuzz`, 289 passed). S5 added four integration
+chain files. S6 added three perf legs + `helpers/bench/db_engine_write_bench.py`.
+S7 added Mojo unit suites (`test_list_utils` 9, `test_integrity_check_units`
+43) and five differential Python↔Mojo kernel pins. S8 cargo-fuzz parked
+(no nightly). End-of-arc triage measured T1–T4. Executing it ran the full
+gate arc, which surfaced and fixed: the DuckDB cutover perf regressions
+(#567), silently-skipping live legs after the `memory/research.duckdb`
+move (live-store ratchet + RO-reader doctrine), the perf-harness
+reliability gaps (#568 + `perf_harness_revamp.md`), qa-4796 reds
+(parallelism shebang, frontmatter keys, `get_tickers` writable-open), and
+the search-fresh raw-duckdb `with conn:` close bug. Gates: integration
+893 passed; qa 15/17 with all reds fixed same-day; advisory 23/26 with
+remaining reds parked (convo-fresh live-session drift, contended
+timing-watch pair); perf green under the new harness in a quiet window.

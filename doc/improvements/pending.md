@@ -1336,3 +1336,31 @@ Open items below keep their revisit triggers inline; executed work is compressed
   witr-verified pgids for cleanup. Wiring = add JEMALLOC_ENV prefix to
   the app.py launch path (no make target exists today); NEVER combine
   with the desktop app's compiled-in jemalloc (different processes).
+
+- **Six sibling CLIs broken-by-default on the retired store path
+  (sync_tags_duckdb_setbased P5, archived as #567) — OPEN, filed
+  2026-11-24**: `helpers/maintenance/psu_dyad_pass.py:183`,
+  `mnc_arm_probe.py:171`, `mnc_dyad_pass.py:255`, `jv_dyad_census.py:147`,
+  `foreign_links_generate.py:305`, `foreign_name_isin_probe.py:241` still
+  default `--db memory/research.db` and raw-`duckdb.connect` it →
+  ``Catalog Error: Table with name entities does not exist!`` plus a stray
+  store. Same shape P4 fixed in `tag_international_entities.py` (house
+  door `db.connect(db_path, read_only=not apply)`, portable `IN (?,?,…)`
+  lookup, one set-based INSERT…SELECT; 9 pins there to mirror). Four
+  cousins already cut over: `csr.py`, `group_discovery_growth_monitor.py`,
+  `group_discovery_inventory.py`, `graph_scale_watch.py`.
+
+- **Coverage-sweep #569 parked operator calls — OPEN, filed 2026-11-25**
+  (`test_coverage_gap_sweep_nov24`, archived as #569): (1)
+  `tests/bench/db_engine_write_bench.py` leg runs ~62–70 s inside the
+  perf gate (`db_engine_10k`, budget 150.0) — a `--rows 2000` variant
+  (`db_engine_2k`, budget ≈ 25.0) shrinks the run if the operator wants
+  it; (2) T2 triage: `Rust/embed_cache/src/bin/sha_s2.rs` and
+  `trial.rs` have zero production callers — propose deletion, operator
+  call; (3) five SQLite-dialect schema guards in
+  `tests/test_static_checks.py:859`–`:980` still raw-`sqlite3.connect`
+  the live store — need a DuckDB port (design decision: guards vs
+  introspection pragma differences); (4) `convo-fresh-check` stays
+  parked on live-session drift; (5) gate-timing-watch contended pair
+  (`maint/graph-rebuild` 0.6→6.8, `maint/stamp-centrality` 31→87.1)
+  parked as box-load attribution from run 4777.

@@ -1,9 +1,9 @@
 ---
 title: "Rewrite sync_tags' per-row DuckDB writes as set-based statements — the perf leg from ~28 s under its 2.0 s budget"
-status: proposed
+status: executed
 filed: "2026-11-24"
-executed: null
-completed_md: null
+executed: "2026-11-24"
+completed_md: "567"
 area: "helpers/core/sync_tags.py + tests/test_sync_tags.py"
 ---
 
@@ -13,7 +13,8 @@ area: "helpers/core/sync_tags.py + tests/test_sync_tags.py"
      archival, flip status/executed/completed_md in the same change. -->
 # Rewrite sync_tags' per-row DuckDB writes as set-based statements — the perf leg from ~28 s under its 2.0 s budget
 
-**Date:** 2026-11-24 · **Status:** PROPOSED ·
+**Date:** 2026-11-24 · **Status:** EXECUTED 2026-11-24 (archived same day,
+completed.md #567) ·
 **Area:** `helpers/core/sync_tags.py`, `tests/test_sync_tags.py`
 
 ## 1. Motivation
@@ -138,8 +139,8 @@ then classification by the connection each call site actually receives
 (`helpers/core/db.py:143` `connect()` is selector-aware: the research
 store resolves to the DuckDB proxy; other `.db` paths stay SQLite).
 Row counts read from `memory/research.duckdb` through
-`helpers.misc.duckdb_lock.open_read_only`. **P1–P3 executed 2026-11-24;
-P4 remains deferred.** P1 and P2 keep the SQLite path byte-for-byte and
+`helpers.misc.duckdb_lock.open_read_only`. **P1–P4 executed 2026-11-24;
+P5 pending.** P1 and P2 keep the SQLite path byte-for-byte and
 prove equality against the pre-fix code on scratch store copies; P3 was
 measured and deliberately left unchanged (below).
 
@@ -190,9 +191,45 @@ measured and deliberately left unchanged (below).
   DELETEs + 64 INSERTs ≈ 0.36 s at the measured ~1.9 ms/statement — far
   below the 24 s sync_tags case. Not converted; revisit if a converge
   cycle ever reports hundreds of stale ids (A10).
-- **P4 (defer) — `helpers/maintenance/tag_international_entities.py:75`
-  (direct `duckdb.connect` at `:91`).** DuckDB, but a small un-gated
-  CLI; no evidence of a material cost.
+- **P4 — `helpers/maintenance/tag_international_entities.py`**
+  (was: defer — "a small un-gated CLI; no evidence of a material cost").
+  **EXECUTED 2026-11-24, as a cutover defect rather than a latency
+  slice.** The default was `--db memory/research.db` opened with a raw
+  `duckdb.connect(args.db, **memory_cap_config())`, so since the
+  2026-11-21 cutover a default invocation created a fresh empty DuckDB
+  store at the retired path and died with `Catalog Error: Table with
+  name entities does not exist!` (scratch repro, A13). Nothing noticed:
+  the CLI is un-gated and the live store holds 0 `geography/international`
+  rows. Changes: `_cli` opens through the house door
+  (`helpers.core.db.connect`, `read_only=not args.apply`; `--db` defaults
+  to None so the canonical store and `FINDATA_RESEARCH_DB_PATH` are
+  honoured; relative paths anchor at the project root; `try/finally`
+  close); the tagged-among lookup moved from DuckDB-only
+  `IN (SELECT unnest(?))` to a portable `IN (?,?,…)` — the two functions
+  had never worked on a SQLite connection (`no such function: unnest`);
+  `apply_tags` issues one `INSERT … SELECT DISTINCT … WHERE NOT EXISTS`
+  on DuckDB and keeps `executemany` on SQLite. Write path on scratch
+  copies of the live store: 150 rows 0.84–1.06 s → 0.015–0.016 s, tag
+  sets identical (A13). Pins in `tests/test_tag_international_entities.py`
+  (3 → 9: statement shape, SQLite path, engine agreement, three hermetic
+  CLI tests); against the pre-fix module `6 failed, 3 passed`.
+- **P5 (pending — needs a go) — six sibling CLIs carry the same stale
+  default.** `rg 'default="memory/research.db"' helpers` lists ten files
+  (A14). Six pair the literal with the same raw
+  `duckdb.connect(args.db, **memory_cap_config())` and are
+  broken-by-default by code shape — inferred, not executed:
+  `helpers/maintenance/psu_dyad_pass.py:183`,
+  `helpers/maintenance/mnc_arm_probe.py:171`,
+  `helpers/maintenance/mnc_dyad_pass.py:255`,
+  `helpers/maintenance/jv_dyad_census.py:147`,
+  `helpers/maintenance/foreign_links_generate.py:305`,
+  `helpers/maintenance/foreign_name_isin_probe.py:241`. The other four
+  already resolve the cutover (`helpers/graph/csr.py:407`,
+  `helpers/maintenance/group_discovery_growth_monitor.py:233`,
+  `helpers/maintenance/group_discovery_inventory.py:164`,
+  `helpers/validators/graph_scale_watch.py:168`). Shape: the P4 fix plus
+  one hermetic default-invocation pin per CLI. Not a latency slice; it
+  lives here because P4 is what surfaced it.
 
 Non-candidates, recorded so a future sweep does not re-litigate them:
 `helpers/graph/derive_co_mentions.py:465` (`conn.total_changes` →
@@ -219,6 +256,18 @@ embed cache's own WAL path, not this pattern.
 | A8 | P1 old vs new rebuild on two copies of the live store (`p123/equality_p1.py`) | 2,786 rows / 2,029 events; OLD 33.16 s → NEW 2.65 s; dumps identical; old-shape can-fail `1 failed` |
 | A9 | P2 old vs new derive apply on scratch copies (`p123/equality_p2.py`) | org 34 edges / 287 incidences: OLD 0.70 s → NEW 0.70 s; merger 5 facts: 0.05 → 0.04 s; both dumps identical; old-shape can-fail `2 failed` |
 | A10 | P3 decision measurement (`p123/measure_p3.py`, real dry-run derive on a read-only live connection) | `events would persist: 64 new, 1965 unchanged, 64 stale` — ~192 DuckDB statements (~0.36 s); no code change |
+| A11 | corpus-cache follow-on (`helpers/core/corpus.py` `_bulk_replace_cache_rows`, live store, 2026-11-24) | live `Corpus.load("findata", use_cache=True)`: 120 s → 2.3 s (rewrite) → 1.4–1.8 s (true warm; 1,406/1,406 mtime hits). Root cause was NOT write persistence — `mtime REAL` (float32) quantized float64 stat mtimes (ULP ≈ 256 s at 1.79e9; float32(1794583708.66) == 1794583680.0), so every mtime compare misfired and every load re-read/re-hashed/re-upserted all rows. Fix: DROP/CREATE + one INSERT SELECT from a registered Arrow relation, with the DDL recreated using `mtime DOUBLE`; SQLite path untouched. New pin `tests/test_corpus_cache_text.py::test_duckdb_bulk_rewrite_shape_and_double_type` (statement shape + DOUBLE column). |
+| A12 | markdown-lint verdict writes follow-on (`helpers/misc/markdown_lint.py` `_bulk_record_verdicts`, fake-npx cold run 2026-11-24) | empty sidecar, 1,933 stale files: 17.32 s → 1.07 s (one DELETE-IN + INSERT SELECT from a registered Arrow relation); warm rerun 0.28 s, 1,933 rows persisted. SQLite path untouched. New pin `tests/test_markdown_lint.py::test_duckdb_bulk_verdict_write_shape`. |
+| A13 | P4 write path on scratch copies of the live store (`p4/measure_write.py`) + pre-fix CLI repro (`p4/demo_cli.py`) | executemany, 150 rows: 0.842 / 0.926 / 1.062 s; set-based: 0.015 / 0.016 / 0.016 s; rerun 0.003–0.006 s on both; tag sets identical (150 rows; `entity_tags` 7,431 → 7,581). Pre-fix default invocation from a scratch cwd: `CatalogException` plus a stray 12,288-byte `memory/research.db` |
+| A14 | stale-default class (`rg 'default="memory/research.db"' helpers`, HEAD `761b0a164`) | 10 files; 6 broken-by-default by code shape (P5); 4 already resolve the cutover |
+
+P4 EXECUTED (2026-11-24): `helpers/maintenance/tag_international_entities.py`
+opens through the house door, the tagged-among lookup is portable across
+engines, and the DuckDB write is one `INSERT … SELECT` (A13). Nine tests
+in `tests/test_tag_international_entities.py` pass; six fail against the
+pre-fix module. Live default dry-run now reads the canonical store —
+`international candidates: 150 (already tagged 0, missing 150)` — and
+leaves no file at the retired path. P5 (six sibling CLIs) is pending.
 
 ## Execution log (2026-11-24)
 
@@ -261,3 +310,28 @@ executemany` (120.5 s) because all 1,406 cached note mtimes are stale
 and upserts all rows. Same per-row DuckDB pattern as sync_tags — follow-on
 slices: set-based corpus-cache upsert + mtime precision and set-based
 verdict writes.
+
+Corpus-cache follow-on EXECUTED (2026-11-24): `helpers/core/corpus.py`
+gained `_bulk_replace_cache_rows` (DuckDB: DROP/CREATE + one INSERT SELECT
+from a registered Arrow relation, `mtime DOUBLE` column) and
+`_is_duckdb_conn`; `load()`'s upsert+eviction pair became one full-table
+rewrite (preserved cached rows merged with fresh upserts; root-scoped
+eviction folded in); `_init_db_cache` uses the helper; `iter_notes`
+mtime-drift fixups now carry full rows (body stripped in light mode) into
+the upsert list. Pin: `tests/test_corpus_cache_text.py::test_duckdb_bulk_rewrite_shape_and_double_type`
+(one DROP/CREATE/INSERT SELECT, no executemany, mtime DOUBLE). Live
+measurements A11: 120 s → ~2 s (rewrite) → ~1.5 s warm (all 1,406 mtime
+hits). The float32 quantization was the actual regression driver — the
+cache writes were persisting all along; the `mtime REAL` column made every
+float64 compare misfire. `markdown_lint.py:334` verdict writes remain the
+next set-based candidate (unchanged).
+
+Markdown-lint verdict writes EXECUTED (2026-11-24): `helpers/misc/markdown_lint.py`
+gained `_bulk_record_verdicts` (DuckDB: one DELETE-IN + one INSERT SELECT
+from a registered Arrow relation; SQLite keeps `executemany`) and
+`_is_duckdb_conn`; `_record_and_report` branches on engine (the `except
+sqlite3.Error` guard broadened to `except Exception` — DuckDB errors are
+not sqlite3.Error, and a lost record only costs a re-scan). Pin:
+`tests/test_markdown_lint.py::test_duckdb_bulk_verdict_write_shape`.
+Cold-run measurement (fake npx, empty sidecar, 1,933 stale files): 17.32 s
+→ 1.07 s; warm rerun 0.28 s with 1,933 verdict rows persisted. A12.

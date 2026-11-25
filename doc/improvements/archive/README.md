@@ -843,6 +843,36 @@ commit, referenced by nothing). Entry numbers point at
 - [`refresh_chain_parallel.md`](pipeline/refresh_chain_parallel.md) — Refresh chain, parallel — fetch/apply split so independent sources overlap; per-lane `--fetch-only` stages writing scratch JSON under `$TMPDIR/findata-graph/`, parallel phase A, sequential store applies under per-store lock, per-item failure containment; `refresh-chain` Makefile target (default), `refresh-chain-ser` for the original sequential chain — completed.md #403
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+
+- [`test_coverage_gap_sweep_nov24.md`](tooling/test_coverage_gap_sweep_nov24.md) —
+  the post-2026-11-01 coverage re-pin, executed 2026-11-25
+  (#569): S1 `rust-test`/`mojo-test` promoted into blocking qa
+  (`RUST_TEST_STRICT=1`); S2 kernel-parity + `embed_cache` boundary pins
+  (Python + ten cargo tests); S3 `maint_timing`/`algorithm_wrappers` unit
+  pins (25/25 mutation-proof) + HypergraphMT retirement with SQL
+  replacements in `helpers/graph/hyper_arrow.py`; S4 six Hypothesis fuzz
+  files; S5 four integration chains; S6 three perf legs + the write
+  bench; S7 Mojo unit suites + differential kernel pins; S8 cargo-fuzz
+  parked; S9 live loader fix; end-of-arc triage T1–T4. Executing it drove
+  the gate arc that surfaced #567/#568 and the perf-harness revamp.
+
+- [`perf_followon_gate_reuse_cache.md`](tooling/perf_followon_gate_reuse_cache.md) —
+  four perf follow-ons from the 2026-11-24 regression sweep, all
+  executed: (1) live-invariants writer/reader split resolved by
+  VERIFICATION (exact gate lane 203.5s / 271 passed vs 359.7s in 4777,
+  below the ~219s baseline with more tests — served no-flock connect
+  had already removed the queue); (2) per-worker wire lease pool in
+  `app.py` (`_GRAPH_POOL_IDLE_TTL=5.0`, `_GRAPH_POOL_CAP=4`,
+  exclusive leases preserve CONC-1, refresh drains, errored-request
+  connections never re-served; `bench_routes` 2.71–2.80s vs 4.07–5.62s
+  history; drain-tuple bug caught by pins); (3) persistent cross-run
+  template cache (`outputs/.template_cache`, fingerprint over parquet
+  axis + DDL, flock + atomic `.part` publish + size sidecar, keep-2;
+  schema template 1.50s → 0.01s hit); (4) perf-harness SKIP contract
+  (7-tuple legs, `⏸ SKIPPED`, footer `N/M passed, K skipped`, exit 0
+  iff passed+skipped==total, `perf.json` warn + raw_status) —
+  completed.md #568
+
 - [`bili_table_tier_watch_display_parity.md`](tooling/bili_table_tier_watch_display_parity.md) —
   bili display parity: the sessions table's `saved` now follows the
   dashboard page's LEDGER rule (`netSaved = grossSaved − repayCost −
@@ -1448,3 +1478,13 @@ commit, referenced by nothing). Entry numbers point at
   planner pathology of a 12.0 s leg wall) replaced by a Python BFS over
   one `e_all_und` scan: leg 11.9 s → 1.15–1.21 s at unchanged worst-case
   semantics; psi = contention attribution, not a baseline — completed.md #546
+- [`sync_tags_duckdb_setbased.md`](tooling/sync_tags_duckdb_setbased.md) —
+  sync_tags per-row DuckDB writes → set-based statements (the perf leg
+  0.68 s → 28.5 s regression: python `executemany` is one round-trip
+  per row; Arrow register + one INSERT SELECT, one UPDATE FROM; leg
+  1.43 s ✓) + the same-day siblings: corpus-cache full-table rewrite
+  (120 s → 1.4–2.3 s; float32 mtime quantization), markdown-lint
+  verdict writes (17.3 s → 1.07 s), derive_event_participants
+  Arrow-staged replace (33.16 s → 2.65 s), incidence batch helper, P4
+  house-door fix for `tag_international_entities`; P5 (six sibling
+  CLIs on the retired path) deferred to pending.md — completed.md #567
