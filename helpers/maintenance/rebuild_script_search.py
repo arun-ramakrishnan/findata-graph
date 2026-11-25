@@ -817,6 +817,33 @@ def _mojo_stored_doc(
         return None, False
 
 
+def _doc_cache_write(conn, table: str, rel: str, chash: str, doc_json: str) -> None:
+    """Content-addressed mojo/ts decl cache write, engine-agnostic.
+
+    Plain statement + explicit commit — deliberately NOT `with conn:`. On a
+    RAW duckdb connection (the `.duckdb` sidecar lane — ``connect_script_db``
+    opens ``duckdb.connect`` directly, not the funnel proxy) ``with conn:``
+    CLOSES the connection on exit: probed on duckdb 2.0.1, 2026-11-24 —
+    after the block even a fresh ``duckdb.connect`` to the same file dies
+    with ``Connection Error: Connection already closed!``. The
+    ``_DuckDBConn`` proxy (helpers/core/db_engine.py:238) restores sqlite3
+    semantics only for funnel conns, so the two engine-native behaviors
+    differ and the raw lane must not use the context manager. Observed
+    failure when a new Mojo unit took this INSERT path (2026-11-24, right
+    after S7 added Mojo test files): the closed conn made every later
+    embed-cache lookup silently miss, all ~919 rows re-embedded uncached,
+    every cache store failed, and the rebuild ended ``ERROR: Connection
+    already closed!``. sqlite3 keeps the same statement+commit shape, so
+    one helper serves both lanes.
+    """
+    conn.execute(
+        f"INSERT OR REPLACE INTO {table} "  # noqa: S608  # fixed internal table name
+        "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
+        (rel, chash, doc_json),
+    )
+    conn.commit()
+
+
 def _mojo_decl_cached(
     conn: sqlite3.Connection | None,
     rel: str,
@@ -839,15 +866,7 @@ def _mojo_decl_cached(
         if decl is not None:
             if conn is not None:
                 try:
-                    # `with conn:` is safe on both engines (DuckDB proxy
-                    # matches sqlite3 since 2026-11-21: commit/rollback on
-                    # exit, never close).
-                    with conn:
-                        conn.execute(
-                            "INSERT OR REPLACE INTO script_search_mojo_doc "
-                            "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
-                            (rel, chash, generated),
-                        )
+                    _doc_cache_write(conn, "script_search_mojo_doc", rel, chash, generated)
                 except sqlite3.Error, duckdb.Error:
                     pass
             return decl
@@ -1053,15 +1072,7 @@ def _ts_decl_cached(
         if decl is not None:
             if conn is not None:
                 try:
-                    # `with conn:` is safe on both engines (DuckDB proxy
-                    # matches sqlite3 since 2026-11-21: commit/rollback on
-                    # exit, never close).
-                    with conn:
-                        conn.execute(
-                            "INSERT OR REPLACE INTO script_search_ts_doc "
-                            "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
-                            (rel, chash, generated),
-                        )
+                    _doc_cache_write(conn, "script_search_ts_doc", rel, chash, generated)
                 except sqlite3.Error, duckdb.Error:
                     pass
             return decl

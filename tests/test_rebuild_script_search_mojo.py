@@ -110,6 +110,68 @@ def _rebuild(env, db=None, **kw):
     return rss.rebuild(db or tree / "script_search.db", embed_fn=_fake_embed, **kw)
 
 
+class TestDocCacheWriteKeepsConnOpen:
+    """The `.duckdb` sidecar lane passes a RAW duckdb connection into the
+    collectors. The old `with conn:` cache write closed that connection on
+    exit (duckdb 2.0.1), so every later cache lookup silently missed, all
+    rows re-embedded uncached, and the rebuild died with ``ERROR: Connection
+    already closed!`` (first seen 2026-11-24 right after S7 added new Mojo
+    test files — their decls took the INSERT path). The write must leave the
+    connection usable."""
+
+    def test_mojo_decl_cached_leaves_a_raw_duckdb_conn_usable(self, tmp_path, monkeypatch):
+        path = tmp_path / "script_search.duckdb"
+        conn = rss.connect_script_db(path)
+        try:
+            conn.execute(rss.SCRIPT_DUCKDB_MOJO_DOC_DDL)
+            monkeypatch.setattr(rss, "_run_mojo_doc", lambda *a, **k: json.dumps(_FAKE_DECL))
+
+            got = rss._mojo_decl_cached(
+                conn, "Mojo/src/bench/widget.mojo", "h1", tmp_path / "widget.mojo", tmp_path, None
+            )
+            assert got is not None
+            # HEAD closed the conn here: `Connection already closed!`
+            assert conn.execute("SELECT 1").fetchone() == (1,)
+
+            # the cache is warm: the exact hash is served from the store,
+            # without a second `mojo doc` run
+            calls: list[Path] = []
+
+            def counting_doc(path, src_root, mojo_bin=None):  # noqa: ANN001, ANN202
+                calls.append(path)
+                return json.dumps(_FAKE_DECL)
+
+            monkeypatch.setattr(rss, "_run_mojo_doc", counting_doc)
+            again = rss._mojo_decl_cached(
+                conn, "Mojo/src/bench/widget.mojo", "h1", tmp_path / "widget.mojo", tmp_path, None
+            )
+            assert again is not None
+            assert calls == []
+        finally:
+            conn.close()
+
+    def test_doc_cache_write_survives_a_raw_duckdb_conn_round_trip(self, tmp_path):
+        path = tmp_path / "script_search.duckdb"
+        conn = rss.connect_script_db(path)
+        try:
+            conn.execute(rss.SCRIPT_DUCKDB_MOJO_DOC_DDL)
+            decl = json.dumps(_FAKE_DECL)
+            rss._doc_cache_write(conn, "script_search_mojo_doc", "a.mojo", "h1", decl)
+            assert conn.execute("SELECT 1").fetchone() == (1,)
+            stored = conn.execute(
+                "SELECT doc_json FROM script_search_mojo_doc WHERE unit_path = ?", ("a.mojo",)
+            ).fetchone()
+            assert stored is not None and stored[0] == decl
+            # idempotent re-write (INSERT OR REPLACE semantics)
+            rss._doc_cache_write(conn, "script_search_mojo_doc", "a.mojo", "h1", decl)
+            count = conn.execute(
+                "SELECT COUNT(*) FROM script_search_mojo_doc WHERE unit_path = ?", ("a.mojo",)
+            ).fetchone()[0]
+            assert count == 1
+        finally:
+            conn.close()
+
+
 class TestMojoRows:
     def test_mojo_rows_composed(self, env):
         stats = _rebuild(env)
