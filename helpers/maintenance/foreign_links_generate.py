@@ -26,7 +26,7 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
+from helpers.core import db  # noqa: E402
 from helpers.maintenance.foreign_name_isin_probe import (  # noqa: E402
     _normalize,
     _token_set,
@@ -302,19 +302,27 @@ def _render(result) -> str:
 
 def _cli(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--db", default="memory/research.db")
+    ap.add_argument(
+        "--db",
+        default=None,
+        help=(
+            "research store; default = the canonical store via helpers.core.db "
+            "(memory/research.duckdb, FINDATA_RESEARCH_DB_PATH honoured)"
+        ),
+    )
     ap.add_argument("--json-dir", default="bench_data/foreign_probe")
     args = ap.parse_args(argv)
 
-    import duckdb
-
-    ent = duckdb.connect(args.db, **memory_cap_config())
-    src = duckdb.connect(
-        str(_PROJECT_ROOT / "memory" / "data" / "sources.duckdb"), **memory_cap_config()
-    )
-    result = generate(ent, src)
-    ent.close()
-    src.close()
+    db_path = Path(args.db) if args.db else None
+    if db_path is not None and not db_path.is_absolute():
+        db_path = _PROJECT_ROOT / db_path
+    ent = db.connect(db_path, read_only=True)
+    src = db.connect(_PROJECT_ROOT / "memory" / "data" / "sources.duckdb", read_only=True)
+    try:
+        result = generate(ent, src)
+    finally:
+        ent.close()
+        src.close()
 
     outdir = Path(args.json_dir)
     outdir.mkdir(parents=True, exist_ok=True)

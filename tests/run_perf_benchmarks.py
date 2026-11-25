@@ -614,6 +614,17 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         150.0,
     ),
     (
+        "db_engine_2k",
+        [
+            "helpers/bench/db_engine_write_bench.py",
+            "--db",
+            "{scratch}/db_engine_bench_2k.duckdb",
+            "--rows",
+            "2000",
+        ],
+        25.0,
+    ),
+    (
         "hyper_trails",
         ["helpers/graph/hyper_trails.py", "--sources", "200", "--limit", "40"],
         2.0,

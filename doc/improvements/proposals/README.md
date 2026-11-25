@@ -38,6 +38,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- *(archived 2026-11-25)* — `sql_duckdb_perf_audit` (database/, filed +
+  executed 2026-11-25, completed.md #570 — evidence-first DuckDB/SQL/Quack
+  audit of large-dataset and graph hot paths; all five P1-P5 unlock gates
+  closed on measured no-win (k_shards=1 kept; per-type CTAS single cheap scans;
+  onager fetchall ~40 ms, Arrow no clear win; executemany sites cold maintenance
+  lanes; thread A/B 3.57/3.67/3.61 s no win); 6 locked no-churn rules held;
+  NO code/runtime changes — gate stays shut on measured no-win).
 - *(archived 2026-11-23)* — `misc_fix_gate_arc_maintenance` (tooling/,
   filed + executed 2026-11-23, completed.md #566 — the post-#565
   maintenance sweep in stgit patch `misc_fix`: gate-query index heal

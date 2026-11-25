@@ -1,9 +1,9 @@
 ---
 title: "Perf-harness revamp: run perf reliably on a shared desktop"
-status: proposed
+status: executed
 filed: 2026-11-25
-executed: null
-completed_md: null
+executed: "2026-11-25"
+completed_md: "571"
 area: tests/run_perf_benchmarks.py + tests/bench_* + helpers/core/parallelism.py
 ---
 

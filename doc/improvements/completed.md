@@ -17370,3 +17370,58 @@ the search-fresh raw-duckdb `with conn:` close bug. Gates: integration
 893 passed; qa 15/17 with all reds fixed same-day; advisory 23/26 with
 remaining reds parked (convo-fresh live-session drift, contended
 timing-watch pair); perf green under the new harness in a quiet window.
+
+## 570. SQL/DuckDB/Quack perf audit — evidence-first sweep that closed all five unlock gates on measured no-win, no code churn
+
+**Date:** filed + executed 2026-11-25 · **Area:** `helpers/core/duckdb_shared.py`,
+`helpers/graph/query.py`, `helpers/graph/onager.py`, `helpers/graph/algorithms.py`,
+`helpers/graph/incidence_batch.py`, `helpers/graph/derive_*`,
+`helpers/maintenance/*` (DuckDB bulk-write/read hot paths); evidence-only.
+
+Evidence-first audit of DuckDB/SQL/Quack performance on large-dataset and graph
+paths (m01450/m01503/m01620/m01812/m01894). Perf gate run 4800 was contended
+(`FAIL(contended)` on all graph_*/query legs) so it was NOT used as baseline;
+every number came from scratch/quiet runs. Scale: `e_dir 100,786`,
+`e_all_und 201,572`, `graph_edges 86,944`, `hyper_incidences 59,660`.
+
+Scratch graph rebuild 3.879 s wall / 622 MB RSS / no spill; phase profile put
+`_materialise_edges` ~1.8 s, `_materialise_walk_substrate` ~1.0 s,
+`_materialise_edge_table` 0.415 s/12, `_resolve_edges` 0.233 s. Five gates
+(P1-P5) were then opened and each CLOSED on measured result-parity/no-win:
+- P1 substrate: `k_shards=1` 1.117 s vs k=2 1.114 s vs k=4 1.360 s (isolated
+  doubling 0.0908/0.2790/0.3939 s); k=1 and k=2 content fingerprints IDENTICAL
+  (`e_dir 928268066079514940378664`, `e_all_und 1857400741301390539911295`) —
+  keep default `k_shards=1`, sharding is a future growth-budget trigger only.
+- P2 edge fanout: 12 per-type CTAS 0.4027 s total (`supplier_to` 0.2033 s/18,274
+  biggest); EXPLAIN ANALYZE top-3 = single filtered scan of `_edge_resolved`
+  ~0.007-0.009 s each, no join pathology, no intermediate-reuse win.
+- P3 Python materialization: `_onager_e` 100,786-row fetchall ~40 ms; Arrow
+  no clear win (DB-API copy warning) — avoid duplicate full-edge fetches.
+- P4 executemany: 79 hits, DuckDB derive/hyper paths already stage/bulk-replace;
+  the four remaining sites are cold one-shot/refresh lanes (date_edges 46,045
+  rows one-shot; shareholding_sync ~44 holders/filing × 196 filings on
+  refresh-chain; gc_embed_cache once per gate arc 230,391 rows; mca_cin_sync
+  one-shot) — no hot-path conversion case.
+- P5 thread/temp A/B: `FINDATA_DUCKDB_THREADS` {1,2,4} wall 3.57/3.67/3.61 s,
+  RSS 518/615/647 MB, CPU 99/105/109%, 0 major faults, 0 swaps, temp
+  `/mnt/data/tmp`, identical 45,625,344-byte outputs — no wall win; keep threads
+  UNSET, 2GB cap, TMPDIR spill policy.
+
+All 6 locked no-churn rules held in live tree (0 `preserve_insertion_order` hits,
+`MEMORY_LIMIT=2GB`, no new indexes, gate 4800 unused, git diff empty before this
+archival). NO code/runtime behavior changed anywhere — the gate stays shut on
+measured no-win, not missing evidence. Scratch DBs in `${TMPDIR}/opencode-perf-probe/`.
+
+## 571. Perf-harness revamp — run perf reliably on a shared desktop
+
+**Date:** filed + executed 2026-11-25 · **Area:** `tests/run_perf_benchmarks.py` +
+`tests/bench_*` + `helpers/core/parallelism.py` (archived proposal
+`doc/improvements/archive/tooling/perf_harness_revamp.md`)
+
+S0 groundwork (read-only reader flips, exclusive perf-run flock, lock-conflict retry,
+one-core-free fan-out via `default_workers()`, `FINDATA_DUCKDB_THREADS` knob) +
+S1 ephemeral store clone for the writer leg + S2 built-in quiet-window wait +
+S3 median-of-N for noise-prone legs + S4 `memory_query` regression diagnosis
+(box-state artifact, no code change; budget stays 3.0). 55 pins in
+`tests/test_run_perf_benchmarks.py`; ruff/format/ty clean. Real-run validation
+landed in the perf report under the new harness in a quiet window.

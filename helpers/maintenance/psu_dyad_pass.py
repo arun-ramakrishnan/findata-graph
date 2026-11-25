@@ -32,7 +32,7 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
+from helpers.core import db  # noqa: E402
 from helpers.maintenance.group_discovery_inventory import load_family_seeds  # noqa: E402
 from helpers.maintenance.mnc_dyad_pass import (  # noqa: E402
     _members_for_filer,
@@ -180,15 +180,25 @@ def _render(profiles, uncharted) -> str:
 
 def _cli(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--db", default="memory/research.db")
+    ap.add_argument(
+        "--db",
+        default=None,
+        help=(
+            "research store; default = the canonical store via helpers.core.db "
+            "(memory/research.duckdb, FINDATA_RESEARCH_DB_PATH honoured)"
+        ),
+    )
     ap.add_argument("--json", default=None, help="write full profiles JSON")
     args = ap.parse_args(argv)
 
-    import duckdb
-
-    conn = duckdb.connect(args.db, **memory_cap_config())
-    profiles, uncharted = run_pass(conn)
-    conn.close()
+    db_path = Path(args.db) if args.db else None
+    if db_path is not None and not db_path.is_absolute():
+        db_path = _PROJECT_ROOT / db_path
+    conn = db.connect(db_path, read_only=True)
+    try:
+        profiles, uncharted = run_pass(conn)
+    finally:
+        conn.close()
 
     if args.json:
         out = Path(args.json)

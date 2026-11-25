@@ -33,7 +33,7 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
+from helpers.core import db  # noqa: E402
 
 SOURCES_DB = _PROJECT_ROOT / "memory" / "data" / "sources.duckdb"
 INDIA_EXCHANGES = {
@@ -238,18 +238,28 @@ def _render(result) -> str:
 
 def _cli(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--db", default="memory/research.db")
+    ap.add_argument(
+        "--db",
+        default=None,
+        help=(
+            "research store; default = the canonical store via helpers.core.db "
+            "(memory/research.duckdb, FINDATA_RESEARCH_DB_PATH honoured)"
+        ),
+    )
     ap.add_argument("--isin-only", action="store_true", help="probe only masters that carry ISIN")
     ap.add_argument("--json", default=None, help="write report JSON")
     args = ap.parse_args(argv)
 
-    import duckdb
-
-    ent = duckdb.connect(args.db, **memory_cap_config())
-    src = duckdb.connect(str(SOURCES_DB), **memory_cap_config())
-    result = probe(ent, src, min_isin=args.isin_only)
-    ent.close()
-    src.close()
+    db_path = Path(args.db) if args.db else None
+    if db_path is not None and not db_path.is_absolute():
+        db_path = _PROJECT_ROOT / db_path
+    ent = db.connect(db_path, read_only=True)
+    src = db.connect(SOURCES_DB, read_only=True)
+    try:
+        result = probe(ent, src, min_isin=args.isin_only)
+    finally:
+        ent.close()
+        src.close()
 
     if args.json:
         out = Path(args.json)
