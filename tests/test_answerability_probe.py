@@ -25,10 +25,10 @@ import duckdb  # noqa: E402
 import pytest  # noqa: E402
 
 from helpers.misc import answerability_probe as probe  # noqa: E402
+from tests._live_store import live_store_path  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOTS = REPO_ROOT / "snapshots" / "parquet"
-LIVE_DB = REPO_ROOT / "memory" / "research.db"
 
 
 # --------------------------------------------------------------------------- #
@@ -606,7 +606,7 @@ class TestBankLoading:
 # The shipped question set / snapshot pair                                     #
 # --------------------------------------------------------------------------- #
 def _has_artifacts() -> bool:
-    return SNAPSHOTS.is_dir() and LIVE_DB.is_file()
+    return SNAPSHOTS.is_dir() and live_store_path() is not None
 
 
 @pytest.mark.skipif(not SNAPSHOTS.is_dir(), reason="no git-tracked parquet snapshot")

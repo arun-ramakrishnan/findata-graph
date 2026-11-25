@@ -656,74 +656,99 @@ def _build_graph_connection(
     stamp_centrality: bool,
     read_only: bool = False,
 ) -> duckdb.DuckDBPyConnection:
-    """Build or open a read-write connection, serialized cross-process."""
+    """Build or open a read-write connection.
+
+    The ``<cache>.build.lock`` flock serializes FILE-MODE builders across
+    processes (one builder wins; waiters re-check under the lock). Served
+    stores (quack wire) never take it — the server itself serializes
+    writers, and a local build against a served store is refused by the
+    split-brain guard, so there is no legitimate contender for the flock
+    (locking protocol 2026-11-24). Warm read-only opens bypass this path
+    entirely (protocol (c)).
+    """
+    if ds.is_served(duckdb_path):
+        return _open_or_build(duckdb_path, db_path, fresh, rebuild, stamp_centrality, read_only)
     lock_path = Path(str(duckdb_path) + ".build.lock")
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with open(lock_path, "w") as lf:
         fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
         try:
-            if (
-                read_only
-                and not fresh
-                and not rebuild
-                and duckdb_path.exists()
-                and _stale_not_cold(duckdb_path, db_path)
-                and os.environ.get(_GRAPH_STALE_ENV, "fail") != "inline"
-            ):
-                raise GraphCacheStaleError(
-                    "graph cache is stale — run `make graph-rebuild` "
-                    f"(or set {_GRAPH_STALE_ENV}=inline to restore inline rebuild)"
-                )
-            if (
-                not fresh
-                and not rebuild
-                and duckdb_path.exists()
-                and not _is_warm(duckdb_path, db_path)
-            ):
-                # thin_tail gates fix (2026-10-29): the stale-unlink ran BEFORE
-                # the served check, so a stale cache under a live quack server
-                # was deleted and the inline rebuild then refused — the server
-                # kept serving a deleted inode and every file-mode consumer
-                # crashed (qa/perf fallout: the live graph.duckdb vanished
-                # mid-gate). Deleting only destroys here — the rebuild below
-                # is refused under a served store either way — so skip it.
-                if not ds.is_served(duckdb_path):
-                    try:
-                        duckdb_path.unlink()
-                        duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
-                    except OSError:
-                        pass
-            needs_build = (
-                fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path, db_path))
-            )
-            if read_only and not needs_build:
-                return _open_read_only_connection(duckdb_path, db_path)
-            if ds.is_served(duckdb_path):
-                # Served store: a file-mode read-write open is impossible
-                # (the server holds duckdb 2.0's read-write lock) and a
-                # file-mode build would split-brain the store, so the
-                # server serializes the writer instead. A build against a
-                # served store is refused outright — rebuild with the
-                # server stopped.
-                if needs_build:
-                    ds.assert_not_served(duckdb_path)
-                con = ds.connect_shared(duckdb_path, read_only=False)
-                _prep_graph_connection(con)
-                _attach_sqlite(con, db_path, duckdb_path=duckdb_path)
-                return con
-            from helpers.graph.onager import connect_kwargs
-
-            kw = connect_kwargs()
-            kw.setdefault("config", {}).update(ds.memory_cap_config()["config"])
-            con = duckdb.connect(str(duckdb_path), **kw)
-            _prep_graph_connection(con)
-            _attach_sqlite(con, db_path, duckdb_path=duckdb_path)
-            if needs_build:
-                _build_graph(con, stamp_centrality=stamp_centrality, db_path=db_path)
-                _mark_warm(con, db_path)
-            return con
+            return _open_or_build(duckdb_path, db_path, fresh, rebuild, stamp_centrality, read_only)
         finally:
             fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+
+
+def _open_or_build(
+    duckdb_path: Path,
+    db_path: Path,
+    fresh: bool,
+    rebuild: bool,
+    stamp_centrality: bool,
+    read_only: bool,
+) -> duckdb.DuckDBPyConnection:
+    """Shared open-or-build body for :func:`_build_graph_connection`.
+
+    Runs under the build flock for file-mode stores, or lock-free for
+    served stores (the quack server coordinates writers).
+    """
+    if (
+        read_only
+        and not fresh
+        and not rebuild
+        and duckdb_path.exists()
+        and _stale_not_cold(duckdb_path, db_path)
+        and os.environ.get(_GRAPH_STALE_ENV, "fail") != "inline"
+    ):
+        raise GraphCacheStaleError(
+            "graph cache is stale — run `make graph-rebuild` "
+            f"(or set {_GRAPH_STALE_ENV}=inline to restore inline rebuild)"
+        )
+    # Single authoritative warmth probe. `connect()` computed the OUTER
+    # needs_build before the flock; the world can change between that
+    # check and the lock (a concurrent builder finishing is the designed
+    # F1 interleave), so this is the authoritative one.
+    warm = duckdb_path.exists() and _is_warm(duckdb_path, db_path)
+    needs_build = fresh or rebuild or not warm
+    if read_only and not needs_build:
+        return _open_read_only_connection(duckdb_path, db_path)
+    if not fresh and not rebuild and not warm:
+        # thin_tail gates fix (2026-10-29): the stale-unlink ran BEFORE
+        # the served check, so a stale cache under a live quack server
+        # was deleted and the inline rebuild then refused — the server
+        # kept serving a deleted inode and every file-mode consumer
+        # crashed (qa/perf fallout: the live graph.duckdb vanished
+        # mid-gate). Deleting only destroys here — the rebuild below
+        # is refused under a served store either way — so skip it.
+        if not ds.is_served(duckdb_path):
+            try:
+                duckdb_path.unlink()
+                duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
+            except OSError:
+                pass
+    if ds.is_served(duckdb_path):
+        # Served store: a file-mode read-write open is impossible
+        # (the server holds duckdb 2.0's read-write lock) and a
+        # file-mode build would split-brain the store, so the
+        # server serializes the writer instead. A build against a
+        # served store is refused outright — rebuild with the
+        # server stopped.
+        if needs_build:
+            ds.assert_not_served(duckdb_path)
+        con = ds.connect_shared(duckdb_path, read_only=False)
+        _prep_graph_connection(con)
+        _attach_sqlite(con, db_path, duckdb_path=duckdb_path)
+        return con
+    from helpers.graph.onager import connect_kwargs
+
+    kw = connect_kwargs()
+    kw.setdefault("config", {}).update(ds.memory_cap_config()["config"])
+    con = duckdb.connect(str(duckdb_path), **kw)
+    _prep_graph_connection(con)
+    _attach_sqlite(con, db_path, duckdb_path=duckdb_path)
+    if needs_build:
+        _build_graph(con, stamp_centrality=stamp_centrality, db_path=db_path)
+        _mark_warm(con, db_path)
+    return con
 
 
 def connect(
@@ -752,7 +777,17 @@ def connect(
         fresh: Drop the entire ``.duckdb`` file (and WAL sidecar) and
             rebuild from scratch. Use after DuckDB version bumps or
             materialisation-schema changes.
-        read_only: Open the cache file cross-process-safe read-only.
+        read_only: Open the cache file cross-process-safe read-only. On a
+            WARM cache this never takes ``<cache>.build.lock`` (locking
+            protocol (c), 2026-11-24): readers do not serialize behind a
+            builder — the warm-window probe and the open both run outside
+            the flock, and the transient-lock ladder covers a builder that
+            starts in between. Cold/stale falls back to the read-write
+            BUILD path (a read-only opener cannot materialise), serialized
+            by the flock on ``<cache>.build.lock`` and re-checked under
+            the lock — parallel advisory steps hitting a stale cache queue
+            behind one builder instead of racing on the .wal lock; waiters
+            that find the cache warmed open read-only after all.
         stamp_centrality: When this connect builds (cold/explicit
             rebuild), also stamp v_centrality_* tables (lane-served
             metrics skipped per ROUTING) — the pre-2026-09-22 one-shot
@@ -787,13 +822,6 @@ def connect(
             The ``<cache>.build.lock`` flock covers builds that go
             through this function and nothing else — it does not
             serialise a foreign writer that never takes the lock.
-            Requires a warm cache; cold/stale falls back
-            to the read-write BUILD path (a read-only opener cannot
-            materialise), serialized by an flock on ``<cache>.build.lock``
-            and re-checked under the lock — parallel advisory steps
-            hitting a stale cache queue behind one builder instead of
-            racing on the .wal lock; waiters that find the cache warmed
-            open read-only after all.
 
     Returns a read-write DuckDB connection (unless ``read_only``). The
     first caller to a cold file pays the ~150ms materialisation cost;
@@ -827,10 +855,15 @@ def connect(
     if rebuild or fresh:
         clear_graph_cache()
 
-    needs_build = fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path, db_path))
-
-    if read_only and not needs_build:
-        return _open_read_only_connection(duckdb_path, db_path)
+    if read_only and not fresh and not rebuild:
+        # (c) locking protocol (2026-11-24): a warm read-only open NEVER
+        # takes `<cache>.build.lock` — pure readers do not serialize
+        # behind a builder. Verify warmth without the flock and open
+        # directly; the transient-lock ladder in
+        # `_open_read_only_connection` covers a builder that starts
+        # between this probe and the open.
+        if duckdb_path.exists() and _is_warm(duckdb_path, db_path):
+            return _open_read_only_connection(duckdb_path, db_path)
 
     return _build_graph_connection(
         duckdb_path, db_path, fresh, rebuild, stamp_centrality, read_only
@@ -2665,13 +2698,15 @@ def _stamp_full_universe(con: duckdb.DuckDBPyConnection, db_path: Path | str | N
     these tables never feed the 1,734-row lane-served graph_analytics
     contract. Advisory lane: a failure drops all three and warns.
     """
+    from helpers.core.parallelism import default_workers as _default_workers
+
     from helpers.graph import scipy_bridge as _sb_full
 
     try:
         A_fu, names_fu = _sb_full.load_projection(
             str(db_path) if db_path else _sb_full.DEFAULT_DB_PATH
         )
-        fu = _sb_full.full_universe_stats(A_fu, jobs=4)
+        fu = _sb_full.full_universe_stats(A_fu, jobs=_default_workers(cap=4))
         _stamp_arrow_table(
             con,
             "v_centrality_closeness_full",

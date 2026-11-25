@@ -8,21 +8,18 @@ reintroduction via a schema migration or copy-paste from stale docs.
 
 from __future__ import annotations
 
-from pathlib import Path
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-
 from helpers.core.db import connect  # noqa: E402
+from tests._live_store import live_store_path
 
 
 def test_confidence_level_column_dropped():
     """entities must NOT have a confidence_level column."""
-    db_path = REPO_ROOT / "memory" / "research.db"
-    if not db_path.exists():
-        import pytest
+    db_path = live_store_path()
+    if db_path is None:
+        import pytest  # noqa: PLC0415  # only needed on a store-less box
 
-        pytest.skip("live DB not available")
-    conn = connect(db_path, row_factory=None)
+        pytest.skip("live research store not present")
+    conn = connect(db_path, row_factory=None, read_only=True)
     try:
         cols = [r[1] for r in conn.execute("PRAGMA table_info(entities)").fetchall()]
     finally:

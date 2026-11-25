@@ -84,7 +84,6 @@ except ImportError:  # pragma: no cover
 
 import argparse
 import json
-import os
 import re
 import sys
 from functools import cache
@@ -102,6 +101,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps cutover S1)
+from helpers.core.parallelism import default_workers  # noqa: E402  one core free on the desktop
 from helpers.core.db import connect, utc_now  # noqa: E402
 from helpers.core.entity_identity import name_key as _name_key  # noqa: E402
 from helpers.core.frontmatter import (  # noqa: E402  # after the sys.path bootstrap above
@@ -3522,7 +3522,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         from concurrent.futures import ProcessPoolExecutor
         from concurrent.futures.process import BrokenProcessPool
 
-        workers = min(4, os.cpu_count() or 1)
+        workers = default_workers(cap=4)  # one core free on the desktop (helpers.core.parallelism)
         chunks = [([str(p) for p in nl_paths[i::workers]], names) for i in range(workers)]
         # S1b fix: use `helpers.graph._extract_worker` (always importable) so
         # pickle is `helpers.graph._extract_worker._extract_batch_arg` not

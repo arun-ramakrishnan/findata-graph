@@ -10,6 +10,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from helpers.graph import scipy_matching as sm
+from tests._live_store import live_store_path
 
 
 def _make_db(edges):
@@ -268,10 +269,11 @@ def test_s3_sector_toy():
 def test_s3_sector_live():
     """Live acceptance (proposal §2): per-sector cuts assign ALL classified
     invested_in targets with zero exclusions; repeated runs (and JSON)
-    are byte-stable. Skipped when the live DB is absent."""
-    dbp = Path("memory/research.db")
-    if not dbp.exists():
-        pytest.skip("live DB absent")
+    are byte-stable. Skipped when the live research store is absent
+    (resolved through the house door — ``tests/_live_store.py``)."""
+    dbp = live_store_path()
+    if dbp is None:
+        pytest.skip("live research store not present")
     inc = sm.load_investment_incidence(str(dbp))
     sectors = sm.load_target_sectors(str(dbp))
     res = sm.s3_assign_primary_sector(inc, sectors)

@@ -209,3 +209,30 @@ class TestConnectSharedUnsigned:
         finally:
             con.close()
         assert flag is False  # duckdb 2.0 surfaces the setting as BOOLEAN
+
+
+class TestMemoryCapThreads:
+    """FINDATA_DUCKDB_THREADS env-gates a DuckDB thread-pool cap (the perf
+    lane sets it so a leg cannot saturate every core); unset keeps DuckDB's
+    own default."""
+
+    def test_unset_env_has_no_threads_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("FINDATA_DUCKDB_THREADS", raising=False)
+        config = ds.memory_cap_config()["config"]
+        assert "threads" not in config
+
+    def test_env_sets_threads(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("FINDATA_DUCKDB_THREADS", "2")
+        config = ds.memory_cap_config()["config"]
+        assert config["threads"] == 2
+        assert config["memory_limit"] == ds.MEMORY_LIMIT
+
+    def test_garbage_env_is_ignored(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("FINDATA_DUCKDB_THREADS", "two")
+        assert "threads" not in ds.memory_cap_config()["config"]
+
+    def test_zero_and_negative_env_are_ignored(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("FINDATA_DUCKDB_THREADS", "0")
+        assert "threads" not in ds.memory_cap_config()["config"]
+        monkeypatch.setenv("FINDATA_DUCKDB_THREADS", "-2")
+        assert "threads" not in ds.memory_cap_config()["config"]

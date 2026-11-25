@@ -289,8 +289,18 @@ def temp_directory() -> str:
 
 def memory_cap_config() -> dict[str, Any]:
     """``duckdb.connect`` kwargs enforcing the repo memory cap and the
-    TMPDIR spill rule (:func:`temp_directory`)."""
-    return {"config": {"memory_limit": MEMORY_LIMIT, "temp_directory": temp_directory()}}
+    TMPDIR spill rule (:func:`temp_directory`).
+
+    ``FINDATA_DUCKDB_THREADS=<n>`` (env) additionally caps DuckDB's internal
+    thread pool — the perf lane sets it so a benchmark leg cannot saturate
+    all cores (see ``helpers.core.parallelism``). Unset (the default) keeps
+    DuckDB's own core-count default everywhere.
+    """
+    config: dict[str, Any] = {"memory_limit": MEMORY_LIMIT, "temp_directory": temp_directory()}
+    threads_env = os.environ.get("FINDATA_DUCKDB_THREADS", "")
+    if threads_env.isdigit() and int(threads_env) > 0:
+        config["threads"] = int(threads_env)
+    return {"config": config}
 
 
 def unsigned_ext_kwargs() -> dict[str, Any]:

@@ -24,6 +24,8 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -38,6 +40,7 @@ duckdb = pytest.importorskip("duckdb")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 
+from tests._live_store import live_store_path  # noqa: E402
 from tests._tmp_hygiene import LEGACY_SNAPSHOT_DIR  # noqa: E402
 
 if not any(LEGACY_SNAPSHOT_DIR.glob("*.parquet")):
@@ -306,6 +309,50 @@ class TestDiskBasics:
                 con.execute("CREATE TABLE _test_write_fail (x INT)")
         finally:
             con.close()
+
+    def test_warm_read_only_open_takes_no_build_lock(self, tmp_db):
+        """Locking protocol (c) — a warm read-only open never takes
+        ``<cache>.build.lock``: hold the build flock ourselves and open
+        read-only; it must complete immediately (no queueing behind a
+        builder). Under the old protocol the connect would block on the
+        flock until we released it, which is exactly the contention the
+        advisory leg (test_refresh_resets_connection, 186.9 s under
+        xdist) paid."""
+        duckdb_path = _duckdb_for(tmp_db)
+        con = connect(tmp_db, duckdb_path=duckdb_path)  # build warm
+        con.close()
+        assert duckdb_path.exists()
+
+        lock_path = Path(str(duckdb_path) + ".build.lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        held = {"lf": None}
+        with open(lock_path, "w") as lf:
+            import fcntl
+
+            fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+            held["lf"] = lf
+            result: dict = {}
+            t0 = time.monotonic()
+
+            def open_ro():
+                result["con"] = connect(tmp_db, read_only=True, duckdb_path=duckdb_path)
+                result["dt"] = time.monotonic() - t0
+
+            th = threading.Thread(target=open_ro)
+            th.start()
+            th.join(10)
+            assert not th.is_alive(), (
+                "warm read-only connect blocked behind build.lock — protocol (c) regression"
+            )
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+            held["lf"] = None
+        con2 = result["con"]
+        try:
+            with pytest.raises(Exception, match="read.only|read-only|Cannot"):
+                con2.execute("CREATE TABLE _test_write_fail (x INT)")
+        finally:
+            con2.close()
+        assert result["dt"] < 5.0, f"RO open took {result['dt']:.2f}s"
 
     def test_rw_holder_blocks_a_read_only_opener(self, tmp_db):
         """A read-write holder EXCLUDES a read-only opener (the false clause).
@@ -936,6 +983,10 @@ class TestProductionPath:
         c = connect()  # no args = production default
         try:
             assert DUCKDB_PATH.exists()
+            # The source store by its RESOLVED name — the old assertion here
+            # was ``DB_PATH.exists()`` on the retired SQLite path, which
+            # fails on a correctly cut-over box.
+            assert live_store_path() is not None
             assert sector_of(c, "CEAT") == "Automotive"
         finally:
             c.close()
@@ -970,3 +1021,58 @@ class TestStaleUnlinkServedGuard:
                 cache, db, fresh=False, rebuild=False, stamp_centrality=False
             )
         assert cache.exists(), "served cache must not be unlinked"
+
+    def test_served_open_takes_no_build_lock(self, tmp_path, monkeypatch):
+        """Locking protocol (2026-11-24): served-store clients coordinate
+        through the quack server — they never take ``<cache>.build.lock``.
+        Hold the flock ourselves and exercise the served open; it must
+        complete immediately (the old code wrapped the served branch in
+        the flock and would block here)."""
+        import fcntl
+
+        import helpers.core.duckdb_shared as ds
+        from helpers.graph import query as gq
+
+        cache = tmp_path / "graph.duckdb"
+        cache.write_bytes(b"warm-cache-bytes")
+        db = tmp_path / "research.db"
+        db.write_bytes(b"")
+        monkeypatch.setattr(ds, "is_served", lambda p: True)
+        monkeypatch.setattr(gq, "_is_warm", lambda c, d: True)
+        opened = {"n": 0}
+
+        def fake_rw_open(path, read_only=False, **kw):
+            opened["n"] += 1
+            con = duckdb.connect(**ds.memory_cap_config())
+            con.execute("CREATE TABLE _m (i INT)")
+            return con
+
+        monkeypatch.setattr(ds, "connect_shared", fake_rw_open)
+
+        lock_path = Path(str(cache) + ".build.lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(lock_path, "w") as lf:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+            result: dict = {}
+            t0 = time.monotonic()
+
+            def open_served():
+                result["con"] = gq._build_graph_connection(
+                    cache, db, fresh=False, rebuild=False, stamp_centrality=False
+                )
+                result["dt"] = time.monotonic() - t0
+
+            th = threading.Thread(target=open_served)
+            th.start()
+            th.join(10)
+            assert not th.is_alive(), (
+                "served open blocked behind build.lock — server-coordinated "
+                "clients must not take the flock"
+            )
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+        con = result["con"]
+        try:
+            assert opened["n"] == 1
+        finally:
+            con.close()
+        assert result["dt"] < 5.0, f"served open took {result['dt']:.2f}s"

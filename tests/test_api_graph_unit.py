@@ -1489,24 +1489,40 @@ class TestNearDuplicatesAVAIL1:
 
 class TestGraphConnectionPerRequest:
     def test_requests_get_distinct_connections(self, unit_client, monkeypatch):
-        """Two separate request contexts must see two distinct connection
-        objects — that isolation is exactly what the singleton lacked."""
+        """CONC-1 (perf_followon item 2 restatement): a lease is exclusive —
+        within one request every call returns the same connection, and a
+        second borrower can never lease a connection that is checked out.
+        SEQUENTIAL requests may reuse the pooled connection (that reuse is
+        the amortisation); concurrent sharing is what the singleton got
+        wrong. Concurrency exclusivity is pinned by
+        TestGraphConnectionPool.test_concurrent_borrows_never_share_a_connection.
+        """
         made = []
 
+        class FakeCon:
+            def execute(self, *_a, **_k):  # pool probe
+                return self
+
+            def fetchone(self):
+                return (1,)
+
         def fake_open():
-            con = object()  # unique per call
+            con = FakeCon()  # unique per call
             made.append(con)
             return con
 
         monkeypatch.setattr(A, "_open_graph_connection", fake_open)
+        monkeypatch.setattr(A, "_graph_pool", [])
         with A.app.test_request_context("/api/graph/stats"):
             c1 = A.get_graph_connection()
             # Within one request, repeated calls reuse the same connection.
             assert A.get_graph_connection() is c1
+            # While c1 is leased, nobody else can borrow it: the pool is empty.
+            assert A._pool_borrow() is None, "a checked-out lease must not be re-loaned"
+        # Sequential request: the parked lease is handed back out (reuse).
         with A.app.test_request_context("/api/graph/stats"):
             c2 = A.get_graph_connection()
-        assert c1 is not c2, "concurrent requests must not share a connection"
-        assert len(made) == 2
+        assert c2 is c1 and len(made) == 1, "sequential reuse is the amortisation"
 
     def test_direct_call_path_keeps_the_singleton(self, unit_client, monkeypatch):
         """Outside a request context (tests, CLI), the singleton path is
@@ -1516,18 +1532,131 @@ class TestGraphConnectionPerRequest:
         # No request context: returns the singleton, never calls the opener.
         assert A.get_graph_connection() is sentinel
 
-    def test_teardown_closes_the_request_connection(self, unit_client, monkeypatch):
-        """The teardown hook closes the connection the request opened, so the
-        read lock does not outlive the request."""
+    def test_teardown_pools_a_healthy_connection_and_drain_closes_it(
+        self, unit_client, monkeypatch
+    ):
+        """Teardown returns a healthy connection to the idle pool (perf_followon
+        item 2); the close is owned by the pool — TTL expiry, cap overflow,
+        or the refresh drain — not by the request."""
         closed = {"n": 0}
 
         class FakeCon:
             def close(self):
                 closed["n"] += 1
 
+            def execute(self, *_a, **_k):
+                return self
+
+            def fetchone(self):
+                return (1,)
+
         monkeypatch.setattr(A, "_open_graph_connection", lambda: FakeCon())
+        monkeypatch.setattr(A, "_graph_pool", [])
         with A.app.test_request_context("/api/graph/stats"):
             con = A.get_graph_connection()
             assert isinstance(con, FakeCon)
-        # Context exited -> teardown ran.
-        assert closed["n"] == 1, "teardown must close the request connection"
+        # Context exited -> teardown ran, and the connection was PARKED, not closed.
+        assert closed["n"] == 0, "a healthy connection must not be closed at teardown"
+        assert len(A._graph_pool) == 1 and A._graph_pool[0][0] is con
+        A._pool_drain()
+        assert closed["n"] == 1, "the refresh drain closes every pooled connection"
+        assert A._graph_pool == []
+
+
+class TestGraphConnectionPool:
+    """perf_followon item 2 (2026-11-24): the per-worker lease pool.
+
+    CONC-1 stays intact — a pooled connection is handed to at most ONE
+    borrower at a time; the pool only amortises the per-request open
+    (served-store secret/ATTACH + extension loads + warmth probes).
+    """
+
+    def _fake_con(self, closed, *, dead=False):
+        class FakeCon:
+            def close(self):
+                closed["n"] += 1
+
+            def execute(self, *_a, **_k):
+                if dead:
+                    raise RuntimeError("connection is closed")
+                return self
+
+            def fetchone(self):
+                return (1,)
+
+        return FakeCon()
+
+    def test_second_borrow_reuses_the_pooled_connection(self, unit_client, monkeypatch):
+        """A sequential second request re-uses the parked connection instead
+        of paying the open again."""
+        opens = {"n": 0}
+        monkeypatch.setattr(A, "_graph_pool", [])
+
+        def _open():
+            opens["n"] += 1
+            return self._fake_con(closed={"n": 0})
+
+        monkeypatch.setattr(A, "_open_graph_connection", _open)
+        with A.app.test_request_context("/api/graph/stats"):
+            first = A.get_graph_connection()
+        with A.app.test_request_context("/api/graph/stats"):
+            second = A.get_graph_connection()
+        assert second is first
+        assert opens["n"] == 1, "the second request must not reopen"
+
+    def test_concurrent_borrows_never_share_a_connection(self, unit_client, monkeypatch):
+        """CONC-1: a pooled entry is handed out exactly once — the second
+        concurrent borrower finds the pool empty and opens its own."""
+        monkeypatch.setattr(A, "_graph_pool", [])
+        con = self._fake_con(closed={"n": 0})
+        A._graph_pool.append((con, time.monotonic()))
+        first = A._pool_borrow()
+        assert first is con
+        assert A._graph_pool == []
+        assert A._pool_borrow() is None, "nothing left to share"
+
+    def test_idle_ttl_entry_is_closed_not_reused(self, unit_client, monkeypatch):
+        """Entries parked longer than the idle TTL are closed at borrow — the
+        pool keeps releasing DuckDB read locks promptly for a rebuild."""
+        closed = {"n": 0}
+        con = self._fake_con(closed)
+        monkeypatch.setattr(A, "_graph_pool", [(con, time.monotonic() - 6.0)])
+        assert A._pool_borrow() is None
+        assert closed["n"] == 1, "the idle entry must be closed, not served"
+
+    def test_dead_entry_is_skipped_and_a_live_one_is_served(self, unit_client, monkeypatch):
+        """A probe-failing entry (closed behind our back) is closed and
+        dropped; the walk continues to the next entry."""
+        dead_closed, live_closed = {"n": 0}, {"n": 0}
+        dead = self._fake_con(dead_closed, dead=True)
+        live = self._fake_con(live_closed)
+        # pop() takes the NEWEST entry, so the dead one must be appended last.
+        monkeypatch.setattr(A, "_graph_pool", [(live, time.monotonic()), (dead, time.monotonic())])
+        borrowed = A._pool_borrow()
+        assert borrowed is live
+        assert dead_closed["n"] == 1 and live_closed["n"] == 0
+        assert A._graph_pool == []
+
+    def test_refresh_drains_the_pool(self, unit_client, monkeypatch):
+        """POST /api/graph/refresh (via _reset_graph_connection) closes every
+        pooled connection so a post-refresh request cannot serve pre-refresh
+        data and the rebuild's read-write open is not blocked."""
+        closed = {"n": 0}
+        con = self._fake_con(closed)
+        monkeypatch.setattr(A, "_graph_con", None, raising=False)
+        monkeypatch.setattr(A, "_graph_pool", [(con, time.monotonic())])
+        A._reset_graph_connection()
+        assert closed["n"] == 1 and A._graph_pool == []
+
+    def test_cap_overflow_closes_the_oldest(self, unit_client, monkeypatch):
+        """Returning beyond the cap closes the OLDEST entry, so warm recency
+        survives a burst wider than the cap."""
+        closed = {"n": 0}
+        monkeypatch.setattr(A, "_graph_pool", [])
+        cons = [self._fake_con(closed) for _ in range(A._GRAPH_POOL_CAP + 1)]
+        for con in cons:
+            A._pool_return(con)
+        assert len(A._graph_pool) == A._GRAPH_POOL_CAP
+        assert closed["n"] == 1
+        assert A._graph_pool[0][0] is cons[1], "the oldest (cons[0]) was closed"
+        assert A._graph_pool[-1][0] is cons[-1]

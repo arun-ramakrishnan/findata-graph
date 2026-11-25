@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from helpers.graph import l1_mst as mst
+from tests._live_store import live_store_path
 
 
 def _make_db(edges):
@@ -62,11 +63,9 @@ def test_disconnected_components():
 
 
 def test_live_replay():
-    from pathlib import Path
-
-    dbp = Path("memory/research.db")
-    if not dbp.exists():
-        pytest.skip("live DB missing")
+    dbp = live_store_path()
+    if dbp is None:
+        pytest.skip("live research store not present")
     res = mst.mst_forest(str(dbp))
     # Forest-not-tree reporting: a forest spanning V nodes with C components
     # has exactly V - C edges (Kruskal/Prim invariant). Pinning the exact

@@ -243,6 +243,85 @@ _NEAR_DUP_CACHE_MAX = 64
 _NEAR_DUP_MAX_PATHS = 10_000
 
 
+# perf_followon item 2 (2026-11-24): per-worker lease pool for the request
+# path. CONC-1 (doc/improvements/archive/security/conc1_graph_connection_isolation.md)
+# keeps its invariant — a connection is owned by exactly ONE request at a
+# time, never shared across concurrent requests; the pool only amortises the
+# per-request open (extension loads + served-store secret/ATTACH + warmth
+# probes) across sequential requests. Entries idle longer than
+# _GRAPH_POOL_IDLE_TTL are closed on the next borrow, so the pool still
+# "releases the DuckDB read lock promptly" for an external rebuild (the
+# reason the per-request teardown close exists). _reset_graph_connection
+# (POST /api/graph/refresh) drains the pool outright — a post-refresh request
+# can never serve from a pre-refresh connection.
+_GRAPH_POOL_IDLE_TTL = 5.0
+_GRAPH_POOL_CAP = 4
+_graph_pool: list[tuple[duckdb.DuckDBPyConnection, float]] = []
+_graph_pool_lock = threading.Lock()
+
+
+def _pool_close_quietly(con: duckdb.DuckDBPyConnection) -> None:
+    close = getattr(con, "close", None)
+    if close is None:
+        return
+    try:
+        close()
+    except Exception as e:  # noqa: BLE001  # a dead pooled conn must never break a request
+        app.logger.warning("pooled graph connection close failed: %s", e)
+
+
+def _pool_borrow() -> duckdb.DuckDBPyConnection | None:
+    """Pop the newest idle pooled connection inside the idle TTL, else None.
+
+    A borrowed connection is validated with a one-statement probe: a
+    connection closed behind our back (refresh drain, cap overflow, a
+    previous request's error path) raises there instead of surfacing as a
+    500 inside a handler. Closes (never re-arms) idle-ttl and dead entries
+    while walking the pool. Closes happen OUTSIDE _graph_pool_lock —
+    duckdb close can block on file locks, and no pool consumer holds the
+    lock while waiting on it.
+    """
+    while True:
+        with _graph_pool_lock:
+            if not _graph_pool:
+                return None
+            con, returned_at = _graph_pool.pop()
+        if time.monotonic() - returned_at > _GRAPH_POOL_IDLE_TTL:
+            _pool_close_quietly(con)
+            continue
+        try:
+            con.execute("SELECT 1").fetchone()
+        except Exception:  # noqa: BLE001  # dead entry: drop it, try the next
+            _pool_close_quietly(con)
+            continue
+        return con
+
+
+def _pool_return(con: duckdb.DuckDBPyConnection) -> None:
+    """Return a healthy request connection to the pool (or close it).
+
+    Close-on-return happens when the pool is already full — always the
+    OLDEST entry, so warm recency survives a burst wider than the cap.
+    """
+    overflow: list[duckdb.DuckDBPyConnection] = []
+    with _graph_pool_lock:
+        _graph_pool.append((con, time.monotonic()))
+        while len(_graph_pool) > _GRAPH_POOL_CAP:
+            stale, _returned_at = _graph_pool.pop(0)
+            overflow.append(stale)
+    for stale in overflow:
+        _pool_close_quietly(stale)
+
+
+def _pool_drain() -> None:
+    """Close every pooled connection (refresh path — see _reset_graph_connection)."""
+    with _graph_pool_lock:
+        drained = _graph_pool[:]
+        _graph_pool.clear()
+    for con, _returned_at in drained:
+        _pool_close_quietly(con)
+
+
 def _open_graph_connection() -> duckdb.DuckDBPyConnection:
     """Open one read-only DuckDB connection to the graph cache.
 
@@ -300,7 +379,12 @@ def get_graph_connection() -> duckdb.DuckDBPyConnection:
         con = getattr(g, "_graph_con", None)
         if con is not None:
             return con
-        con = _open_graph_connection()
+        # perf_followon item 2: reuse a pooled (idle, probe-validated) RO
+        # connection; fall back to a fresh open. Either way the connection
+        # is leased to THIS request alone (CONC-1) until teardown.
+        con = _pool_borrow()
+        if con is None:
+            con = _open_graph_connection()
         g._graph_con = con
         return con
     global _graph_con
@@ -387,6 +471,10 @@ def _reset_graph_connection() -> None:
     subsequent rebuild() can reopen the file read-write.
     """
     global _graph_con, _graph_con_error, _graph_error_at, _graph_etag, _graph_near_dup_cache
+    # perf_followon item 2: a refresh invalidates every pooled connection —
+    # drain BEFORE the rebuild reopens the file read-write, so pooled
+    # read-only handles cannot block it (DuckDB single-writer contract).
+    _pool_drain()
     with _graph_lock:
         if _graph_con is not None:
             # Guard getattr: unit tests seed a bare object() sentinel that has
@@ -2075,23 +2163,25 @@ def api_stats():
 
 @app.teardown_request
 def _close_request_graph_connection(exc):  # noqa: ARG001  # Flask passes the exception
-    """Close the request's graph connection (CONC-1).
+    """Release the request's graph connection (CONC-1 + perf_followon item 2).
 
-    Each request opened its own read-only connection (get_graph_connection);
-    closing it at teardown releases the DuckDB read lock promptly, so a
-    rebuild's read-write open is not blocked by idle connections. Requests
-    that never touched the graph have nothing to close.
+    The request leased its own read-only connection (get_graph_connection).
+    A healthy one goes back to the idle pool (amortises the served-store
+    secret/ATTACH + extension loads across sequential requests); anything
+    this request broke, or a pool beyond its cap, is closed here. The idle
+    TTL in _pool_borrow keeps releasing DuckDB read locks promptly for an
+    external rebuild, which is why this hook existed.
     """
     con = g._graph_con if hasattr(g, "_graph_con") else None
     if con is None:
         return
     g._graph_con = None
-    close = getattr(con, "close", None)
-    if close is not None:
-        try:
-            close()
-        except Exception as e:  # noqa: BLE001  # teardown must never raise
-            app.logger.warning("request graph connection close failed: %s", e)
+    if exc is not None:
+        # The request is unwinding with an error — do not re-serve a
+        # connection whose session state may be mid-statement.
+        _pool_close_quietly(con)
+        return
+    _pool_return(con)
 
 
 @app.after_request
