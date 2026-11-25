@@ -205,7 +205,10 @@ def extract_co_mentions(  # noqa: C901
     root = companies_dir if companies_dir is not None else COMPANIES_DIR
     own_conn = conn is None
     if own_conn:
-        conn = connect()
+        # Pure reader (SELECT only): open read-only so a concurrent live gate
+        # (e.g. the wire-connection lease pool) never blocks the open, and a
+        # missing store never gets created as a stray empty file.
+        conn = connect(read_only=True)
 
     try:
         # Bundle V3: bulk-fetch the {file_path: entity_name} map ONCE instead

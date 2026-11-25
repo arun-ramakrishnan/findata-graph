@@ -20,7 +20,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from helpers.graph.ppr_edge_attribution import run  # noqa: E402
-from helpers.graph.scipy_bridge import DEFAULT_DB_PATH  # noqa: E402
+from tests._live_store import live_store_path  # noqa: E402
 
 _WALL_CEILING_S = 60.0
 _COHORT = 8
@@ -28,9 +28,13 @@ _TOP_K = 10
 
 
 def main() -> int:
-    db = Path(DEFAULT_DB_PATH)
-    if not db.exists():
-        print("SKIP: no memory/research.db — Q3 harness leg skipped (exit 0)")
+    # House-door resolution, not the retired SQLite name: the literal
+    # ``memory/research.db`` gate made this leg SKIP-exit-0 — scored OK at
+    # ~0.4 s — for every perf run from the 2026-11-21 cutover until
+    # 2026-11-24.
+    db = live_store_path()
+    if db is None:
+        print("SKIP: no live research store — Q3 harness leg skipped (exit 0)")
         return 0
 
     report = run(db, cohort_size=_COHORT, top_k=_TOP_K, alpha=0.85)

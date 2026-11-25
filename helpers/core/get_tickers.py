@@ -421,7 +421,11 @@ def resolve_entity(ticker, info, entities, spellfix_conn=None, vss_conn=None, in
 def load_entities(db_path="memory/research.db"):
     """Load entity names from the SQLite database."""
     try:
-        conn = connect(db_path, row_factory=None)
+        # read_only: this is a pure reader; a default (writable) open loses
+        # the config-conflict race against any RO holder under parallel
+        # gates and the swallowed exception then reads as "0 entities"
+        # (qa 4796 flake, 2026-11-25).
+        conn = connect(db_path, read_only=True, row_factory=None)
         cursor = conn.execute("SELECT name FROM entities ORDER BY name")
         entities = [r[0] for r in cursor.fetchall()]
         conn.close()

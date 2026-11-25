@@ -839,7 +839,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
     FETCH_SCRATCH.mkdir(parents=True, exist_ok=True)
 
-    conn = connect(DB_PATH)
+    # DRY-RUN (default) never writes: open read-only so a concurrent holder
+    # (another perf run, a live gate) can never block the open with a lock
+    # conflict; --apply keeps the writable open it needs.
+    conn = connect(DB_PATH, read_only=not args.apply)
 
     # Load companies with tickers
     if args.from_manifest:

@@ -27,8 +27,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from helpers.graph import l1_betweenness as lb  # noqa: E402
 from helpers.graph import l1_closeness as lc  # noqa: E402
+from tests._live_store import live_store_path  # noqa: E402
 
-_DB = REPO_ROOT / "memory" / "research.db"
 _CEILING_S = 240.0  # both lanes x both kernels, warm store, jobs=1
 _BETWEENNESS_EPS = 1e-9
 #: Regression floor, deliberately BELOW the proposals' >2x acceptance target.
@@ -45,9 +45,9 @@ def _rel(a, b) -> float:
     return float(np.max(np.abs(a - b) / denom)) if a.size else 0.0
 
 
-def _betweenness(lane: str) -> dict:
+def _betweenness(lane: str, db: Path) -> dict:
     os.environ["L1B_RUST"] = lane
-    names, edges = lb.load_projection(_DB)
+    names, edges = lb.load_projection(db)
     n = len(names)
     indptr, indices = lb.build_adjacency(n, edges)
     mask, removed = lb.peel_two_core(indptr, indices, n)
@@ -63,16 +63,21 @@ def _betweenness(lane: str) -> dict:
     return {"wall": time.perf_counter() - t0, "U": u, "TU": tu, "KK": kk, "n": n}
 
 
-def _closeness(lane: str) -> dict:
+def _closeness(lane: str, db: Path) -> dict:
     os.environ["L1C_RUST"] = lane
     t0 = time.perf_counter()
-    scores, info = lc.compute(_DB, jobs=1)
+    scores, info = lc.compute(db, jobs=1)
     return {"wall": time.perf_counter() - t0, "scores": scores, "info": info}
 
 
 def main() -> int:
-    if not _DB.exists():
-        print("SKIP: no memory/research.db — L1 kernel bench skipped (exit 0)")
+    # The house-door resolution, not the retired SQLite name: a literal
+    # ``memory/research.db`` gate made this leg print SKIP and exit 0 — scored
+    # OK at ~0.2 s — for every perf run from the 2026-11-21 cutover until
+    # 2026-11-24.
+    db = live_store_path()
+    if db is None:
+        print("SKIP: no live research store — L1 kernel bench skipped (exit 0)")
         return 0
     try:
         import graph_kernels
@@ -86,8 +91,8 @@ def main() -> int:
 
     t_all = time.perf_counter()
 
-    b_np = _betweenness("0")
-    b_rs = _betweenness("1")
+    b_np = _betweenness("0", db)
+    b_rs = _betweenness("1", db)
     for name in ("U", "TU", "KK"):
         rel = _rel(b_rs[name], b_np[name])
         if rel > _BETWEENNESS_EPS:
@@ -95,8 +100,8 @@ def main() -> int:
             return 1
     b_speed = b_np["wall"] / b_rs["wall"] if b_rs["wall"] else float("inf")
 
-    c_np = _closeness("0")
-    c_rs = _closeness("1")
+    c_np = _closeness("0", db)
+    c_rs = _closeness("1", db)
     if c_np["scores"] != c_rs["scores"]:
         print("FAIL: closeness scores differ between lanes (must be exact)")
         return 1

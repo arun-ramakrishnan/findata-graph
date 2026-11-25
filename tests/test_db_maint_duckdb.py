@@ -22,13 +22,19 @@ pytestmark = pytest.mark.live
 duckdb = pytest.importorskip("duckdb")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SQLITE_DB = PROJECT_ROOT / "memory" / "research.db"
 DUCKDB_DB = PROJECT_ROOT / "memory" / "graph.duckdb"
 
-if not SQLITE_DB.exists() or not DUCKDB_DB.exists():
+# Neither constant below is a fixture source (the module builds from the shared
+# hermetic template); they only answer "is this the live box?". The gate used
+# to name the retired ``memory/research.db`` and so skipped this whole module
+# at collection from the 2026-11-21 DuckDB cutover — the DuckDB-backup tests
+# it exists to cover included.
+from tests._live_store import live_store_path  # noqa: E402
+
+if live_store_path() is None or not DUCKDB_DB.exists():  # noqa: E402
     pytest.skip(
         "skipping db_maint DuckDB backup tests — "
-        "memory/research.db or memory/graph.duckdb not present",
+        "live research store or memory/graph.duckdb not present",
         allow_module_level=True,
     )
 

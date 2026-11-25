@@ -26,8 +26,8 @@ from helpers.graph.derive_co_mentions import (  # noqa: E402
     extract_co_mentions,
 )
 from helpers.graph import derive_co_mentions as dcm  # noqa: E402
+from tests._live_store import live_store_path  # noqa: E402
 
-LIVE_DB = REPO_ROOT / "memory" / "research.db"
 LIVE_VAULT = REPO_ROOT / "findata" / "Companies"
 
 
@@ -267,8 +267,8 @@ pytestmark = live
 @live
 class TestExtractLive:
     def setup_method(self):
-        if not LIVE_DB.exists() or not LIVE_VAULT.exists():
-            pytest.skip("live DB / vault not present")
+        if live_store_path() is None or not LIVE_VAULT.exists():
+            pytest.skip("live research store / vault not present")
 
     def test_extract_finds_edition_groups(self):
         editions = extract_co_mentions("The_Chatter")
@@ -305,7 +305,7 @@ class TestExtractLive:
         assert names, "expected at least one entity name"
         # closing() — sqlite3's `with conn:` only commits/rolls back; the
         # connection itself must be closed or it leaks (ResourceWarning).
-        with contextlib.closing(connect()) as conn:
+        with contextlib.closing(connect(read_only=True)) as conn:
             placeholders = ",".join("?" for _ in names)
             rows = conn.execute(
                 f"SELECT name FROM entities WHERE name IN ({placeholders})",  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers

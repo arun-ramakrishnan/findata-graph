@@ -6,6 +6,7 @@ import pytest
 from pathlib import Path
 
 from helpers.graph import a2_candidates as a2
+from tests._live_store import live_store_path
 
 
 def _make_db(edges):
@@ -46,9 +47,9 @@ def test_a2_toy():
 
 
 def test_a2_live():
-    dbp = Path("memory/research.db")
-    if not dbp.exists():
-        pytest.skip("live DB missing")
+    dbp = live_store_path()
+    if dbp is None:
+        pytest.skip("live research store not present")
     inc = a2.load_supplier_incidence(str(dbp))
     top = a2.a2_kernel(inc, top_k=5)
     assert len(top) > 0

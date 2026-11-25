@@ -1139,7 +1139,10 @@ def main(argv: list[str] | None = None):  # noqa: C901
 
     from helpers.core.db import connect
 
-    conn = connect(DB_PATH)  # FK ON + WAL via canonical helper
+    # DRY-RUN (the default, and the perf-lane mode) never writes: open
+    # read-only so a concurrent holder (another perf run, a live gate,
+    # a wire-pool lease) can never block the open with a lock conflict.
+    conn = connect(DB_PATH, read_only=not args.apply)  # FK ON + WAL via canonical helper
 
     log("plan", f"newsletter = {md_path.relative_to(PROJECT_ROOT)}")
     log("plan", f"edition    = {edition_title}")

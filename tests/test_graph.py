@@ -15,6 +15,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from tests._live_store import live_store_path
 
 pytestmark = pytest.mark.live
 
@@ -25,8 +26,12 @@ duckdb = pytest.importorskip("duckdb")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 
-if not DB_PATH.exists():
-    pytest.skip(f"skipping graph tests — {DB_PATH} not present", allow_module_level=True)
+# Gate on the RESOLVED store, not the retired SQLite name. ``DB_PATH.exists()``
+# skipped this whole module — 85 tests, at collection, so not one skip line
+# per test — for every run from the 2026-11-21 DuckDB cutover until
+# 2026-11-24 (qa 4776 / advisory 4777 junit: "collection skipped").
+if live_store_path() is None:
+    pytest.skip("skipping graph tests — live research store not present", allow_module_level=True)
 
 from helpers.maintenance.build_sector_hierarchy import (  # noqa: E402
     SUB_CATEGORIES,
