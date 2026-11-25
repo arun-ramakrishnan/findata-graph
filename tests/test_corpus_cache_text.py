@@ -19,6 +19,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
+
 from helpers.core import corpus as corpus_mod
 from helpers.core.corpus import Corpus
 from helpers.core.db import connect
@@ -101,3 +103,60 @@ def test_pre_v3_rows_with_null_text_self_heal(tmp_path):
     finally:
         conn.close()
     assert nulls == 0
+
+
+class _CountingDuckDBConn:
+    """Delegate to a raw DuckDB connection but count execute() statements.
+
+    Mirrors tests/test_sync_tags.py's counting proxy — the same duck type
+    shape the repo's connection proxies expose (``raw``).
+    """
+
+    def __init__(self, raw) -> None:
+        self.raw = raw
+        self.statements: list[str] = []
+        self.batches: list[str] = []
+
+    def execute(self, sql, *args, **kwargs):
+        self.statements.append(sql)
+        return self.raw.execute(sql, *args, **kwargs)
+
+    def executemany(self, sql, *args, **kwargs):
+        self.batches.append(sql)
+        return self.raw.executemany(sql, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self.raw, name)
+
+
+def test_duckdb_bulk_rewrite_shape_and_double_type():
+    """Corpus cache write shape (perf follow-on 2026-11-24): the 1,406-row
+    per-load upsert used to be 1,406 executemany statements (~120 s) with an
+    mtime REAL column that quantized float64 mtimes (ULP ~256 s at
+    1.79e9) so every mtime compare misfired. The write must be one DROP +
+    one CREATE + one INSERT SELECT, and the column must be DOUBLE so cached
+    float64 mtimes compare equal to stat() values."""
+    duckdb = pytest.importorskip("duckdb")
+    con = _CountingDuckDBConn(duckdb.connect(":memory:"))
+    con.execute(
+        "CREATE TABLE corpus_cache(path TEXT PRIMARY KEY, mtime REAL, content_hash TEXT, "
+        "frontmatter_json TEXT, body TEXT, text TEXT)"
+    )
+    con.execute("INSERT INTO corpus_cache VALUES ('old', 1.0, 'h', '{}', '', 'hi')")
+    rows = [
+        ("a", 2.0, "x", "{}", "", "hi"),
+        ("b", 3.0, "y", "{}", "", "hi"),
+        ("c", 4.0, "z", "{}", "", "hi"),
+    ]
+    corpus_mod._bulk_replace_cache_rows(con, rows)
+    assert con.statements[2:] == [
+        "DROP TABLE IF EXISTS corpus_cache",
+        "CREATE TABLE corpus_cache(path TEXT PRIMARY KEY, mtime DOUBLE, content_hash TEXT, "
+        "frontmatter_json TEXT, body TEXT, text TEXT)",
+        "INSERT INTO corpus_cache SELECT * FROM _corpus_bulk",
+    ], "DuckDB corpus-cache write must be one DROP/CREATE/INSERT SELECT"
+    assert con.batches == [], "DuckDB path must not use executemany"
+    cols = {r[1]: r[2] for r in con.execute("PRAGMA table_info(corpus_cache)").fetchall()}
+    assert cols["mtime"] == "DOUBLE", "float64 mtimes must survive the cache round-trip"
+    assert con.execute("SELECT COUNT(*) FROM corpus_cache").fetchone()[0] == 3
+    assert con.execute("SELECT mtime FROM corpus_cache WHERE path='c'").fetchone()[0] == 4.0

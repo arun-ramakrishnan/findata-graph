@@ -1532,7 +1532,7 @@ def check_db_meta_generation():
         return []
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
-    from helpers.core.db import EXPECTED_USER_VERSION, connect
+    from helpers.core.db import EXPECTED_USER_VERSION, connect, get_user_version
 
     try:
         conn = connect(db, read_only=True)
@@ -1549,9 +1549,11 @@ def check_db_meta_generation():
                 int(row[0])
             except Exception:
                 return [f"{db}: generation not an int: {row[0]!r}"]
-            uv = conn.execute("PRAGMA user_version").fetchone()[0]
-            if int(uv) != EXPECTED_USER_VERSION:
-                return [f"{db}: PRAGMA user_version={uv} != expected {EXPECTED_USER_VERSION}"]
+            # get_user_version is engine-aware (PRAGMA user_version on SQLite,
+            # db_meta.schema_version on DuckDB); raw PRAGMA fails on DuckDB.
+            uv = get_user_version(conn)
+            if uv is None or int(uv) != EXPECTED_USER_VERSION:
+                return [f"{db}: user_version {uv!r} != expected {EXPECTED_USER_VERSION}"]
             return []
         finally:
             conn.close()

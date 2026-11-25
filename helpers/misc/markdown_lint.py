@@ -203,6 +203,59 @@ def _cache_open() -> sqlite3.Connection | None:
         return None
 
 
+def _is_duckdb_conn(conn) -> bool:
+    """True for a live duckdb connection (same shape as corpus's check)."""
+    try:
+        import duckdb
+    except ImportError:
+        return False
+    if isinstance(conn, duckdb.DuckDBPyConnection):
+        return True
+    raw = getattr(conn, "raw", None)
+    if raw is not None and isinstance(raw, duckdb.DuckDBPyConnection):
+        return True
+    inner = getattr(raw, "_con", None)
+    return inner is not None and isinstance(inner, duckdb.DuckDBPyConnection)
+
+
+def _bulk_record_verdicts(conn, rows: list[tuple]) -> None:
+    """Persist verdicts in one set-based rewrite on DuckDB.
+
+    Same class of fix as sync_tags_duckdb_setbased + corpus's
+    ``_bulk_replace_cache_rows``: DuckDB python ``executemany`` runs the
+    prepared statement once per row (~1.9 ms each — the cold gate run
+    spent ~17 s writing ~1,933 verdicts). Stage the rows as an Arrow
+    relation and do one DELETE ... WHERE path IN (SELECT … FROM staging)
+    + one INSERT ... SELECT — exactly the old INSERT OR REPLACE semantics
+    (stale keys are unique by construction, so no row is touched twice).
+    SQLite keeps ``executemany`` — per-statement overhead is microseconds
+    there.
+    """
+    if not rows:
+        return
+    if not _is_duckdb_conn(conn):
+        conn.executemany("INSERT OR REPLACE INTO verdicts VALUES (?, ?, ?)", rows)
+        return
+    import pyarrow as pa  # lazy: only the DuckDB research store needs it
+
+    # helpers.core.db.connect returns a _DuckDBConn PROXY exposing .raw;
+    # register/unregister live on the raw connection, not on the proxy.
+    raw = getattr(conn, "raw", conn)
+    rel = pa.table(
+        {
+            "path": [r[0] for r in rows],
+            "hash": [r[1] for r in rows],
+            "violations": [r[2] for r in rows],
+        }
+    )
+    raw.register("_mdl_verdicts_bulk", rel)
+    try:
+        conn.execute("DELETE FROM verdicts WHERE path IN (SELECT path FROM _mdl_verdicts_bulk)")
+        conn.execute("INSERT INTO verdicts SELECT * FROM _mdl_verdicts_bulk")
+    finally:
+        raw.unregister("_mdl_verdicts_bulk")
+
+
 def _split_stale(
     conn: sqlite3.Connection, files: list[Path]
 ) -> tuple[dict[str, list[str]], list[tuple[str, str]]]:
@@ -330,14 +383,15 @@ def _record_and_report(
         if stale and rc in (0, 1):
             # rc >= 2 is an execution failure (npx/config) — recording the
             # scanned set as clean would silently mask their violations.
+            rows = [(key, digest, json.dumps(fresh.get(key, []))) for key, digest in stale]
             try:
-                conn.executemany(
-                    "INSERT OR REPLACE INTO verdicts VALUES (?, ?, ?)",
-                    [(key, digest, json.dumps(fresh.get(key, []))) for key, digest in stale],
-                )
+                if _is_duckdb_conn(conn):
+                    _bulk_record_verdicts(conn, rows)
+                else:
+                    conn.executemany("INSERT OR REPLACE INTO verdicts VALUES (?, ?, ?)", rows)
                 conn.commit()
-            except sqlite3.Error:
-                pass  # verdict already reported; a lost record only costs a re-scan
+            except Exception:  # noqa: S110  # verdict already reported; a lost record only costs a re-scan
+                pass
         conn.close()
     return _report(lines, rc)
 

@@ -128,6 +128,75 @@ def _ensure_cache_text_column(conn) -> None:
         conn.commit()
 
 
+def _bulk_replace_cache_rows(conn, rows: list[tuple]) -> None:
+    """Replace the cache sidecar's rows in one set-based rewrite on DuckDB.
+
+    Two compounding causes made the load's cache write slow and futile:
+    (1) ``mtime REAL`` (float32) column quantized stat mtimes (ULP
+    ~256 s at 1.79e9), so the float64 compare ``cached_mtime != mtime``
+    misfired for every file on every load — all 1,406 rows were
+    re-read, re-hashed and re-upserted each time (~120 s, all writes
+    redundant); (2) ``executemany`` runs one statement per row (~1.9
+    ms each, sync_tags_duckdb_setbased). This helper rewrites the whole
+    table in a DROP/CREATE + one INSERT ... SELECT from a registered
+    Arrow relation (no interpolated literals, no per-row statements) and
+    the DDL uses ``mtime DOUBLE`` so float64 mtimes persist intact.
+    SQLite keeps ``executemany`` — per-statement overhead is microseconds
+    there, and REAL has float64 affinity in SQLite.
+
+    ``rows`` must be the COMPLETE replacement set (all served keys) —
+    callers merge preserved cache rows before calling.
+    """
+    if not rows:
+        return
+    if not _is_duckdb_conn(conn):
+        conn.executemany(
+            "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
+            rows,
+        )
+        return
+    import pyarrow as pa  # lazy: only the DuckDB research store needs it
+
+    # helpers.core.db.connect returns a _DuckDBConn PROXY exposing .raw;
+    # register/unregister live on the raw connection, not on the proxy.
+    raw = getattr(conn, "raw", conn)
+    rel = pa.table(
+        {
+            "path": [r[0] for r in rows],
+            "mtime": [r[1] for r in rows],
+            "content_hash": [r[2] for r in rows],
+            "frontmatter_json": [r[3] for r in rows],
+            "body": [r[4] for r in rows],
+            "text": [r[5] for r in rows],
+        }
+    )
+    raw.register("_corpus_bulk", rel)
+    try:
+        conn.execute("DROP TABLE IF EXISTS corpus_cache")
+        conn.execute(
+            "CREATE TABLE corpus_cache(path TEXT PRIMARY KEY, mtime DOUBLE, content_hash TEXT, "
+            "frontmatter_json TEXT, body TEXT, text TEXT)"
+        )
+        conn.execute("INSERT INTO corpus_cache SELECT * FROM _corpus_bulk")
+    finally:
+        raw.unregister("_corpus_bulk")
+
+
+def _is_duckdb_conn(conn) -> bool:
+    """True for a live duckdb connection (same shape as vec_search's check)."""
+    try:
+        import duckdb
+    except ImportError:
+        return False
+    if isinstance(conn, duckdb.DuckDBPyConnection):
+        return True
+    raw = getattr(conn, "raw", None)
+    if raw is not None and isinstance(raw, duckdb.DuckDBPyConnection):
+        return True
+    inner = getattr(raw, "_con", None)
+    return inner is not None and isinstance(inner, duckdb.DuckDBPyConnection)
+
+
 def notes_stale_since(
     db_max: str | None,
     trees: Sequence[Path],
@@ -301,44 +370,45 @@ class Corpus:
                         to_upsert.append(
                             (key, mtime, ch, _json.dumps(n.frontmatter), n.body, n.text)
                         )
-                # Upsert misses
-                if to_upsert:
+                # Upsert misses + evict deleted files — ROOT-SCOPED eviction
+                # (S2a fix, found in shakedown): this table is shared across
+                # roots (synthetic trees, load_shard("Companies")); the old
+                # table-global eviction deleted every OTHER root's rows on a
+                # shard/synthetic load. DuckDB: ONE full-table rewrite via
+                # _bulk_replace_cache_rows (set-based; the float32 mtime
+                # column that made every compare misfire is recreated as
+                # DOUBLE); the rewrite also handles eviction. SQLite: partial
+                # upsert + row DELETE as before.
+                if to_upsert or cached:
+                    root_key = _cache_key(root, root.parent)
+                    under_root = [k for k in cached if k.startswith(root_key + "/")]
+                    keep = {_cache_key(pp, root) for pp in files}
+                    changed = {r[0] for r in to_upsert}
+                    rows = to_upsert + [
+                        (k, rec[0], rec[1], rec[2], rec[3], rec[4])
+                        for k, rec in cached.items()
+                        if k not in changed and not (k.startswith(root_key + "/") and k not in keep)
+                    ]
                     conn = (
                         _db_connect(_CACHE_DB)  # ty: ignore[not-callable]
                         if _HAS_DB_CONNECT
                         else __import__("sqlite3").connect(str(_CACHE_DB))
                     )
                     try:
-                        conn.executemany(
-                            "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
-                            to_upsert,
-                        )
-                        conn.commit()
-                    finally:
-                        conn.close()
-                # Evict deleted files — ROOT-SCOPED (S2a fix, found in shakedown):
-                # this table is shared across roots (synthetic trees,
-                # load_shard("Companies")); the old table-global eviction
-                # deleted every OTHER root's rows on a shard/synthetic load.
-                # root_key is CANONICAL (spelling-invariant via _cache_key)
-                # so an absolute-root load evicts under the same prefix the
-                # relative spellings wrote.
-                root_key = _cache_key(root, root.parent)
-                under_root = [k for k in cached if k.startswith(root_key + "/")]
-                if len(under_root) != len(files):
-                    conn = (
-                        _db_connect(_CACHE_DB)  # ty: ignore[not-callable]
-                        if _HAS_DB_CONNECT
-                        else __import__("sqlite3").connect(str(_CACHE_DB))
-                    )
-                    try:
-                        keep = {_cache_key(pp, root) for pp in files}
-                        to_del = [k for k in under_root if k not in keep]
-                        if to_del:
-                            conn.executemany(
-                                "DELETE FROM corpus_cache WHERE path=?",
-                                [(k,) for k in to_del],
-                            )
+                        if _is_duckdb_conn(conn):
+                            _bulk_replace_cache_rows(conn, rows)
+                        else:
+                            if to_upsert:
+                                conn.executemany(
+                                    "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
+                                    to_upsert,
+                                )
+                            to_del = [k for k in under_root if k not in keep]
+                            if to_del:
+                                conn.executemany(
+                                    "DELETE FROM corpus_cache WHERE path=?",
+                                    [(k,) for k in to_del],
+                                )
                             conn.commit()
                     finally:
                         conn.close()
@@ -415,7 +485,6 @@ class Corpus:
                 finally:
                     conn.close()
                 to_upsert: list[tuple] = []
-                mtime_fixups: list[tuple] = []
                 try:
                     for pp in files:
                         key = _cache_key(pp, root)
@@ -434,7 +503,17 @@ class Corpus:
                                     if ch != cached_hash:
                                         rec = None  # content really changed — re-parse
                                     else:
-                                        mtime_fixups.append((mtime, key))
+                                        # mtime-only drift: keep stored content, carry
+                                        # the new mtime (full row — body is cheap here
+                                        # and keeps the DuckDB full-table rewrite safe)
+                                        body = (
+                                            strip_frontmatter(tmp_text)
+                                            if light
+                                            else (rec[3] if len(rec) > 3 else "")
+                                        )
+                                        to_upsert.append(
+                                            (key, mtime, cached_hash, rec[2], body, tmp_text)
+                                        )
                                 except OSError:
                                     rec = None
                         if rec:
@@ -474,20 +553,14 @@ class Corpus:
                             (key, mtime, ch, _json.dumps(n.frontmatter), n.body, n.text)
                         )
                 finally:
-                    if to_upsert or mtime_fixups:
+                    if to_upsert:
                         try:
                             conn = _db_connect(_CACHE_DB)  # ty: ignore[not-callable]
                             try:
-                                if to_upsert:
-                                    conn.executemany(
-                                        "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
-                                        to_upsert,
-                                    )
-                                if mtime_fixups:
-                                    conn.executemany(
-                                        "UPDATE corpus_cache SET mtime=? WHERE path=?",
-                                        mtime_fixups,
-                                    )
+                                conn.executemany(
+                                    "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
+                                    to_upsert,
+                                )
                                 conn.commit()
                             finally:
                                 conn.close()
@@ -535,7 +608,7 @@ def _init_db_cache(notes: list[Note], root: Path | None = None) -> None:
         )
         try:
             conn.execute(
-                "CREATE TABLE IF NOT EXISTS corpus_cache(path TEXT PRIMARY KEY, mtime REAL, content_hash TEXT, frontmatter_json TEXT, body TEXT, text TEXT)"
+                "CREATE TABLE IF NOT EXISTS corpus_cache(path TEXT PRIMARY KEY, mtime DOUBLE, content_hash TEXT, frontmatter_json TEXT, body TEXT, text TEXT)"
             )
             _ensure_cache_text_column(conn)
             rows = []
@@ -557,10 +630,7 @@ def _init_db_cache(notes: list[Note], root: Path | None = None) -> None:
                         n.text,
                     )
                 )
-            conn.executemany(
-                "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
-                rows,
-            )
+            _bulk_replace_cache_rows(conn, rows)
             conn.commit()
         finally:
             conn.close()

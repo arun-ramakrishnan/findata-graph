@@ -271,3 +271,53 @@ def test_execution_failure_does_not_poison_cache(monkeypatch, tmp_path, capsys):
     _fake_cli2(monkeypatch, calls)
     assert ml.main([]) == 0
     assert len(calls) == 2
+
+
+class _CountingDuckDBConn:
+    """Delegate to a raw DuckDB connection but count execute() statements.
+
+    Mirrors the counting proxies in tests/test_sync_tags.py and
+    tests/test_corpus_cache_text.py — the same duck type shape the repo's
+    connection proxies expose (``raw``).
+    """
+
+    def __init__(self, raw) -> None:
+        self.raw = raw
+        self.statements: list[str] = []
+        self.batches: list[str] = []
+
+    def execute(self, sql, *args, **kwargs):
+        self.statements.append(sql)
+        return self.raw.execute(sql, *args, **kwargs)
+
+    def executemany(self, sql, *args, **kwargs):
+        self.batches.append(sql)
+        return self.raw.executemany(sql, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self.raw, name)
+
+
+def test_duckdb_bulk_verdict_write_shape():
+    """Verdict cache write shape (perf follow-on 2026-11-24): the ~1,933-row
+    cold gate run used to be ~1,933 executemany statements (~17 s). It must
+    be one DELETE-IN + one INSERT SELECT with no executemany, and the rows
+    must persist exactly (old INSERT OR REPLACE semantics)."""
+    duckdb = pytest.importorskip("duckdb")
+    con = _CountingDuckDBConn(duckdb.connect(":memory:"))
+    con.execute(
+        "CREATE TABLE verdicts (path TEXT PRIMARY KEY, hash TEXT NOT NULL, violations TEXT NOT NULL)"
+    )
+    rows = [
+        ("a", "h1", '["MD040"]'),
+        ("b", "h2", "[]"),
+        ("c", "h3", '["MD047"]'),
+    ]
+    ml._bulk_record_verdicts(con, rows)
+    assert con.statements[1:] == [
+        "DELETE FROM verdicts WHERE path IN (SELECT path FROM _mdl_verdicts_bulk)",
+        "INSERT INTO verdicts SELECT * FROM _mdl_verdicts_bulk",
+    ], "DuckDB verdict write must be one DELETE-IN + INSERT SELECT"
+    assert con.batches == [], "DuckDB path must not use executemany"
+    assert con.execute("SELECT COUNT(*) FROM verdicts").fetchone()[0] == 3
+    assert con.execute("SELECT violations FROM verdicts WHERE path='b'").fetchone()[0] == "[]"
