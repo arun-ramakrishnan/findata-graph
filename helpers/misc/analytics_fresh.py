@@ -126,9 +126,42 @@ def harness_frontiers(  # noqa: C901  # moved verbatim; split needs a parity har
                     latest = day if latest is None or day > latest else latest
         out["rollout"] = latest
     if dsh_dir.is_dir():
-        mtimes = [p.stat().st_mtime for p in dsh_dir.glob("*/*/*.zstd") if p.is_file()]
-        if mtimes:
-            out["dsh"] = datetime.fromtimestamp(max(mtimes), UTC).date()
+        # Content frontier, not mtime: the loaders only emit rows for
+        # assistant/message events, so a session file touched on day D with
+        # no assistant messages (session/policy metadata, empty session)
+        # must not advance the frontier past the last loadable day —
+        # otherwise analytics-fresh reports STALE forever on an APPLY that
+        # correctly produced no rows. Matches the rollout loader's
+        # content-based frontier.
+        import zstandard
+
+        latest: date | None = None
+        for p in sorted(dsh_dir.glob("*/*/*.zstd")):
+            if not p.is_file():
+                continue
+            try:
+                dctx = zstandard.ZstdDecompressor()
+                with open(p, "rb") as fh:
+                    raw = dctx.stream_reader(fh).read()
+            except (OSError, zstandard.ZstdError):
+                continue
+            for line in raw.decode("utf-8", errors="replace").splitlines():
+                line = line.strip()
+                if not line or '"assistant/message"' not in line:
+                    continue
+                try:
+                    d = jsonio.loads(line)
+                except jsonio.JSONDecodeError:
+                    continue
+                if d.get("type") != "assistant/message":
+                    continue
+                ts = d.get("time")
+                if not ts:
+                    continue
+                day = _ms_local_day(ts)
+                if latest is None or day > latest:
+                    latest = day
+        out["dsh"] = latest
     return out
 
 

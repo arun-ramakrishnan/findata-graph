@@ -71,6 +71,32 @@ def _make_usage(path: Path, rows: list[tuple[str, str]]) -> None:
     con.close()
 
 
+def _make_dsh(directory: Path, day: tuple[int, int, int]) -> Path:
+    """A minimal v4 zstd session log carrying one assistant/message on `day`.
+
+    analytics_fresh's dsh frontier is content-based (assistant/message events
+    only) because the loaders emit rows only for those — a metadata-only or
+    newer-mtime-but-no-messages log must not advance the frontier.
+    """
+    import zstandard
+
+    directory.mkdir(parents=True, exist_ok=True)
+    ts_ms = _ms_local(*day)
+    recs = [
+        {"type": "session", "time": ts_ms},
+        {
+            "type": "assistant/message",
+            "time": ts_ms,
+            "data": {"message": {}, "usage": {"inputTokens": 1, "outputTokens": 1}},
+        },
+    ]
+    raw = "\n".join(json.dumps(r) for r in recs).encode()
+    path = directory / "session.v4.jsonl.zstd"
+    cctx = zstandard.ZstdCompressor()
+    path.write_bytes(cctx.compress(raw))
+    return path
+
+
 def _fixture(tmp_path: Path, hday: str, sday: str) -> tuple:
     tmp_path.mkdir(parents=True, exist_ok=True)
     yd, md, dd = (int(x) for x in hday.split("-"))
@@ -87,11 +113,7 @@ def _fixture(tmp_path: Path, hday: str, sday: str) -> tuple:
     (rollout / "model-io-sess-x.jsonl").write_text(
         json.dumps({"requestId": "r1", "startedAt": f"{hday}T12:00:00.000Z"}) + "\n"
     )
-    dsh.mkdir(parents=True, exist_ok=True)
-    dsh_log = dsh / "session.v4.jsonl.zstd"
-    dsh_log.write_bytes(b"not-a-real-log")
-    ts = datetime(yd, md, dd, 12, tzinfo=UTC).timestamp()
-    os.utime(dsh_log, (ts, ts))
+    _make_dsh(dsh, (yd, md, dd))
     _make_traces(
         traces,
         [
@@ -192,6 +214,33 @@ def test_main_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> 
     assert af.main(_args(fresh)) == 0
     capsys.readouterr()
     assert af.main(_args(stale)) == 1
+
+
+def test_dsh_mtime_only_log_does_not_advance_frontier(tmp_path: Path) -> None:
+    """A dsh session log touched on a new day but containing no
+    assistant/message events must NOT advance the harness frontier: loaders
+    emit rows only for assistant/message, so a mtime frontier would report
+    STALE forever on an APPLY that correctly produced no rows."""
+    import zstandard
+
+    zcode, opencode, prime, rollout, dsh, traces, usage = _fixture(
+        tmp_path, "2026-09-20", "2026-09-20"
+    )
+    # Add a newer metadata-only log (no assistant/message) — mtime frontier
+    # would claim 2026-09-21, content frontier must stay at 2026-09-20.
+    newer = dsh / "proj" / "session-newer" / "session.v4.jsonl.zstd"
+    newer.parent.mkdir(parents=True, exist_ok=True)
+    newer.write_bytes(
+        zstandard.ZstdCompressor().compress(
+            json.dumps({"type": "session", "time": _ms_local(2026, 9, 21)}).encode()
+        )
+    )
+    ts = datetime(2026, 9, 21, 12, tzinfo=UTC).timestamp()
+    os.utime(newer, (ts, ts))
+    harness = af.harness_frontiers(zcode, opencode, prime, rollout, dsh)
+    assert harness["dsh"] == date(2026, 9, 20)
+    _rows, drift = af.check(harness, af.store_frontiers(traces, usage))
+    assert not drift
 
 
 def test_zai_covered_gap_is_not_drift(tmp_path: Path) -> None:
