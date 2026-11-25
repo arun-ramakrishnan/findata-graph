@@ -143,7 +143,7 @@ def harness_frontiers(  # noqa: C901  # moved verbatim; split needs a parity har
                 dctx = zstandard.ZstdDecompressor()
                 with open(p, "rb") as fh:
                     raw = dctx.stream_reader(fh).read()
-            except (OSError, zstandard.ZstdError):
+            except OSError, zstandard.ZstdError:
                 continue
             for line in raw.decode("utf-8", errors="replace").splitlines():
                 line = line.strip()

@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402
 
 from helpers.core.cin import LLPIN_RE, parse_cin  # noqa: E402
 from helpers.core.db import DEFAULT_DB_PATH, connect, utc_now  # noqa: E402
+from helpers.core.db_engine import is_duckdb_conn  # noqa: E402
 from helpers.core.vocab import IDENTIFIER_TYPE_VALUES, sql_in  # noqa: E402
 
 # entities.<col> additions (memo §6.6 landing zone). Facets are a
@@ -74,6 +75,29 @@ _REGISTRY_DDL = f"""
     )
 """
 
+# DuckDB rejects referential actions outright (ParserException: "FOREIGN
+# KEY constraints cannot use CASCADE, SET NULL or SET DEFAULT"), and the
+# canonical DuckDB schema (schema/duckdb/research.sql) declares
+# entity_identifiers FK-free. SQLite keeps the cascade; an entity delete
+# that SQLite cascades is write-reorder work on the DuckDB funnel
+# (db_engine doctrine). Types mirror the canonical DuckDB form.
+_REGISTRY_DDL_DUCKDB = f"""
+    CREATE TABLE IF NOT EXISTS entity_identifiers (
+        entity_name      VARCHAR NOT NULL,
+        identifier_type  VARCHAR NOT NULL CHECK (identifier_type IN
+                           ({sql_in(IDENTIFIER_TYPE_VALUES)})),
+        identifier_value VARCHAR NOT NULL,
+        namespace        VARCHAR,
+        valid_from       VARCHAR,
+        valid_to         VARCHAR,
+        source_ref       VARCHAR NOT NULL,
+        created_at       TIMESTAMP DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+        last_updated     TIMESTAMP,
+        PRIMARY KEY (entity_name, identifier_type, identifier_value),
+        UNIQUE (identifier_type, identifier_value)
+    )
+"""
+
 _REGISTRY_TYPES: frozenset[str] = frozenset({"cin", "lei", "cik", "isin", "llpin", "alias"})
 
 # Light format gates for registry writes ('alias' is free-form; 'cin'
@@ -98,7 +122,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     for name, decl in _ENTITIES_COLUMNS:
         if name not in cols:
             conn.execute(f"ALTER TABLE entities ADD COLUMN {name} {decl}")  # noqa: S608 -- fixed identifier names, never user input
-    conn.execute(_REGISTRY_DDL)
+    conn.execute(_REGISTRY_DDL_DUCKDB if is_duckdb_conn(conn) else _REGISTRY_DDL)
     conn.commit()
 
 

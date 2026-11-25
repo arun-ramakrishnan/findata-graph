@@ -556,9 +556,9 @@ def converge_scheme(conn, *, apply: bool) -> dict[str, int]:
     Same idiom as seed_concepts.seed(): roster rows land ``active``
     (insert or update), roster-lapsed seed-owned rows flip ``superseded``
     (never delete), foreign-owned rows (any other source_ref) untouched.
-    The five-level chain self-references concepts.broader_id, so the
-    apply pass defers FKs for the batch (sections land before divisions
-    reference them).
+    The five-level chain self-references concepts.broader_id, so new rows
+    land parents-first (DuckDB checks FKs per row) and existing rows take
+    a per-row diff UPDATE — see the apply block below.
     """
     sys.path.insert(0, str(HELPERS_DIR.parent.parent))
     from helpers.misc.seed_concepts import ensure_schema as ensure_concept_tables
@@ -600,7 +600,9 @@ def converge_scheme(conn, *, apply: bool) -> dict[str, int]:
         "resurrected": resurrected,
     }
     if apply:
-        conn.execute("PRAGMA defer_foreign_keys = ON")
+        # No `PRAGMA defer_foreign_keys`: DuckDB has no such pragma and the
+        # db_engine funnel documents deferral as not-provided write-reorder
+        # work (see seed_concepts.seed for the full note).
         conn.execute(
             "INSERT INTO concept_schemes (scheme_id, label, scheme_type, version,"
             " source_uri, license, attribution, active)"
@@ -619,17 +621,67 @@ def converge_scheme(conn, *, apply: bool) -> dict[str, int]:
                 "Central Statistics Office, MoSPI (Government of India)",
             ),
         )
-        for cid, row in roster.items():
+        # DuckDB routes any UPDATE/UPSERT whose SET list touches an FK
+        # column (broader_id) through delete+insert, so a referenced
+        # parent (a section every division points at) trips the self-FK
+        # even when the value is unchanged — the same rule that forced
+        # seed_concepts off the ON CONFLICT idiom. Split instead: plain
+        # INSERT for new rows (parents first — checks are per-row), and
+        # a per-row diff UPDATE that only names changed columns. A real
+        # broader_id change on a referenced parent stays unsupported and
+        # raises a named-key ConstraintException.
+        depth: dict[str, int] = {}
+        for cid in roster:
+            d, cur, hops = 0, cid, set()
+            while True:
+                broader = roster[cur][6]
+                if broader is None or broader not in roster or cur in hops:
+                    break
+                hops.add(cur)
+                cur = broader
+                d += 1
+            depth[cid] = d
+        new_cids = sorted((c for c in roster if c not in live), key=lambda c: (depth[c], c))
+        for cid in new_cids:
             conn.execute(
                 "INSERT INTO concepts (concept_id, scheme_id, concept_code, pref_label,"
                 " alt_label, notation, broader_id, scope_note, source_ref, status)"
-                " VALUES (?,?,?,?,?,?,?,?,?, 'active')"
-                " ON CONFLICT(concept_id) DO UPDATE SET pref_label=excluded.pref_label,"
-                " alt_label=excluded.alt_label, notation=excluded.notation,"
-                " broader_id=excluded.broader_id, scope_note=excluded.scope_note,"
-                " status='active'",
-                row,
+                " VALUES (?,?,?,?,?,?,?,?,?, 'active')",
+                roster[cid],
             )
+        for cid in roster:
+            if cid not in live:
+                continue
+            row = conn.execute(
+                "SELECT pref_label, notation, broader_id, scope_note, status FROM"
+                " concepts WHERE concept_id = ?",
+                (cid,),
+            ).fetchone()
+            if row is None:  # raced away between snapshot and now — land as new
+                conn.execute(
+                    "INSERT INTO concepts (concept_id, scheme_id, concept_code,"
+                    " pref_label, alt_label, notation, broader_id, scope_note,"
+                    " source_ref, status) VALUES (?,?,?,?,?,?,?,?,?, 'active')",
+                    roster[cid],
+                )
+                inserted += 1
+                continue
+            want = (roster[cid][3], roster[cid][5], roster[cid][6], roster[cid][7])
+            sets: list[str] = []
+            vals: list = []
+            for i, col in enumerate(("pref_label", "notation", "broader_id", "scope_note")):
+                if row[i] != want[i]:
+                    sets.append(f"{col} = ?")
+                    vals.append(want[i])
+            if row[4] != "active":
+                sets.append("status = 'active'")
+            if sets:
+                vals.append(cid)
+                conn.execute(
+                    f"UPDATE concepts SET {', '.join(sets)} WHERE concept_id = ?",  # noqa: S608 -- fixed column names
+                    vals,
+                )
+                updated += 1
         lapsed = sorted(cid for cid, st in live.items() if st != "superseded" and cid not in roster)
         if lapsed:
             conn.executemany(

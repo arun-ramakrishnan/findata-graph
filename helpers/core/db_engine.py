@@ -84,10 +84,14 @@ class _DuckDBCursor:
         self._cols = cols
 
     def fetchone(self):
+        if self._raw is None:
+            return None
         row = self._raw.fetchone()
         return DuckDBRow(row, self._cols) if row is not None else None
 
     def fetchall(self) -> list[DuckDBRow]:
+        if self._raw is None:
+            return []
         return [DuckDBRow(r, self._cols) for r in self._raw.fetchall()]
 
     def __iter__(self):
@@ -180,7 +184,13 @@ class _DuckDBConn:
 
     def executemany(self, sql: str, parameters: Any = ()) -> _DuckDBCursor:
         """sqlite3.Connection-compatible executemany (bulk writers — the
-        research-store writer lanes use it on the canonical DuckDB conn)."""
+        research-store writer lanes use it on the canonical DuckDB conn).
+
+        sqlite3 no-ops on an empty parameter sequence; DuckDB raises
+        InvalidInputException — mirror the sqlite3 surface (a done cursor
+        over no rows) so bulk callers don't need pre-guarding."""
+        if not parameters:
+            return _DuckDBCursor(None, ())
         cur = self.raw.executemany(sql, parameters)
         cols = tuple(d[0] for d in self.raw.description) if self.raw.description else ()
         return _DuckDBCursor(cur, cols)

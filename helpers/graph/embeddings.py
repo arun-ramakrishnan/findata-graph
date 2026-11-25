@@ -82,6 +82,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.core.db import connect as db_connect, DEFAULT_DB_PATH, bump_generation
+from helpers.core.db_engine import is_duckdb_conn, table_exists
 from helpers.core.vec_codec import pack_f32
 
 
@@ -95,24 +96,51 @@ def _ensure_schema(conn: sqlite3.Connection, dims: int) -> None:
     if dims < 1:
         raise ValueError(f"dims must be >= 1, got {dims}")
 
-    # Check if table exists and has a different dimension
-    r = conn.execute(
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='company_embeddings'"
-    ).fetchone()
+    duck = is_duckdb_conn(conn)
+    # BLOB byte length + wall-clock default are engine-flavored: DuckDB has
+    # no length(BLOB) and no datetime('now') (the 2026-11-25 TIER2 crash).
+    blob_len = "octet_length" if duck else "length"
+    ts_default = "current_timestamp" if duck else "(datetime('now'))"
 
-    if r:
-        existing_sql = r[0]
-        if f"= {dims}" not in existing_sql and f"={dims}" not in existing_sql.replace(" ", ""):
+    # Check if table exists and has a different dimension
+    if duck:
+        # DuckDB's sqlite_master compat view DOES list tables, but it renders
+        # DDL in DuckDB-normalized form — the CHECK comes back parenthesized
+        # (`= (512 * 4)`), so literal `= 512` matching missed it and the old
+        # code DROPPED a healthy table (2026-11-25 data loss). Match the
+        # constraint via duckdb_constraints() instead, never sqlite_master
+        # text.
+        r = conn.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema='main' AND table_name='company_embeddings'"
+        ).fetchone()
+        existing_sql = None
+        if r:
+            chk = conn.execute(
+                "SELECT constraint_text FROM duckdb_constraints() "
+                "WHERE table_name='company_embeddings' AND constraint_type='CHECK'"
+            ).fetchone()
+            existing_sql = chk[0] if chk else ""
+    else:
+        r = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='company_embeddings'"
+        ).fetchone()
+        existing_sql = r[0] if r else None
+
+    if r and existing_sql is not None:
+        norm = existing_sql.replace(" ", "")
+        if f"({dims}*4)" not in norm and f"={dims}" not in norm:
             # Dimension mismatch — drop and recreate
             conn.execute("DROP TABLE company_embeddings")
+            r = None
 
     conn.execute(f"""
         CREATE TABLE IF NOT EXISTS company_embeddings (
             company_name TEXT PRIMARY KEY,
             embedding    BLOB NOT NULL,
             model        TEXT NOT NULL,
-            created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
-            CHECK (length(embedding) = {dims} * 4)
+            created_at   TIMESTAMP NOT NULL DEFAULT {ts_default},
+            CHECK ({blob_len}(embedding) = {dims} * 4)
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_emb_company ON company_embeddings(company_name)")
@@ -243,6 +271,8 @@ COMPANY_EMBEDDER_ENV = "COMPANY_EMBEDDER"
 
 def _stored_model(conn: sqlite3.Connection) -> str | None:
     """The table's current model stamp, or None when empty/absent."""
+    if not table_exists(conn, "company_embeddings"):
+        return None
     try:
         r = conn.execute("SELECT model FROM company_embeddings LIMIT 1").fetchone()
     except sqlite3.OperationalError:
@@ -360,10 +390,23 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     # writes NOTHING — INSERT OR REPLACE here used to delete+reinsert every
     # row each cycle, restamping created_at on all of them and forcing a
     # pointless snapshot churn. changed counts rows actually written.
-    count = 0
-    for name, vec in zip(names, vecs):
-        vec_blob = pack_f32(vec)
-        cur = conn.execute(
+    # NULL-safe inequality is engine-flavored: SQLite reads `IS NOT`,
+    # DuckDB only parses `IS DISTINCT FROM` (probed 2026-11-25: rowcount
+    # semantics match — 0 when the WHERE filters, 1 on a real update).
+    duck = is_duckdb_conn(conn)
+    if duck:
+        _upsert_sql = (
+            "INSERT INTO company_embeddings (company_name, embedding, model, created_at) "
+            "VALUES (?, ?, ?, current_timestamp) "
+            "ON CONFLICT(company_name) DO UPDATE SET "
+            "    embedding  = excluded.embedding, "
+            "    model      = excluded.model, "
+            "    created_at = excluded.created_at "
+            "WHERE company_embeddings.embedding IS DISTINCT FROM excluded.embedding "
+            "   OR company_embeddings.model     IS DISTINCT FROM excluded.model"
+        )
+    else:
+        _upsert_sql = (
             "INSERT INTO company_embeddings (company_name, embedding, model, created_at) "
             "VALUES (?, ?, ?, datetime('now')) "
             "ON CONFLICT(company_name) DO UPDATE SET "
@@ -371,9 +414,12 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
             "    model      = excluded.model, "
             "    created_at = excluded.created_at "
             "WHERE company_embeddings.embedding IS NOT excluded.embedding "
-            "   OR company_embeddings.model     IS NOT excluded.model",
-            (name, vec_blob, model_label),
+            "   OR company_embeddings.model     IS NOT excluded.model"
         )
+    count = 0
+    for name, vec in zip(names, vecs):
+        vec_blob = pack_f32(vec)
+        cur = conn.execute(_upsert_sql, (name, vec_blob, model_label))
         count += cur.rowcount
 
     # Stale-vector hygiene: INSERT OR REPLACE never removes, so deleted
@@ -518,6 +564,8 @@ def clear(conn: sqlite3.Connection) -> int:
 
 def stats(conn: sqlite3.Connection) -> dict:
     """Return stats about the embeddings table."""
+    if not table_exists(conn, "company_embeddings"):
+        return {"total": 0, "models": [], "sample_dim": None}
     try:
         r = conn.execute("SELECT COUNT(*) FROM company_embeddings").fetchone()
         total = r[0] if r else 0

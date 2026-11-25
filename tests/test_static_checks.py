@@ -1021,9 +1021,7 @@ def test_live_entities_file_path_query_uses_index():
     try:
         detail = _plan_text(conn, "SELECT name FROM entities WHERE file_path = 'x'")
         detail_l = detail.lower()
-        ok = "idx_entities_file_path" in detail_l or (
-            "index" in detail_l and "scan" in detail_l
-        )
+        ok = "idx_entities_file_path" in detail_l or ("index" in detail_l and "scan" in detail_l)
         if not ok and _is_duckdb_conn(conn):
             # DuckDB may choose seq scan on tiny live snapshots; assert index exists.
             idx = _index_names(conn, "entities")

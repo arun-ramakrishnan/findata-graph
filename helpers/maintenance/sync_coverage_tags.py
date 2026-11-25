@@ -121,17 +121,26 @@ def main(argv: list[str] | None = None) -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--apply", action="store_true", help="write converged edition tags")
     mode.add_argument("--check", action="store_true", help="report drift and exit 1 if stale")
-    parser.add_argument("--db", type=Path, default=REPO_ROOT / "memory" / "research.db")
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=None,
+        help=(
+            "research store; default = the canonical store via helpers.core.db "
+            "(memory/research.duckdb, FINDATA_RESEARCH_DB_PATH honoured)"
+        ),
+    )
     parser.add_argument("--root", type=Path, default=REPO_ROOT)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
 
-    if not args.db.exists():
+    if args.db is not None and not args.db.exists():
         print(f"ERROR: database not found: {args.db}", file=sys.stderr)
         return 1
     from helpers.core.db import connect
 
-    conn = connect(args.db)
+    # Read-only: this script writes edition-tag files, never the store.
+    conn = connect(args.db, read_only=True)
     try:
         plan = build_plan(conn, args.root)
         changed = apply_plan(plan, args.root, apply=args.apply)

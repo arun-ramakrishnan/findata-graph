@@ -38,8 +38,8 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none)* — the newest arc, `rust_simd_cosine_hop_histogram`, was filed
-  and executed the same day (2026-11-25); see the retired marker below.
+- *(none)* — the newest arc was filed and executed the same day
+  (2026-11-25); see the retired markers below.
 
 - *(archived 2026-11-25)* — `rust_simd_cosine_hop_histogram` (graph/,
   filed + executed 2026-11-25, completed.md #572 — S1 fused SIMD per-row

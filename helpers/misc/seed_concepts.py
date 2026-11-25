@@ -342,7 +342,15 @@ def seed(conn: sqlite3.Connection, *, apply: bool) -> dict[str, int]:
         "resurrected_mappings": resurrected_mappings,
     }
     if apply:
-        conn.execute("PRAGMA defer_foreign_keys = ON")
+        # No `PRAGMA defer_foreign_keys` here: DuckDB has no such pragma
+        # (ParserException) and the db_engine funnel documents deferral as
+        # not-provided write-reorder work. With no open transaction the
+        # deferral was per-statement theatre even on SQLite; every statement
+        # below runs FK-checked and autocommitted on both engines. DuckDB
+        # also checks FKs per STATEMENT, so the old DELETE-roster-then-
+        # reinsert pairs (concepts, schemes) violated the moment a surviving
+        # row referenced a deleted key via broader_id. concept_mappings
+        # declares no FK, so its delete/reinsert is safe as-is.
         # lifecycle pass: supersede seed-owned rows the roster no longer produces
         conn.executemany(
             "UPDATE concepts SET status='superseded' WHERE concept_id=?",
@@ -354,34 +362,92 @@ def seed(conn: sqlite3.Connection, *, apply: bool) -> dict[str, int]:
             "AND target_scheme=? AND target_concept=? AND match_type=?",
             superseded_mappings,
         )
-        # house idiom for rows the roster still produces (reinsert = active);
-        # superseded rows survive — only roster rows are deleted.
+        # house idiom for rows the roster still produces: refresh in place.
+        # Schemes upsert (validated live: its DO UPDATE touches no FK column).
+        # Concepts SPLIT into per-row diff UPDATE + INSERT-new. DuckDB rule
+        # (probed + live-confirmed): any UPDATE/UPSERT whose SET list includes
+        # an FK column re-homes the row as delete+insert, and the delete side
+        # trips the concepts.broader_id SELF-FK the moment a referenced
+        # parent is re-homed ("broader_id: sector:Defense is still
+        # referenced") — even when the value is unchanged. So existing rows
+        # get a surgical UPDATE of the columns that ACTUALLY differ (a no-op
+        # rerun writes nothing), and fresh rows INSERT parents-first
+        # (hierarchy depth) so per-row FK checks see the parent. A genuine
+        # broader_id/scheme_id change on a referenced parent remains
+        # unsupported by DuckDB and will raise a named-key
+        # ConstraintException. Superseded rows survive — nothing referenced
+        # is ever deleted.
         conn.executemany(
-            "DELETE FROM concepts WHERE source_ref LIKE 'seed:%' AND concept_id=?",
-            [(cid,) for cid in sorted(roster_concepts)],
+            "INSERT INTO concept_schemes (scheme_id, label, scheme_type, version, "
+            "source_uri, license, attribution, active) VALUES (?, ?, ?, ?, NULL, NULL, NULL, 1) "
+            "ON CONFLICT(scheme_id) DO UPDATE SET label=excluded.label, "
+            "scheme_type=excluded.scheme_type, version=excluded.version, active=1",
+            list(schemes.values()),
+        )
+        stored = {
+            r[0]: tuple(r[1:])
+            for r in conn.execute(
+                "SELECT concept_id, scheme_id, concept_code, pref_label, alt_label, "
+                "notation, broader_id, scope_note, source_ref, status FROM concepts"
+            ).fetchall()
+        }
+        _cols = (
+            "scheme_id",
+            "concept_code",
+            "pref_label",
+            "alt_label",
+            "notation",
+            "broader_id",
+            "scope_note",
+            "source_ref",
+        )
+        depth: dict[str, int] = {}
+
+        def _depth(cid: str) -> int:
+            if cid in depth:
+                return depth[cid]
+            row = concepts.get(cid)
+            parent = row[6] if row else None  # broader_id
+            level = 0 if not parent or parent not in concepts else _depth(parent) + 1
+            depth[cid] = level
+            return level
+
+        inserts = sorted(
+            (cid for cid in concepts if cid not in stored),
+            key=lambda cid: (_depth(cid), cid),
+        )
+        for cid, row in concepts.items():
+            if cid not in stored:
+                continue
+            new = row[1:] + ("active",)  # roster tail + status
+            old = stored[cid]
+            if old == new:
+                continue
+            sets: list[str] = []
+            params: list = []
+            for i, (was, now) in enumerate(zip(old, new)):
+                if was == now:
+                    continue
+                if i == 8:  # status carries no FK; literal suffices
+                    sets.append("status='active'")
+                else:
+                    sets.append(f"{_cols[i]}=?")
+                    params.append(now)
+            conn.execute(
+                f"UPDATE concepts SET {', '.join(sets)} WHERE concept_id=?",
+                (*params, cid),
+            )
+        conn.executemany(
+            "INSERT INTO concepts (concept_id, scheme_id, concept_code, pref_label, "
+            "alt_label, notation, broader_id, scope_note, source_ref, status) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')",
+            [concepts[cid] for cid in inserts],
         )
         conn.executemany(
             "DELETE FROM concept_mappings WHERE source_ref LIKE 'seed:%' "
             "AND source_scheme=? AND source_concept=? AND target_scheme=? "
             "AND target_concept=? AND match_type=?",
             sorted(roster_mappings),
-        )
-        # scoped to THIS converger's roster — the nic2008 seed (S2) owns its
-        # own scheme row; an unscoped wipe would dangle 2k+ concepts
-        conn.executemany(
-            "DELETE FROM concept_schemes WHERE scheme_id=?",
-            [(scheme_id,) for scheme_id in schemes],
-        )
-        conn.executemany(
-            "INSERT INTO concept_schemes (scheme_id, label, scheme_type, version, "
-            "source_uri, license, attribution, active) VALUES (?, ?, ?, ?, NULL, NULL, NULL, 1)",
-            list(schemes.values()),
-        )
-        conn.executemany(
-            "INSERT INTO concepts (concept_id, scheme_id, concept_code, pref_label, "
-            "alt_label, notation, broader_id, scope_note, source_ref, status) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')",
-            list(concepts.values()),
         )
         conn.executemany(
             "INSERT INTO concept_mappings (source_scheme, source_concept, "

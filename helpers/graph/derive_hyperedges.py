@@ -846,9 +846,16 @@ def reconcile_events(conn) -> dict:
         (r[0], r[1], r[2], r[3], r[4])
         for r in conn.execute(
             # pair normalized (min/max): an acquisition and its direction
-            # flip are the same observation pair
-            "SELECT event_type, min(entity, counterparty_entity), "
-            "max(entity, counterparty_entity), event_date, COUNT(*) "
+            # flip are the same observation pair. CASE pairs are the
+            # dual-engine scalar form — SQLite's 2-arg min/max is scalar,
+            # DuckDB's are aggregate-only (BinderException under GROUP BY),
+            # and least()/greatest() don't exist in SQLite 3.50.
+            "SELECT event_type, "
+            "CASE WHEN entity <= counterparty_entity THEN entity "
+            "ELSE counterparty_entity END, "
+            "CASE WHEN entity <= counterparty_entity THEN counterparty_entity "
+            "ELSE entity END, "
+            "event_date, COUNT(*) "
             "FROM events WHERE counterparty_entity IS NOT NULL "
             "GROUP BY 1, 2, 3, 4 HAVING COUNT(*) > 1 ORDER BY 5 DESC"
         )
@@ -1855,9 +1862,29 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
                     for label, _members in ordered:
                         if label not in have or have[label][1] == props_json_by_label[label]:
                             continue
+                        if (
+                            _is_duckdb_conn(conn)
+                            and conn.execute(
+                                "SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ?",
+                                (have[label][0],),
+                            ).fetchone()[0]
+                        ):
+                            # DuckDB 2.x FK law refuses ANY row rewrite of a
+                            # hyper_edges row referenced by hyper_incidences,
+                            # and a failed statement aborts the implicit
+                            # DuckDB transaction — everything after it dies
+                            # with TransactionContext. Pre-guard instead of
+                            # try/except (measured 2026-11-22, the
+                            # two-edition gate arc).
+                            print(
+                                f"WARNING: hyperedge props restamp skipped for "
+                                f"{hyper_type}/{label} (referenced by incidences)",
+                                file=sys.stderr,
+                            )
+                            continue
                         try:
                             conn.execute(
-                                "UPDATE hyper_edges SET properties = ?"
+                                "UPDATE hyper_edges SET properties = ? "
                                 "WHERE edge_type = ? AND label = ? AND properties != ?",
                                 (
                                     props_json_by_label[label],
@@ -1877,10 +1904,24 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
                             vf = facets.get("valid_from", {}).get(label)
                             if not vf or label not in have or have[label][2] == vf:
                                 continue
+                            if (
+                                _is_duckdb_conn(conn)
+                                and conn.execute(
+                                    "SELECT COUNT(*) FROM hyper_incidences WHERE edge_id = ?",
+                                    (have[label][0],),
+                                ).fetchone()[0]
+                            ):
+                                print(
+                                    f"WARNING: hyperedge valid_from restamp skipped for "
+                                    f"{hyper_type}/{label} (referenced by incidences)",
+                                    file=sys.stderr,
+                                )
+                                continue
                             try:
                                 conn.execute(
                                     "UPDATE hyper_edges SET valid_from = ? "
-                                    "WHERE edge_type = ? AND label = ? AND valid_from IS NOT ?",
+                                    "WHERE edge_type = ? AND label = ? "
+                                    "AND valid_from IS DISTINCT FROM ?",
                                     (vf, hyper_type, label, vf),
                                 )
                             except Exception as e:  # noqa: BLE001  # best-effort restamp

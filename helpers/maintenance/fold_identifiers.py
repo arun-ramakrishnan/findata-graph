@@ -10,17 +10,13 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import duckdb
-from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+import duckdb  # noqa: E402  (after the REPO_ROOT sys.path insert, house pattern)
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
-
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
 
 SOURCES_DB = REPO_ROOT / "memory" / "data" / "sources.duckdb"
 DEFAULT_DB = REPO_ROOT / "memory" / "research.db"
@@ -177,7 +173,15 @@ def main(argv: list[str] | None = None) -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--apply", action="store_true", help="write new registry rows")
     mode.add_argument("--check", action="store_true", help="exit 1 when rows are missing")
-    parser.add_argument("--db", type=Path, default=DEFAULT_DB)
+    parser.add_argument(
+        "--db",
+        type=Path,
+        default=None,
+        help=(
+            "research store; default = the canonical store via helpers.core.db "
+            "(memory/research.duckdb, FINDATA_RESEARCH_DB_PATH honoured)"
+        ),
+    )
     parser.add_argument("--sources", type=Path, default=SOURCES_DB)
     parser.add_argument("--cik-json", type=Path)
     args = parser.parse_args(argv)
@@ -185,8 +189,11 @@ def main(argv: list[str] | None = None) -> int:
     from helpers.core.db import connect
     from helpers.misc.backfill_identifiers import ensure_schema
 
-    if not args.db.exists() or not args.sources.exists():
-        print("ERROR: research.db or sources.duckdb is missing", file=sys.stderr)
+    if args.db is not None and not args.db.exists():
+        print("ERROR: research store not found", file=sys.stderr)
+        return 1
+    if not args.sources.exists():
+        print("ERROR: sources.duckdb is missing", file=sys.stderr)
         return 1
     conn = connect(args.db)
     try:

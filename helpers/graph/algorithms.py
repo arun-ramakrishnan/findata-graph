@@ -64,7 +64,7 @@ try:
     import numpy as np
 except ImportError:  # pragma: no cover
     np = None  # type: ignore[assignment]
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from pathlib import Path
@@ -78,6 +78,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.db_engine import is_duckdb_conn  # noqa: E402
 from helpers.core.forkmap import ForkPool  # noqa: E402
 
 # Metric wrappers from query.py — Onager-backed since Phase A of the
@@ -1284,6 +1285,55 @@ def _warn_degenerate_metric(metric: str, conn: Any) -> None:
         )
 
 
+@contextmanager
+def _detached_fin(con: Any) -> Iterator[None]:
+    """Temporarily DETACH the graph lane's ``fin`` attach (the research
+    store) so funnel writers can open the same file in-process.
+
+    Post-S6 the fin attach is a real DuckDB FILE attach, and DuckDB keeps
+    a per-process file-handle registry: while fin is held, ANY second open
+    of the store — a writer's own funnel conn (``write_analytics`` with
+    ``conn=None``) — raises ``ResourceInUseException: Unique file handle
+    conflict: ... already attached by database "fin"``. Compute reads go
+    through the attach (the _mark_warm doctrine, query.py:1102); the
+    persist window is the one place writes MUST go through the funnel
+    (``graph_analytics`` lives in the research store, not the warm cache
+    that is the conn's main catalog), so the attach is dropped for the
+    window and re-attached on exit with the same file/sqlite discipline
+    query.py uses. A quack wire attach (served store) is left untouched:
+    writers route over the wire too (duckdb_shared.connect_shared), so
+    there is no file-handle conflict to defuse.
+    """
+    try:
+        row = con.execute(
+            "SELECT type, path FROM duckdb_databases() WHERE database_name = 'fin'"
+        ).fetchone()
+    except Exception:  # noqa: BLE001 — duckdb.Error or proxy quirk; treat as no-attach
+        row = None
+    if row is None or (row[0] or "") == "quack" or not row[1]:
+        # No fin, a wire attach, or an in-memory/pathless source — nothing
+        # to defuse; writers can open their own conns as-is.
+        yield
+        return
+    fin_type, fin_path = str(row[0]), str(row[1])
+    con.execute("DETACH fin")
+    try:
+        yield
+    finally:
+        if fin_type == "sqlite":
+            stmt = f"ATTACH '{fin_path}' AS fin (TYPE sqlite, READ_ONLY)"
+        else:
+            stmt = f"ATTACH '{fin_path}' AS fin (READ_ONLY)"
+        try:
+            con.execute(stmt + ";")
+        except Exception:  # noqa: BLE001 — best-effort, mirrors _attach_sqlite
+            try:
+                con.execute("DETACH fin;")
+                con.execute(stmt + ";")
+            except Exception:  # noqa: BLE001,S110 — best-effort optional read
+                pass
+
+
 def write_analytics(
     metric: str,
     values: dict[str, Any],
@@ -1303,8 +1353,9 @@ def write_analytics(
     accumulated generations (voterank served a 2.5-month-old seed list).
     Only for metrics whose stored population is exactly the incoming keys.
 
-    Note on the row-by-row loop: audited for executemany() conversion but
-    measured slower on the live graph. Left as-is deliberately.
+    Note on the row-by-row loop: on SQLite this is the native shape and was
+    audited as the fast path; DuckDB connections take the batched diff-write
+    legs instead (see the engine gate below).
     """
     own_conn = conn is None
     if own_conn:
@@ -1324,16 +1375,59 @@ def write_analytics(
                 f"AND entity_name NOT IN ({placeholders})",
                 (metric, *names),
             )
-        for entity_name, value in values.items():
-            conn.execute(
-                "INSERT INTO graph_analytics(entity_name, metric, value) "
-                "VALUES (?, ?, ?) "
-                "ON CONFLICT(metric, entity_name) DO UPDATE SET "
-                "value = excluded.value, "
-                "computed_at = ? "
-                "WHERE value != excluded.value",
-                (entity_name, metric, json.dumps(value), now),
-            )
+        if values:
+            if is_duckdb_conn(conn):
+                # DuckDB executes per-statement rows at ~ms each (native
+                # executemany re-binds per row, 2026-11-25 bench: 22k plain
+                # INSERTs = 145 s; the per-row upsert loop measured
+                # minutes per metric on the live store — SQLite never paid
+                # this, which is why the old loop survived its audit).
+                # Batch legs instead: one fetch + Python diff + set-based
+                # INSERT/UPDATE. Unchanged rows are not written, matching
+                # the legacy upsert's `WHERE value != excluded.value`
+                # no-op semantics; new rows keep the computed_at DEFAULT
+                # like the legacy INSERT.
+                stored = dict(
+                    conn.execute(
+                        "SELECT entity_name, value FROM graph_analytics WHERE metric = ?",
+                        (metric,),
+                    ).fetchall()
+                )
+                payload = {name: json.dumps(value) for name, value in values.items()}
+                new = [[n, v] for n, v in payload.items() if n not in stored]
+                changed = [[n, v] for n, v in payload.items() if n in stored and stored[n] != v]
+                if new:
+                    conn.execute(
+                        "INSERT INTO graph_analytics(entity_name, metric, value) "
+                        "SELECT u1, ?, u2 FROM ("
+                        "SELECT UNNEST(?::VARCHAR[]) AS u1, UNNEST(?::VARCHAR[]) AS u2"
+                        ")",
+                        (metric, [r[0] for r in new], [r[1] for r in new]),
+                    )
+                if changed:
+                    conn.execute(
+                        "UPDATE graph_analytics SET value = b.u2, computed_at = ? "
+                        "FROM ("
+                        "SELECT UNNEST(?::VARCHAR[]) AS u1, UNNEST(?::VARCHAR[]) AS u2"
+                        ") b "
+                        "WHERE graph_analytics.metric = ? "
+                        "AND graph_analytics.entity_name = b.u1",
+                        (now, [r[0] for r in changed], [r[1] for r in changed], metric),
+                    )
+            else:
+                for entity_name, value in values.items():
+                    conn.execute(
+                        "INSERT INTO graph_analytics(entity_name, metric, value) "
+                        "VALUES (?, ?, ?) "
+                        "ON CONFLICT(metric, entity_name) DO UPDATE SET "
+                        "value = excluded.value, "
+                        "computed_at = ? "
+                        "WHERE value != excluded.value",
+                        (entity_name, metric, json.dumps(value), now),
+                    )
+            # Once per write, not once per row: inside the legacy loop this
+            # re-ran the full-partition aggregate 22k times per metric write
+            # (and printed the warning 22k times on degenerate data).
             _warn_degenerate_metric(metric, conn)
     finally:
         # Explicit commit: backend-neutral. DuckDB's Connection.__exit__ would
@@ -1742,7 +1836,13 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     )
     fork_pool = ForkPool(args.jobs) if args.all and args.jobs > 1 else None
     heavy_futures: dict[str, Any] = {}
-    duck_con = duckdb_connect(read_only=True)
+    # DuckDB allows only ONE instance config per file per process: a held
+    # read_only=True handle blocks the writers' read-write funnel conn
+    # (ResourceInUseException, first seen at the link-predict persist in
+    # the 2026-11-25 TIER2 chain). Under --apply hold the conn READ-WRITE
+    # so write_analytics' internal connect() shares the same instance;
+    # without --apply no writer fires and the conn stays read-only.
+    duck_con = duckdb_connect(read_only=not args.apply)
     try:
         # Phase 3 (graph_db_optimization): one materialisation shared by
         # every metric in this run — with_onager_connection scopes the
@@ -1853,7 +1953,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                             file=sys.stderr,
                         )
                     else:
-                        n_rows = _persist_link_prediction(pairs, args.method, edge_types)
+                        # Persist through the funnel while fin is detached
+                        # (graph_analytics lives in the research store; a
+                        # second open under a held fin attach is the
+                        # ResourceInUseException this CM defuses).
+                        with _detached_fin(duck_con):
+                            n_rows = _persist_link_prediction(pairs, args.method, edge_types)
                         print(
                             f"  applied link_prediction: {n_rows} entity rows to graph_analytics",
                             file=sys.stderr,
@@ -1881,7 +1986,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                             file=sys.stderr,
                         )
                     else:
-                        n_rows = _persist_voterank(seeds)
+                        with _detached_fin(duck_con):
+                            n_rows = _persist_voterank(seeds)
                         print(
                             f"  applied voterank: {n_rows} entity rows to graph_analytics",
                             file=sys.stderr,
@@ -1983,7 +2089,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                             file=sys.stderr,
                         )
                         continue
-                    n_written = write_ppr_results(seed, ppr_payload, alpha=alpha_bin)
+                    with _detached_fin(duck_con):
+                        n_written = write_ppr_results(seed, ppr_payload, alpha=alpha_bin)
                     print(
                         f"  applied {n_written} rows to ppr_results (seed={seed!r})",
                         file=sys.stderr,
@@ -1997,12 +2104,21 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 else:
                     total = 0
                     for metric_db, payload in pending_writes:
-                        total += write_analytics(metric_db, payload)
-                        # graph_analytics_integrity S3: live-vs-stored per
-                        # metric, every run — the population drift that sat
-                        # unnoticed for weeks (18,704 stored vs 19,053 live)
-                        # becomes visible here.
-                        stored = _analytics_rowcount(metric_db)
+                        # Persist through funnel conns with fin detached:
+                        # graph_analytics lives in the RESEARCH store (fin
+                        # on this conn — the main catalog is the warm
+                        # graph cache), and a second in-process open of
+                        # the file under a held fin attach raises
+                        # ResourceInUseException (the _mark_warm doctrine
+                        # at query.py:1102, defused per-window by
+                        # _detached_fin).
+                        with _detached_fin(duck_con):
+                            total += write_analytics(metric_db, payload)
+                            # graph_analytics_integrity S3: live-vs-stored per
+                            # metric, every run — the population drift that sat
+                            # unnoticed for weeks (18,704 stored vs 19,053 live)
+                            # becomes visible here.
+                            stored = _analytics_rowcount(metric_db)
                         live = len(payload)
                         drift = "" if stored == live else f"  DRIFT: {stored - live:+d} vs live"
                         print(
