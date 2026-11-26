@@ -17486,3 +17486,24 @@ to the sidecars/canonical store with `vec_codec` blob decode —
 — and the 4 dead-default rows got live `research.duckdb` defaults.
 Validation: 5 + 132 targeted tests, static checks green, retired host
 still absent.
+
+## 574. Onager synthetic-edge materialization — Arrow stage replaces giant VALUES insert
+
+**Date:** filed + executed 2026-11-26 · **Area:** `helpers/graph/onager.py`
+synthetic `edges=` path + `tests/test_onager_capabilities.py` (archived proposal
+`doc/improvements/archive/graph/onager_arrow_edge_materialization/onager_arrow_edge_materialization.md`)
+
+Replaced `_materialize_edges()`'s giant `INSERT ... VALUES (...),...` SQL-string
+staging (2026-08-15 `executemany` replacement, blame `2587a3a179`) with Arrow
+`pa.table` + `raw.register()` + `CREATE OR REPLACE TEMP TABLE _onager_e AS SELECT
+CAST(...) FROM _onager_e_stage`, then defensive drain/unregister in `finally`
+(DuckDB 2.0 pending-result posture, same as `_materialize_from_db:360-364`).
+The synthetic `edges=` source is an in-memory Python edge list; the quack
+remote-CTAS refusal that motivates Arrow staging in `_materialize_from_db:308-310`
+does not apply here, but the local-relation pattern does. `_onager_e` schema and
+empty-edge contract preserved. Microbench (in-memory DuckDB, 6 samples/size,
+alternating): 20k edges 882–1013 ms old vs 7.7–8.9 ms new; 100k 5281–5629 ms vs
+28–45 ms. Impact is synthetic/test/bench callers of `edges=` APIs, not a measured
+`graph_rebuild` budget win. Validation: parity test
+`test_materialize_edges_parity_with_legacy_values_insert` + 113 passed in
+`tests/test_onager_capabilities.py tests/test_graph_fallbacks.py`, ruff clean.

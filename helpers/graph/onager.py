@@ -366,15 +366,46 @@ def _materialize_from_db(
 
 
 def _materialize_edges(con: duckdb.DuckDBPyConnection, edges: list[tuple[int, int, float]]) -> None:
-    """Materialise ``_onager_e`` from a Python edge list using a single batched
-    ``VALUES`` insert (DuckDB ``executemany`` is far too slow for this).
+    """Materialise ``_onager_e`` from a Python edge list.
+
+    The old path built one giant ``INSERT ... VALUES`` SQL string (a 2026-08-15
+    replacement for DuckDB ``executemany``, which was pathologically slow).
+    Stage through a registered Arrow relation instead: same local-relation
+    pattern the wire-backed ``_materialize_from_db`` path already uses, but
+    here the source is an in-memory Python edge list, not a remote quack scan
+    (no quack remote-CTAS refusal applies). The temp table keeps the same name
+    and schema so every onager/fallback consumer is unchanged.
     """
-    con.execute("CREATE OR REPLACE TEMP TABLE _onager_e(src BIGINT, dst BIGINT, weight DOUBLE)")
-    if edges:
-        flat = [v for e in edges for v in e]
-        ph = "(?,?,?)"
-        sql = "INSERT INTO _onager_e VALUES " + ",".join([ph] * len(edges))  # noqa: S608
-        con.execute(sql, flat)
+    if not edges:
+        con.execute("CREATE OR REPLACE TEMP TABLE _onager_e(src BIGINT, dst BIGINT, weight DOUBLE)")
+        return
+    import pyarrow as pa
+
+    stage = "_onager_e_stage"
+    tbl = pa.table(
+        {
+            "src": pa.array([int(e[0]) for e in edges], type=pa.int64()),
+            "dst": pa.array([int(e[1]) for e in edges], type=pa.int64()),
+            "weight": pa.array([float(e[2]) for e in edges], type=pa.float64()),
+        }
+    )
+    raw = getattr(con, "raw", con)
+    # duckdb 2.0 refuses register()/unregister() while a result is pending;
+    # drain defensively (same posture as the wire _materialize_from_db path).
+    with contextlib.suppress(Exception):
+        con.execute("SELECT 1").fetchall()
+    raw.register(stage, tbl)
+    try:
+        con.execute(
+            f"CREATE OR REPLACE TEMP TABLE _onager_e AS "  # noqa: S608  # stage is a local constant
+            f"SELECT CAST(src AS BIGINT) AS src, CAST(dst AS BIGINT) AS dst, "
+            f"CAST(weight AS DOUBLE) AS weight FROM {stage}"
+        )
+    finally:
+        with contextlib.suppress(Exception):
+            con.execute("SELECT 1").fetchall()
+        with contextlib.suppress(Exception):
+            raw.unregister(stage)
 
 
 # --------------------------------------------------------------------------- #

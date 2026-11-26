@@ -934,3 +934,33 @@ def test_onager_pagerank_as_of_excludes_future_edges(synth_db):
     # after D: the edge is live -> CompanyA joins and takes hub rank from D
     assert "CompanyA" in after
     assert len(after) == 3
+
+
+def test_materialize_edges_parity_with_legacy_values_insert():
+    """The Arrow-staged synthetic edge path must match the old giant VALUES
+    insert exactly (schema, row count, values, empty case)."""
+    edges = [(i, (i + 1) % 200, float(i % 7) / 3.0) for i in range(500)]
+
+    def legacy(con, edge_list):
+        con.execute("CREATE OR REPLACE TEMP TABLE _onager_e(src BIGINT, dst BIGINT, weight DOUBLE)")
+        if edge_list:
+            flat = [v for e in edge_list for v in e]
+            ph = "(?,?,?)"
+            con.execute(
+                "INSERT INTO _onager_e VALUES " + ",".join([ph] * len(edge_list)),  # noqa: S608
+                flat,
+            )
+
+    for case in ([], edges):
+        con_old = duckdb.connect()
+        con_new = duckdb.connect()
+        try:
+            legacy(con_old, case)
+            onager_mod._materialize_edges(con_new, case)
+            q = "SELECT src, dst, weight FROM _onager_e ORDER BY src, dst, weight"
+            assert con_new.execute(q).fetchall() == con_old.execute(q).fetchall()
+            schema = "SELECT column_name, data_type FROM information_schema.columns WHERE table_name='_onager_e' ORDER BY ordinal_position"
+            assert con_new.execute(schema).fetchall() == con_old.execute(schema).fetchall()
+        finally:
+            con_old.close()
+            con_new.close()

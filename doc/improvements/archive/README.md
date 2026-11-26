@@ -1499,3 +1499,10 @@ commit, referenced by nothing). Entry numbers point at
   Arrow-staged replace (33.16 s → 2.65 s), incidence batch helper, P4
   house-door fix for `tag_international_entities`; P5 (six sibling
   CLIs on the retired path) deferred to pending.md — completed.md #567
+- [`onager_arrow_edge_materialization.md`](graph/onager_arrow_edge_materialization/onager_arrow_edge_materialization.md) —
+  synthetic `edges=` `_materialize_edges` giant VALUES SQL string →
+  Arrow register + CTAS into `_onager_e` (DuckDB 2.0 drain/unregister
+  posture; quack remote-CTAS refusal applies to `_materialize_from_db`,
+  not this in-memory path); 20k edges 882–1013 ms → 7.7–8.9 ms, 100k
+  5281–5629 ms → 28–45 ms in scratch microbench; schema/empty contract
+  preserved; parity test + 113 targeted tests — completed.md #574

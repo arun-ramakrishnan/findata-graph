@@ -38,9 +38,9 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none)* — the SQLite-residue census + DuckDB-cutover completion sweep
-  executed 2026-11-26 as completed.md #573 (see the database archive).
-  (2026-11-25); see the retired markers below.
+- *(none)* — the onager synthetic-edge Arrow materialization executed
+  2026-11-26 as completed.md #574 (see the graph archive).
+  (2026-11-26); see the retired markers below.
 
 - *(archived 2026-11-25)* — `rust_simd_cosine_hop_histogram` (graph/,
   filed + executed 2026-11-25, completed.md #572 — S1 fused SIMD per-row
