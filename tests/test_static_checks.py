@@ -2197,3 +2197,108 @@ def test_nested_function_body_not_flagged(tmp_path, monkeypatch):
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     fatal, advisory = sc.check_loop_invariant_recomputation()
     assert (fatal, advisory) == ([], [])
+
+
+# ---------------------------------------------------------------------------
+# sqlite_residue_census_sweep S2: SQLite residue idioms leg
+# ---------------------------------------------------------------------------
+def test_residue_idioms_clean(tmp_path, monkeypatch):
+    """Insert above helpers imports, no 2-arg min/max in SQL, no `IS NOT ?`,
+    pragma absent (or gated): zero findings, incl. a Python `min(a, b)` and
+    a `IS NOT NULL` which must NOT trip the SQL-literal regexes."""
+    f = tmp_path / "helpers" / "misc" / "ok.py"
+    f.parent.mkdir(parents=True)
+    f.write_text(
+        "import sys\n"
+        "from pathlib import Path\n"
+        "sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n"
+        "from helpers.core.db import connect  # noqa: E402\n"
+        "mn = min(a, b)\n"
+        'SQL = "SELECT * FROM t WHERE x IS NOT NULL AND y = ?"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    assert sc.check_sqlite_residue_idioms() == []
+
+
+def test_residue_idioms_catches_all_four(tmp_path, monkeypatch):
+    """One file, four idioms: (a) helpers import above the insert, (b) 2-arg
+    min/max in a SQL literal, (c) bare `IS NOT ?`, (d) defer_foreign_keys
+    without an sqlite gate nearby."""
+    f = tmp_path / "helpers" / "misc" / "bad.py"
+    f.parent.mkdir(parents=True)
+    f.write_text(
+        "from helpers.core import db\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n"
+        'SQL = "SELECT min(a, b) FROM t GROUP BY g"\n'
+        'SQL2 = "DELETE FROM t WHERE x IS NOT ?"\n'
+        'SQL3 = "PRAGMA defer_foreign_keys = ON"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    failures = sc.check_sqlite_residue_idioms()
+    assert len(failures) == 4
+    joined = "\n".join(failures)
+    assert "sys.path.insert" in joined
+    assert "2-argument" in joined
+    assert "IS DISTINCT FROM" in joined
+    assert "defer_foreign_keys" in joined
+
+
+def test_residue_idioms_skips_docstrings_comments_typechecking(tmp_path, monkeypatch):
+    """The 2026-11-26 false-positive classes: formula prose in docstrings
+    (`max(|q|, |e|)`), removal-note comments ("no PRAGMA defer_foreign_keys"),
+    and TYPE_CHECKING-guarded helpers imports above the insert are all
+    legal — none may be flagged."""
+    f = tmp_path / "helpers" / "misc" / "doc_prose.py"
+    f.parent.mkdir(parents=True)
+    f.write_text(
+        "from typing import TYPE_CHECKING\n"
+        "if TYPE_CHECKING:\n"
+        "    from helpers.core.corpus import Corpus\n"
+        "import sys\n"
+        "from pathlib import Path\n"
+        "sys.path.insert(0, str(Path(__file__).resolve().parents[2]))\n"
+        "def probe(q, e):\n"
+        '    """Score = |overlap| / max(|q_tokens|, |e_tokens|).\n'
+        "    The SQL is `SELECT min(a, b) FROM t` in the docs only.\n"
+        '    """\n'
+        "    return 1.0\n"
+        "# No `PRAGMA defer_foreign_keys` here: DuckDB rejects the pragma.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    assert sc.check_sqlite_residue_idioms() == []
+
+
+def test_residue_idioms_pragma_with_sqlite_gate_is_clean(tmp_path, monkeypatch):
+    """(d) is context-sensitive: a defer_foreign_keys within the gate window
+    (sqlite3 import / is_sqlite conditional nearby) is legal."""
+    f = tmp_path / "helpers" / "misc" / "gated.py"
+    f.parent.mkdir(parents=True)
+    f.write_text(
+        "import sqlite3\n"
+        'SQL = "PRAGMA defer_foreign_keys = ON"\n'
+        'SQL2 = "SELECT min(a, b) FROM t"\n',  # still flagged: not gated-ness, (b)
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    failures = sc.check_sqlite_residue_idioms()
+    assert len(failures) == 1
+    assert "2-argument" in failures[0]
+
+
+def test_residue_idioms_leg_self_site_exempt(tmp_path, monkeypatch):
+    """The leg's own definition site cites every pattern in finding messages
+    and regex literals — exempt it or it self-flags forever."""
+    f = tmp_path / "helpers" / "validators" / "static_checks.py"
+    f.parent.mkdir(parents=True)
+    f.write_text(
+        'MSG = "PRAGMA defer_foreign_keys outside an sqlite-gated context"\n'
+        'SQL = "SELECT min(a, b) FROM t"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    assert sc.check_sqlite_residue_idioms() == []

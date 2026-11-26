@@ -59,7 +59,9 @@ if yaml is not None:
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Patterns of files/dirs to skip when walking.
-SKIP_DIRS = {".git", ".venv", "venv", "__pycache__", "node_modules", ".pytest_cache"}
+SKIP_DIRS = {".git", ".venv", "venv", "__pycache__", "node_modules", ".pytest_cache", "bench_data"}
+# bench_data: durable session-archaeology scratch (gitignored banks/scorers);
+# historical probe scripts there are not repo code and must not gate checks.
 SKIP_SUFFIXES = {".pyc", ".pyo"}
 
 # Files committed but should never be.
@@ -2088,6 +2090,130 @@ def check_noqa_in_sql_literal(
     return failures, []
 
 
+# --- sqlite_residue_census_sweep S2: DuckDB-cutover residue idioms ---------- #
+
+_SQLISH_RE = re.compile(
+    r"\b(?:SELECT|INSERT|UPDATE|DELETE|WITH|CREATE\s+(?:TABLE|INDEX|VIEW))\b",
+    re.IGNORECASE,
+)
+# E5: SQLite's 2-arg scalar min()/max() has no DuckDB form (BinderException
+# under GROUP BY; sqlite 3.50.4 has no least/greatest) — dual-engine SQL
+# must use CASE pairs.
+_SQL_2ARG_MINMAX_RE = re.compile(r"\b(?:min|max)\s*\([^()]*,[^()]*\)", re.IGNORECASE)
+# The parameterized inequality defect (`IS NOT ?`) is a ParserException on
+# DuckDB; the dual-engine form is `IS DISTINCT FROM ?`.
+_SQL_IS_NOT_PARAM_RE = re.compile(r"\bIS\s+NOT\s+(?:\?|:\w+|\$\d+)", re.IGNORECASE)
+_DEFER_FK_RE = re.compile(r"defer_foreign_keys", re.IGNORECASE)
+# A defer_foreign_keys is legal only on an sqlite-gated path; the window
+# accepts the observed gate idioms (engine conditional / sqlite3 type test /
+# driver import) near the pragma.
+_FK_GATE_RE = re.compile(
+    r"(?:\bis_sqlite\b|\bis_duckdb_conn\b|engine\s*==\s*[\"']sqlite[\"']"
+    r"|isinstance\([^)]*sqlite3\.Connection|import sqlite3|sqlite3\.connect)",
+    re.IGNORECASE,
+)
+_FK_GATE_WINDOW = 6  # lines of context each side of the pragma
+_HELPERS_IMPORT_RE = re.compile(r"^(?:from|import)\s+helpers[\.\s]", re.MULTILINE)
+_SYS_PATH_INSERT_RE = re.compile(r"^\s*sys\.path\.insert", re.MULTILINE)
+
+
+def _residue_idiom_findings(py: Path) -> list[str]:  # noqa: C901
+    """Per-file findings for the census S2 leg (all four idioms)."""
+    try:
+        src = py.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    rel = py.relative_to(REPO_ROOT).as_posix()
+    # The leg's own definition site cites every pattern below (finding
+    # messages / regex literals) — exempt it or the leg self-flags forever.
+    if rel == "helpers/validators/static_checks.py":
+        return []
+    out: list[str] = []
+    # (a) E2: a REPO_ROOT sys.path.insert must precede the first helpers.*
+    # import — direct CLI runs die with ModuleNotFoundError otherwise.
+    hm = _HELPERS_IMPORT_RE.search(src)
+    sm = _SYS_PATH_INSERT_RE.search(src)
+    if hm and sm and hm.start() < sm.start():
+        line = src[: hm.start()].count("\n") + 1
+        out.append(
+            f"{rel}:{line}: `from/import helpers` appears ABOVE the REPO_ROOT "
+            "sys.path.insert — direct CLI runs die with ModuleNotFoundError "
+            "(fold_identifiers E2); move the insert to the top of the module"
+        )
+    # (b)/(c)/(d) run over AST string constants — comments never enter the
+    # tree, and docstrings (formula prose, pragma-history notes) are
+    # excluded below, so `max(|q|, |e|)` in a docstring cannot false-positive.
+    if not _SQLISH_RE.search(src) and "defer_foreign_keys" not in src:
+        return out
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:  # noqa: S110  # the syntax leg owns the report
+        return out
+    docstrings: set[int] = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            body = n.body
+            if (
+                body
+                and isinstance(body[0], ast.Expr)
+                and isinstance(body[0].value, ast.Constant)
+                and isinstance(body[0].value.value, str)
+            ):
+                docstrings.add(id(body[0].value))
+    src_lines = src.splitlines()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+            continue
+        value = node.value
+        if id(node) in docstrings:
+            continue
+        base_line = node.lineno - 1
+        if _DEFER_FK_RE.search(value):
+            # (d) seeders E-class: the pragma on the DuckDB funnel conn is a
+            # ParserException; only an sqlite-gated context may issue it.
+            window = "\n".join(
+                src_lines[max(0, base_line - _FK_GATE_WINDOW) : base_line + _FK_GATE_WINDOW + 1]
+            )
+            if not _FK_GATE_RE.search(window):
+                out.append(
+                    f"{rel}:{node.lineno}: PRAGMA defer_foreign_keys outside an "
+                    "sqlite-gated context — DuckDB rejects the pragma "
+                    "(ParserException); gate it on the engine or drop it"
+                )
+        if not _SQLISH_RE.search(value):
+            continue
+        for m in _SQL_2ARG_MINMAX_RE.finditer(value):
+            line = base_line + value[: m.start()].count("\n") + 1
+            out.append(
+                f"{rel}:{line}: 2-argument scalar min()/max() inside a SQL "
+                "literal — DuckDB has no 2-arg form (E5 BinderException; "
+                "sqlite 3.50.4 lacks least/greatest); use CASE pairs"
+            )
+        for m in _SQL_IS_NOT_PARAM_RE.finditer(value):
+            line = base_line + value[: m.start()].count("\n") + 1
+            out.append(
+                f"{rel}:{line}: bare `IS NOT ?` in a SQL literal — the "
+                "dual-engine form is `IS DISTINCT FROM ?` (ParserException "
+                "on DuckDB)"
+            )
+    return out
+
+
+def check_sqlite_residue_idioms(scope: set[Path] | None = None) -> list[str]:
+    """sqlite_residue_census_sweep S2: static leg for the DuckDB-cutover
+    residue idioms so the class cannot regrow. Blocking — each idiom was a
+    live runtime crash during the 2026-11-25 maint chain and was found only
+    by running it. Scope: helpers/ (the sweep's domain)."""
+    if scope is None:
+        files = _walk(REPO_ROOT / "helpers", ".py")
+    else:
+        files = [p for p in scope if p.suffix == ".py"]
+    out: list[str] = []
+    for py in sorted(files, key=str):
+        out.extend(_residue_idiom_findings(py))
+    return out
+
+
 # --- ontology_governance S0: master-doc roster drift ----------------------- #
 
 ONTOLOGY_DOC = Path("doc/design/ontology.md")
@@ -2412,6 +2538,12 @@ CHECKS = [
     # inside a SQL string is query text, not a suppression (blocking — the
     # tree is clean; the house-wide sweep measured zero SQL hits)
     ("noqa inside SQL literal", check_noqa_in_sql_literal),
+    # sqlite_residue_census_sweep S2 (2026-11-26): the DuckDB-cutover residue
+    # idioms cannot regrow — helpers-import above sys.path.insert (E2),
+    # 2-arg min/max in SQL literals (E5), bare `IS NOT ?`, defer_foreign_keys
+    # outside an sqlite gate (seeders). Blocking: each was a live runtime
+    # crash during the 2026-11-25 maint chain, found only by running it.
+    ("SQLite residue idioms", check_sqlite_residue_idioms),
     # ladder_indexing arc (2026-11-11): redundancy guard for the derive_insights
     # pattern — loop-invariant set()/split()/re.compile() recompute (advisory:
     # surfaces drift, never gates qa; hoist sweep is the follow-on)
