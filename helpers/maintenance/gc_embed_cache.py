@@ -33,7 +33,6 @@ Two guard rails, both fail-safe:
 
 from __future__ import annotations
 
-import sqlite3
 import sys
 from collections.abc import Callable
 from typing import Any
@@ -265,8 +264,10 @@ DEFAULT_REFS: tuple[Ref, ...] = (
         "company",
         # the company lane (helpers/graph/embeddings.py): maintained by
         # populate_local --maint; its gemma basis re-reads the note (the
-        # granite lane is the default text_db)
-        REPO / "memory/research.db",
+        # granite lane is the default text_db). S5: research.db was retired
+        # in the DuckDB cutover — company_embeddings/entities live in the
+        # canonical research.duckdb; never recreate the sqlite host.
+        REPO / "memory/research.duckdb",
         "SELECT DISTINCT company_name FROM company_embeddings",
         text_db=_company_text_db,
         stamp_sql="SELECT model FROM company_embeddings LIMIT 1",
@@ -313,8 +314,12 @@ def _ref_basis_text(ref, con, row, text_fn, stamps) -> str | None:
     db the row came from (hash INSIDE the connection scope)."""
 
     if ref.text_db is not None:
-        if not isinstance(con, sqlite3.Connection):
-            raise RuntimeError(f"{ref.label}: text_db needs a sqlite reference index")
+        # Engine-agnostic (S5): the company cohort moved to the DuckDB
+        # research store, so a sqlite-only isinstance guard would abort
+        # every GC run. Duck-type the one operation the basis helpers use;
+        # a closed/wrong connection still fails here and aborts the GC.
+        if not callable(getattr(con, "execute", None)):
+            raise RuntimeError(f"{ref.label}: text_db needs an open reference index connection")
         tdb = ref.text_db
         if ref.text_db_by_model and stamps.get(ref.label):
             tdb = ref.text_db_by_model.get(stamps[ref.label], ref.text_db)

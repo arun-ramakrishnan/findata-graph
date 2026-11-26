@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """B3 spike: FTS5 vs DuckDB fts (match_bm25) parity on live note_search.
 
-Local-eval only. Reads memory/research.db READ-ONLY; builds a throwaway
-DuckDB fts index under /tmp; never writes memory/.
+Local-eval only. Reads memory/note_search.duckdb READ-ONLY (the
+post-cutover note sidecar); builds throwaway sqlite FTS5 + DuckDB fts
+indexes under /tmp; never writes memory/.
 
 Arms (per query, top-5 notes, ANY-OF recall@5 vs helpers/misc/embed_eval_questions.json):
   1. FTS5 baseline  — replicates app.py AND-first/OR-fill + note-level dedup.
@@ -43,10 +44,14 @@ def load_eval(path: Path = EVAL_SET) -> list[dict]:
 
 
 def export_corpus(db_path: str | Path) -> list[dict]:
-    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    # Build-route P4: the note index lives in the DuckDB sidecar now; the
+    # rowid-ism becomes id and embedding stays an f32 BLOB.
+    import duckdb
+
+    con = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
     try:
         rows = con.execute(
-            "SELECT rowid, doc_type, file_path, title, sector, content,"
+            "SELECT id, doc_type, file_path, title, sector, content,"
             " section_title, anchor, embedding FROM note_search"
         ).fetchall()
     finally:
@@ -117,7 +122,7 @@ def build_duckdb(corpus: list[dict], path: Path):
         con.execute("INSTALL fts")
         con.execute("LOAD fts")
         con.execute(
-            "CREATE TABLE notes(id INTEGER, doc_type VARCHAR, file_path VARCHAR,"
+            "CREATE TABLE notes(id BIGINT, doc_type VARCHAR, file_path VARCHAR,"
             " title VARCHAR, sector VARCHAR, content VARCHAR,"
             " section_title VARCHAR, anchor VARCHAR)"
         )
@@ -154,8 +159,12 @@ def duckdb_search(db_path: Path, or_expr: str) -> list[str]:
     if _DDB_CON is None:
         _DDB_CON = duckdb.connect(str(db_path), read_only=True, **memory_cap_config())
     rows = _DDB_CON.execute(
-        "SELECT file_path, fts_main_notes.match_bm25(id, ?) AS s FROM notes"
-        " WHERE s IS NOT NULL ORDER BY s DESC LIMIT ?",
+        # subquery form: newer DuckDB refuses a WHERE alias over a
+        # side-effectful expression ("Alias s referenced - but the
+        # expression has side effects")
+        "SELECT file_path, s FROM ("
+        " SELECT file_path, fts_main_notes.match_bm25(id, ?) AS s FROM notes"
+        ") WHERE s IS NOT NULL ORDER BY s DESC LIMIT ?",
         [or_expr, WINDOWS],
     ).fetchall()
     seen: set[str] = set()
@@ -235,14 +244,46 @@ def recall_at_5(ranked: list[str], expect: list[str]) -> bool:
     return any(e in ranked[:5] for e in expect)
 
 
+def _build_fts5_arm(corpus: list[dict], tmp: Path) -> Path:
+    sdb = tmp / "notes.db"
+    sconn = sqlite3.connect(sdb)
+    sconn.execute(
+        "CREATE VIRTUAL TABLE note_search USING fts5("
+        "doc_type, file_path UNINDEXED, title, sector, content, "
+        "tokenize = 'porter unicode61')"
+    )
+    sconn.executemany(
+        "INSERT INTO note_search (doc_type, file_path, title, sector, content)"
+        " VALUES (?, ?, ?, ?, ?)",
+        [(c["doc_type"], c["file_path"], c["title"], c["sector"], c["content"]) for c in corpus],
+    )
+    sconn.commit()
+    sconn.close()
+    return sdb
+
+
+def _load_vector_leg(corpus: list[dict], db: Path):
+    from helpers.misc.note_query import _stored_note_model
+    from helpers.maintenance.rebuild_note_search import query_embedder
+
+    stamp = _stored_note_model(db)
+    try:
+        embed_q, qdims = query_embedder(stamp)
+        ids, m, norms = build_vector_leg(corpus)
+        print(f"vector leg: {len(ids)} embedded sections (stamp={stamp} dim={qdims})")
+        return True, ids, m, norms, embed_q
+    except RuntimeError as exc:
+        print(f"vector leg DEGRADED to BM25-only: {exc}")
+        return False, None, None, None, None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0)
-    ap.add_argument("--db", default=str(REPO / "memory" / "research.db"))
+    ap.add_argument("--db", default=str(REPO / "memory" / "note_search.duckdb"))
     args = ap.parse_args()
 
     from helpers.maintenance.rebuild_doc_search import fts_match_expr
-    from helpers.maintenance.rebuild_note_search import query_embedder
 
     eval_set = load_eval()
     if args.limit:
@@ -252,21 +293,14 @@ def main() -> int:
     corpus = export_corpus(args.db)
     print(f"corpus rows: {len(corpus)}")
 
-    # tmpdir_sanitization S5 (2026-09-17): TemporaryDirectory (not a bare
-    # mkdtemp) reaps the throwaway DuckDB on every exit path — normal,
-    # exception, and interpreter shutdown (finalizer). The per-query dump
-    # moves to outputs/ (gitignored report dir) so it survives the reap.
     tmp_ctx = tempfile.TemporaryDirectory(prefix="fts_parity_")
     tmp = Path(tmp_ctx.name)
     ddb = tmp / "notes.duckdb"
     t0 = time.perf_counter()
     build_duckdb(corpus, ddb)
     print(f"duckdb build: {(time.perf_counter() - t0) * 1000:.0f} ms -> {ddb}")
-
-    ids, m, norms = build_vector_leg(corpus)
-    print(f"vector leg: {len(ids)} embedded sections")
-    embed_q, qdims = query_embedder()
-    print(f"query embedder: {embed_q.__module__}.{getattr(embed_q, '__name__', '?')} dim={qdims}")
+    sdb = _build_fts5_arm(corpus, tmp)
+    vector_ok, ids, m, norms, embed_q = _load_vector_leg(corpus, Path(args.db))
 
     cats: Counter = Counter()
     hits = Counter()
@@ -279,22 +313,32 @@ def main() -> int:
         q, expect, cat = item["query"], item["expect"], item["category"]
         or_expr = fts_match_expr(q)
         and_expr = or_expr.replace(" OR ", " ") if or_expr else ""
-        q_vec = embed_q(q)
+        q_vec = embed_q(q) if vector_ok and embed_q is not None else None
 
         t = time.perf_counter()
-        lex_fts = fts5_search(args.db, or_expr, and_expr)
+        lex_fts = fts5_search(sdb, or_expr, and_expr)
         lat_fts.append((time.perf_counter() - t) * 1000)
 
         t = time.perf_counter()
         lex_ddb = duckdb_search(ddb, or_expr)
         lat_ddb.append((time.perf_counter() - t) * 1000)
 
-        crank = vector_ranking(q_vec, ids, m, norms)
-        hyb_fts = rrf_fuse(lex_fts, crank)
-        hyb_ddb = rrf_fuse(lex_ddb, crank)
+        crank = (
+            vector_ranking(q_vec, ids, m, norms)
+            if vector_ok
+            and q_vec is not None
+            and ids is not None
+            and m is not None
+            and norms is not None
+            else None
+        )
+        hyb_fts = rrf_fuse(lex_fts, crank) if crank is not None else []
+        hyb_ddb = rrf_fuse(lex_ddb, crank) if crank is not None else []
 
         h1, h2 = recall_at_5(lex_fts, expect), recall_at_5(lex_ddb, expect)
-        hh1, hh2 = recall_at_5(hyb_fts, expect), recall_at_5(hyb_ddb, expect)
+        hh1, hh2 = (
+            (recall_at_5(hyb_fts, expect), recall_at_5(hyb_ddb, expect)) if vector_ok else (0, 0)
+        )
         cats[cat] += 1
         hits[("fts5", cat)] += h1
         hits[("duckdb", cat)] += h2
@@ -329,15 +373,18 @@ def main() -> int:
     t_ddb = sum(hits[("duckdb", c)] for c in cats)
     print(f"  {'ALL':10s} n={n:2d}  FTS5 {pct(t_fts, n)}  duckdb {pct(t_ddb, n)}")
 
-    print("\n== hybrid (RRF k=60 + shared vector leg) recall@5 ==")
-    for cat in sorted(cats):
-        print(
-            f"  {cat:10s} n={cats[cat]:2d}  FTS5+vec {pct(hyb_hits[('fts5', cat)], cats[cat])}"
-            f"  duckdb+vec {pct(hyb_hits[('duckdb', cat)], cats[cat])}"
-        )
-    h_fts = sum(hyb_hits[("fts5", c)] for c in cats)
-    h_ddb = sum(hyb_hits[("duckdb", c)] for c in cats)
-    print(f"  {'ALL':10s} n={n:2d}  FTS5+vec {pct(h_fts, n)}  duckdb+vec {pct(h_ddb, n)}")
+    if vector_ok:
+        print("\n== hybrid (RRF k=60 + shared vector leg) recall@5 ==")
+        for cat in sorted(cats):
+            print(
+                f"  {cat:10s} n={cats[cat]:2d}  FTS5+vec {pct(hyb_hits[('fts5', cat)], cats[cat])}"
+                f"  duckdb+vec {pct(hyb_hits[('duckdb', cat)], cats[cat])}"
+            )
+        h_fts = sum(hyb_hits[("fts5", c)] for c in cats)
+        h_ddb = sum(hyb_hits[("duckdb", c)] for c in cats)
+        print(f"  {'ALL':10s} n={n:2d}  FTS5+vec {pct(h_fts, n)}  duckdb+vec {pct(h_ddb, n)}")
+    else:
+        print("\n== hybrid recall@5: SKIPPED (vector leg degraded) ==")
 
     import statistics
 
@@ -347,7 +394,7 @@ def main() -> int:
         or_expr = fts_match_expr(item["query"])
         and_expr = or_expr.replace(" OR ", " ") if or_expr else ""
         t = time.perf_counter()
-        fts5_search(args.db, or_expr, and_expr)
+        fts5_search(sdb, or_expr, and_expr)
         warm_fts.append((time.perf_counter() - t) * 1000)
         t = time.perf_counter()
         duckdb_search(ddb, or_expr)

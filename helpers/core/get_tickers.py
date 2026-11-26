@@ -336,8 +336,8 @@ def vss_match(
     ``embed_fn`` is supplied. The comparison is pure Python — no DuckDB
     dependency, so ``get_tickers`` stays a standalone CLI.
 
-    ``conn``: optional open SQLite connection; if None, one is opened against
-    ``db_path`` (default ``memory/research.db``) and closed before returning.
+    ``conn``: optional open connection; if None, one is opened against
+    ``db_path`` (default: the research store) and closed before returning.
     ``embed_fn(query, dims) -> list[float]``: overrides the default
     pseudo-embedder (used by tests for deterministic control).
     ``index``: optional _VssRunIndex from build_vss_run_index (S3) — skips

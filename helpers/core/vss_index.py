@@ -326,7 +326,7 @@ def build_vss_run_index(db_path=None, embed_fn=None):
     conn = None
     owns = False
     try:
-        # connect(None) resolves to memory/research.db (the default) —
+        # connect(None) resolves through the research-store door (canonical DuckDB by default) —
         # stored as-is on the index so the tripwire re-check hits the
         # same database.
         conn = connect(db_path, row_factory=None)

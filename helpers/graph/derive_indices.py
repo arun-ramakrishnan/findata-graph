@@ -814,7 +814,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901 — argparse wirin
         "--db",
         type=Path,
         default=None,
-        help="SQLite target (default: live research.db; use for the ontology-gate parent/candidate copies)",
+        help="research store (default: the live canonical store; use for the ontology-gate parent/candidate copies)",
     )
     p.add_argument(
         "--prune-absent",

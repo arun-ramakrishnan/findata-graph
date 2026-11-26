@@ -498,7 +498,15 @@ def main(argv: list[str] | None = None) -> int:
             "Never writes to any store."
         ),
     )
-    ap.add_argument("--db", default=str(_REPO_ROOT / "memory" / "research.db"))
+    ap.add_argument(
+        "--db",
+        type=Path,
+        default=None,
+        help=(
+            "research store; default = the canonical store via helpers.core.db "
+            "(memory/research.duckdb, FINDATA_RESEARCH_DB_PATH honoured)"
+        ),
+    )
     ap.add_argument("--max-df", type=int, default=DEFAULT_MAX_DF)
     ap.add_argument("--extended", action="store_true", help="df≤25 extended view")
     ap.add_argument(
@@ -516,11 +524,14 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     max_df = EXTENDED_MAX_DF if args.extended else args.max_df
-    import duckdb
 
-    from helpers.core.duckdb_shared import memory_cap_config
+    if args.db is not None and not args.db.exists():
+        print(f"ERROR: database not found: {args.db}", file=sys.stderr)
+        return 1
+    from helpers.core.db import connect
 
-    con = duckdb.connect(args.db, **memory_cap_config())
+    # Read-only census: this script never writes the store.
+    con = connect(args.db, read_only=True)
     try:
         rows, stats = generate_candidates(
             con,

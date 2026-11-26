@@ -618,7 +618,7 @@ def igraph_second_opinion_lines(top_k: int = 8) -> list[str]:
     - articulation points: exact cut vertices (near-free; complements
       the sampled betweenness lane for chokepoint QA),
     - coreness: the full k-core profile (generalizes the 2-core peel
-      l1_closeness builds its exact lane on),
+      the L1b fold lane builds on),
     - degree assortativity: one-number mixing trend, tracked across
       editions.
     """

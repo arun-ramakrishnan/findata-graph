@@ -736,11 +736,11 @@ def sync_vec_table(
 
 
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover - manual diagnostic
-    """CLI: report mirror health for a research.db path (default memory/)."""
+    """CLI: report mirror health for the research store (default: canonical)."""
     import argparse
 
     p = argparse.ArgumentParser(description="DuckDB note_search mirror status")
-    p.add_argument("db", nargs="?", default=str(Path("memory") / "research.db"))
+    p.add_argument("db", nargs="?", default=None, help="research store path")
     p.add_argument("--dims", type=int, default=512)
     args = p.parse_args(argv)
     from helpers.core.db import connect

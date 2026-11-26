@@ -55,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--db",
         default=None,
-        help="research.db path (default: the repo store)",
+        help="research store path (default: the live canonical store)",
     )
     args = parser.parse_args(argv)
     conn = connect(args.db)

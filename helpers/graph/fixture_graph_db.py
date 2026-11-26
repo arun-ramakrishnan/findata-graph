@@ -68,11 +68,11 @@ ENTITY_TAGS: list[tuple[str, str]] = [
 
 
 #: (entity_name, metric, value) — the ``graph_analytics`` stamp surface.
-#: ``l1_closeness.compute`` reads its CONTRACT from this table
-#: (``get_contract`` = DISTINCT entity_name WHERE metric =
-#: 'closeness_centrality'), so a fixture without these rows renders an
-#: empty score dict and proves nothing. Values are placeholders: the
-#: render recomputes them, it never reads the stored number.
+#: The fold lanes' contract reads (``get_contract`` = DISTINCT
+#: entity_name WHERE metric = ...) come from this table, so a fixture
+#: without these rows renders an empty score dict and proves nothing.
+#: Values are placeholders: the render recomputes them, it never reads
+#: the stored number.
 GRAPH_ANALYTICS: list[tuple[str, str, float]] = [
     ("Tata Steel", "closeness_centrality", 0.0),
     ("Tata Motors", "closeness_centrality", 0.0),

@@ -275,7 +275,7 @@ def _collect(  # noqa: C901  # one gather pass per source family (taxonomy → t
     return schemes, concepts, mappings
 
 
-def seed(conn: sqlite3.Connection, *, apply: bool) -> dict[str, int]:
+def seed(conn: sqlite3.Connection, *, apply: bool) -> dict[str, int]:  # noqa: C901
     """Converge the three tables onto the collected roster (lifecycle-aware).
 
     Seed-owned rows the roster still produces are delete-then-reinserted
@@ -434,7 +434,7 @@ def seed(conn: sqlite3.Connection, *, apply: bool) -> dict[str, int]:
                     sets.append(f"{_cols[i]}=?")
                     params.append(now)
             conn.execute(
-                f"UPDATE concepts SET {', '.join(sets)} WHERE concept_id=?",
+                f"UPDATE concepts SET {', '.join(sets)} WHERE concept_id=?",  # noqa: S608 - sets from trusted internal field names
                 (*params, cid),
             )
         conn.executemany(
@@ -589,7 +589,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--apply", action="store_true", help="write (default: dry-run)")
     parser.add_argument(
-        "--db", type=Path, default=None, help="SQLite path (default: live research.db)"
+        "--db",
+        type=Path,
+        default=None,
+        help="research store path (default: the live canonical store)",
     )
     parser.add_argument(
         "--promote",

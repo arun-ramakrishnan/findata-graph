@@ -201,12 +201,12 @@ def _main(argv: list[str] | None = None) -> int:
             help="edge-level provenance stamp (default: sector_membership; "
             "converges to the latest writer per the pinned contract)",
         )
-        p.add_argument("--db", default=None, help="research.db path (default: the live one)")
+        p.add_argument("--db", default=None, help="research store path (default: the live one)")
     args = ap.parse_args(argv)
 
     from helpers.core.db import connect
 
-    db = args.db or str(Path(__file__).resolve().parents[2] / "memory" / "research.db")
+    db = args.db
     conn = connect(db)
     try:
         if args.cmd == "put":

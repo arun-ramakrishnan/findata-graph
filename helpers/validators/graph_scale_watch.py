@@ -323,7 +323,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--research-db",
         default="memory/research.db",
-        help="SQLite store for the chains-cap watch (edge-touched count)",
+        help="research store for the chains-cap watch (edge-touched count)",
     )
     args = ap.parse_args(argv)
 

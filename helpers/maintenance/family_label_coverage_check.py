@@ -43,7 +43,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from helpers.maintenance.group_discovery_inventory import load_family_seeds  # noqa: E402
 
 FAMILY_SEEDS_PATH = REPO_ROOT / "helpers" / "misc" / "family_seeds.json"
-DEFAULT_DB = REPO_ROOT / "memory" / "research.db"
+DEFAULT_DB = REPO_ROOT / "memory" / "research.duckdb"
 
 # Families whose seed must satisfy the core-rule maximality invariant. A
 # family becomes complete only when curation reached maximality (Tata:

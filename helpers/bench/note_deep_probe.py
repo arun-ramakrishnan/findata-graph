@@ -44,7 +44,6 @@ from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-DB_PATH = REPO / "memory" / "research.db"
 QUESTIONS_PATH = Path(__file__).resolve().parent / "note_deep_probe_questions.json"
 RRF_K = 60
 PAGE = 25  # candidate page the endpoint fuses over (embed_eval posture)
@@ -93,12 +92,19 @@ def _legacy_rows() -> list[tuple[str, str, str, str, str]]:
 
     findata = REPO / "findata"
     ent: dict[str, tuple[str, str]] = {}
-    econn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    # Build-route P4: entities live in the canonical research store.
+    econn = duckdb.connect(
+        str(REPO / "memory/research.duckdb"), read_only=True, **memory_cap_config()
+    )
     for r in econn.execute(
         "SELECT file_path, normalized_name, sector_classification FROM entities "
         "WHERE file_path IS NOT NULL"
-    ):
-        ent[r[0]] = (r[1] or "", r[2] or "")
+    ).fetchall():
+        ent[str(r[0])] = (str(r[1] or ""), str(r[2] or ""))
     econn.close()
 
     rows = []
@@ -325,8 +331,15 @@ def run(argv: list[str] | None = None) -> int:
     t0 = time.perf_counter()
     A._flat_knn_map(qv0, ["findata/Companies/Agriculture/Avanti_Feeds.md#1"])
     knn_ms = (time.perf_counter() - t0) * 1000
-    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
-    nvec = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    conn = duckdb.connect(
+        str(REPO / "memory/note_search.duckdb"), read_only=True, **memory_cap_config()
+    )
+    row = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()
+    nvec = int(row[0]) if row is not None else 0
     conn.close()
 
     samples = []

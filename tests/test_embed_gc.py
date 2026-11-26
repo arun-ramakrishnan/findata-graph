@@ -293,6 +293,43 @@ def test_live_convo_ref_carries_a_stamp_sql():
     assert unstamped == [], f"cohorts left without rollback insurance: {unstamped}"
 
 
+def test_company_ref_points_at_live_duckdb_index():
+    """The company cohort must read the canonical DuckDB research store:
+    memory/research.db was retired in build-route P4 (proposal S5)."""
+    company = next(r for r in gce.DEFAULT_REFS if r.label == "company")
+    assert company.path == gce.REPO / "memory/research.duckdb"
+    assert company.stamp_sql == "SELECT model FROM company_embeddings LIMIT 1"
+    assert company.text_db is gce._company_text_db
+
+
+def test_text_db_accepts_duckdb_reference_index(tmp_path):
+    """A `text_db` cohort must work against the DuckDB research host, not
+    only sqlite — the old isinstance guard aborted here (S5)."""
+    index = tmp_path / "research.duckdb"
+    con = duckdb.connect(index)
+    con.execute("CREATE TABLE entities (name TEXT, file_path TEXT, sector_classification TEXT)")
+    con.execute("CREATE TABLE company_embeddings (company_name TEXT, model TEXT)")
+    # NULL file_path is the exchange-seeded stub: the basis is deterministic
+    # ("Acme. Banking") and needs no note file on disk.
+    con.execute("INSERT INTO entities VALUES ('Acme', NULL, 'Banking')")
+    con.execute("INSERT INTO company_embeddings VALUES ('Acme', 'gemma')")
+    con.close()
+
+    refs = (
+        gce.Ref(
+            "company",
+            index,
+            "SELECT DISTINCT company_name FROM company_embeddings",
+            text_db=gce._company_text_db,
+            stamp_sql="SELECT model FROM company_embeddings LIMIT 1",
+        ),
+    )
+    live, counts, stamps = gce._read_refs(refs)
+    assert counts["company"] == 1
+    assert stamps["company"] == "gemma"
+    assert live["company"] == {_hash("Acme. Banking")}
+
+
 def test_git_recipes_match_builder_basis(monkeypatch):
     """The git cohort's text recipes must hash EXACTLY what the rebuild
     hashed — they compose through the builder's own helpers, so this

@@ -293,7 +293,7 @@ def derive(db_path: str | Path = DEFAULT_DB_PATH, *, apply: bool = False) -> dic
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--db", default=str(DEFAULT_DB_PATH), help="research.db path")
+    parser.add_argument("--db", default=str(DEFAULT_DB_PATH), help="research store path")
     parser.add_argument("--apply", action="store_true", help="write (default: dry-run)")
     args = parser.parse_args(argv)
     derive(args.db, apply=args.apply)

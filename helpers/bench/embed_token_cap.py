@@ -30,19 +30,29 @@ DEFAULT_MODEL = REPO / "models/bge-small-en-v1.5-q8_0.gguf"
 
 
 def load_bases() -> dict[str, list[str]]:
-    import sqlite3
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
 
     out = {}
-    c = sqlite3.connect(f"file:{REPO}/memory/research.db?mode=ro", uri=True)
+    # Build-route P4: the note/doc indexes live in the DuckDB sidecars now
+    # (the doc content columns c0/c1/c4 became title/section_title/content).
+    c = duckdb.connect(
+        str(REPO / "memory/note_search.duckdb"), read_only=True, **memory_cap_config()
+    )
     out["notes"] = [
         f"{t}\n{s}\n{(ct or '')[:8000]}"
-        for t, s, ct in c.execute("SELECT title, sector, content FROM note_search")
+        for t, s, ct in c.execute("SELECT title, sector, content FROM note_search").fetchall()
     ]
     c.close()
-    d = sqlite3.connect(f"file:{REPO}/memory/doc_search.db?mode=ro", uri=True)
+    d = duckdb.connect(
+        str(REPO / "memory/doc_search.duckdb"), read_only=True, **memory_cap_config()
+    )
     out["docs"] = [
         f"{t}\n{sec}\n{(ct or '')[:4000]}"
-        for t, sec, ct in d.execute("SELECT c0, c1, c4 FROM doc_search_content")
+        for t, sec, ct in d.execute(
+            "SELECT title, section_title, content FROM doc_search"
+        ).fetchall()
     ]
     d.close()
     return out

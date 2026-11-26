@@ -45,7 +45,6 @@ Usage:
 
 import json
 import re
-import sqlite3
 import sys
 import time
 from pathlib import Path
@@ -59,7 +58,6 @@ from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-DB_PATH = REPO / "memory" / "research.db"
 QUESTIONS_PATH = REPO / "helpers" / "misc" / "embed_eval_questions.json"
 N_EXTRA_SEEDS = 20
 BGE_MODEL = "bge-small-en-v1.5"  # rollback cohort label (post-swap prod is granite)
@@ -111,7 +109,14 @@ def _base(leg: str, name: str, sector: str, content: str) -> str:
 def _companies() -> list[tuple[str, str, str]]:
     """(name, sector, frontmatter-stripped note body) for every embedded
     company, mirroring populate_local's entity_type='company' selection."""
-    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    # Build-route P4: entities live in the canonical research store.
+    conn = duckdb.connect(
+        str(REPO / "memory/research.duckdb"), read_only=True, **memory_cap_config()
+    )
     rows = conn.execute(
         "SELECT name, file_path, sector_classification FROM entities "
         "WHERE entity_type = 'company' ORDER BY name"
@@ -143,15 +148,32 @@ def _seeds(names_with_notes: list[str]) -> tuple[list[dict], list[dict]]:
 
 
 def _live_vectors() -> dict[str, list[float]]:
-    from helpers.core.local_embedder import MODEL_ID
+    from helpers.core.vec_codec import load_vec
 
-    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    # Build-route P4: company_embeddings live in the canonical research
+    # store; embeddings are f32 blobs (decode via vec_codec), and the model
+    # filter follows the store's dominant stamp (the bge MODEL_ID constant
+    # predates the gemma migration).
+    conn = duckdb.connect(
+        str(REPO / "memory/research.duckdb"), read_only=True, **memory_cap_config()
+    )
+    row = conn.execute(
+        "SELECT model FROM company_embeddings GROUP BY model ORDER BY COUNT(*) DESC LIMIT 1"
+    ).fetchone()
+    if row is None:
+        conn.close()
+        return {}
+    model = str(row[0])
     rows = conn.execute(
         "SELECT company_name, embedding FROM company_embeddings WHERE model = ?",
-        (MODEL_ID,),
+        (model,),
     ).fetchall()
     conn.close()
-    return {n: jsonio.loads(e) for n, e in rows}
+    return {str(n): vec for n, e in rows if (vec := load_vec(e)) is not None}
 
 
 def _cache_vectors(bases: dict[str, str]) -> dict[str, list[float]] | None:

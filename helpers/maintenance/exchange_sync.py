@@ -36,12 +36,12 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal, overload
 
-import duckdb
-from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
-
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
+
+import duckdb  # noqa: E402
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention)
 from helpers.misc.duckdb_lock import connect_with_lock_retry  # noqa: E402  (post-bootstrap)

@@ -3440,7 +3440,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         metavar="PATH",
         default=None,
         help=(
-            "Path to the SQLite store (default: live memory/research.db). "
+            "Path to the research store (default: the live canonical store). "
             "Tests pass a tmp db_path here; the production CLI is unchanged."
         ),
     )
@@ -3460,7 +3460,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         # fixture (a fresh tmp_path .db) doesn't 404 on entities.
         if args.db is not None:
             # Minimal schema for the test path (--db is test-only;
-            # production opens the live memory/research.db which already
+            # production opens the live canonical store, which already
             # has the full schema from migrations).
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS entities ("

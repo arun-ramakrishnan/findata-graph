@@ -45,6 +45,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+DUCKDB_DEFAULT_PATH = _REPO_ROOT / "memory" / "research.duckdb"
 
 from helpers.core.countries import COUNTRY_VOCABULARY  # noqa: E402
 from helpers.core.db import connect  # noqa: E402
@@ -477,8 +478,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     ap = argparse.ArgumentParser(description="Sync note tags -> entity_tags table.")
     ap.add_argument(
         "--db",
-        default=str(_REPO_ROOT / "memory" / "research.db"),
-        help="Path to research.db (default: memory/research.db).",
+        default=None,
+        help="research store path (default: the live canonical store).",
     )
     ap.add_argument(
         "--apply",
@@ -495,7 +496,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     )
     args = ap.parse_args(argv)
 
-    db_path = Path(args.db)
+    db_path = Path(args.db) if args.db else DUCKDB_DEFAULT_PATH
     if not db_path.is_absolute():
         db_path = _REPO_ROOT / db_path
     if not db_path.exists():

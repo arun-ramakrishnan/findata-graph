@@ -53,9 +53,14 @@ _GGUF: dict = {}
 
 def _section_texts(n: int) -> list[str]:
     """n random real section texts (post-sectioning note_search rows)."""
-    import sqlite3
+    import duckdb
 
-    c = sqlite3.connect(f"file:{REPO}/memory/research.db?mode=ro", uri=True)
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    # Build-route P4: the note index lives in the DuckDB sidecar now.
+    c = duckdb.connect(
+        str(REPO / "memory/note_search.duckdb"), read_only=True, **memory_cap_config()
+    )
     rows = c.execute(
         "SELECT title, sector, content FROM note_search ORDER BY RANDOM() LIMIT ?", (n,)
     ).fetchall()

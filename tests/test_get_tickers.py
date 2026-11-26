@@ -724,18 +724,24 @@ class TestVssRunIndex:
         self._parity(db, vec_fn, ["Alpha"], ["Alpha", "Beta"])
         self._parity(db, vec_fn, ["Alpha"], None)
 
-    def test_parity_live_table_readonly(self):
+    def test_parity_live_table_readonly(self, tmp_path):
         roots = HELPERS.parents[1] / "memory"
         candidate = roots / "research.duckdb"
         live = candidate if candidate.exists() else roots / "research.db"
         if not live.exists():
             pytest.skip("no live research store")
         import hashlib
+        import shutil
 
-        # Read the LIVE width instead of pinning 384: the company surface
-        # adopted gemma (512-d), and a hardcoded width made this live-parity
-        # test fail the matmul the day the flip landed.
-        dims = self._live_dims(live)
+        # Hermeticity: copy the live store to tmp so the parity read never
+        # takes a write-capable lock on the live DB (gate hermeticity-watch).
+        db = tmp_path / live.name
+        shutil.copy2(live, db)
+        wal = live.with_name(live.name + ".wal")
+        if wal.exists():
+            shutil.copy2(wal, tmp_path / wal.name)
+
+        dims = self._live_dims(db)
 
         def vec_fn(name, dims=dims):
             h = hashlib.sha256(name.encode()).digest()
@@ -748,9 +754,9 @@ class TestVssRunIndex:
 
         ents = gt.load_entities()
         assert len(ents) > 100
-        before = live.stat().st_mtime_ns
-        self._parity(live, vec_fn, ["Tata Motors Limited", "ZZZ No Such Company"], ents)
-        assert live.stat().st_mtime_ns == before  # read-only
+        before = db.stat().st_mtime_ns
+        self._parity(db, vec_fn, ["Tata Motors Limited", "ZZZ No Such Company"], ents)
+        assert db.stat().st_mtime_ns == before  # read-only
 
     def test_tripwire_fires_on_midrun_write(self, tmp_path, capsys):
         db, vec_fn = _embed_db(tmp_path, ["Alpha", "Beta"])

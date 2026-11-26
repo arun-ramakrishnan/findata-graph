@@ -333,7 +333,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--db",
         default=str(DB_PATH),
-        help="SQLite DB path (default: memory/research.db).",
+        help="research store path (default: the live canonical store).",
     )
     parser.add_argument(
         "--apply",

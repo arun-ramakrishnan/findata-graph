@@ -35,10 +35,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
-
-DEFAULT_DB = REPO_ROOT / "memory" / "research.db"
-
 
 def load_labels(conn, types: tuple[str, ...] | None = None) -> dict[str, dict[str, set[str]]]:
     """Return ``{edge_type: {label: set(members)}}`` from the store."""
@@ -126,16 +122,28 @@ def render_report(
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--db", default=str(DEFAULT_DB))
+    ap.add_argument(
+        "--db",
+        type=Path,
+        default=None,
+        help=(
+            "research store; default = the canonical store via helpers.core.db "
+            "(memory/research.duckdb, FINDATA_RESEARCH_DB_PATH honoured)"
+        ),
+    )
     ap.add_argument("--types", nargs="+", default=None, help="edge types (default: all)")
     ap.add_argument("--limit", type=int, default=12)
     ap.add_argument("--min-overlap", type=int, default=2)
     ap.add_argument("--json", dest="json_out", metavar="FILE", help="write JSON dump")
     args = ap.parse_args()
 
-    import duckdb
+    if args.db is not None and not args.db.exists():
+        print(f"ERROR: database not found: {args.db}", file=sys.stderr)
+        return 1
+    from helpers.core.db import connect
 
-    conn = duckdb.connect(args.db, **memory_cap_config())
+    # Read-only census: this script never writes the store.
+    conn = connect(args.db, read_only=True)
     try:
         labels = load_labels(conn, tuple(args.types) if args.types else None)
     finally:

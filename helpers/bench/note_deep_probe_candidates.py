@@ -46,11 +46,11 @@ import time
 from pathlib import Path
 from typing import TypedDict
 
-from helpers.core.vec_codec import load_vec
-
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
+
+from helpers.core.vec_codec import load_vec  # noqa: E402
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 
@@ -295,10 +295,18 @@ def run(tags: list[str]) -> dict:
     return report
 
 
-def _live_sections() -> list[tuple[str, str, str, str, str, str | None]]:
-    """(file_path, title, sector, section_title, content, embedding_json)
-    per section row from the LIVE sectioned note_search index."""
-    conn = sqlite3.connect(f"file:{REPO / 'memory/research.db'}?mode=ro", uri=True)
+def _live_sections() -> list[tuple[str, str, str, str, str, bytes | None]]:
+    """(file_path, title, sector, section_title, content, embedding_blob)
+    per section row from the LIVE sectioned note_search index (the blob is
+    float32; decode via helpers.core.vec_codec.load_vec)."""
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
+
+    # Build-route P4: the note index lives in the DuckDB sidecar now.
+    conn = duckdb.connect(
+        str(REPO / "memory/note_search.duckdb"), read_only=True, **memory_cap_config()
+    )
     rows = conn.execute(
         "SELECT file_path, title, sector, section_title, content, embedding FROM note_search"
     ).fetchall()

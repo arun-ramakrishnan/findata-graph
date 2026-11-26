@@ -30,12 +30,12 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
-import duckdb
-from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
-
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
+
+import duckdb  # noqa: E402
+from helpers.core.duckdb_shared import memory_cap_config  # noqa: E402
 
 SOURCES_DB = REPO / "memory" / "data" / "sources.duckdb"
 RAW_DIR = REPO / "memory" / "data" / "rpt_raw"

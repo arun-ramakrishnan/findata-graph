@@ -404,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
     import argparse
 
     ap = argparse.ArgumentParser(description="Build the CSR substrate (vault_scaling B-A)")
-    ap.add_argument("--db", default="memory/research.db")
+    ap.add_argument("--db", default="memory/research.duckdb")
     ap.add_argument("--out", default=str(DEFAULT_OUT_DIR))
     ap.add_argument(
         "--verify",

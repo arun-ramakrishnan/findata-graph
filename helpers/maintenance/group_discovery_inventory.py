@@ -150,7 +150,7 @@ def _render(profiles, limit):
 
 def _cli(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("--db", default="memory/research.db")
+    p.add_argument("--db", default="memory/research.duckdb")
     p.add_argument("--limit", type=int, default=0, help="cap printed rows (0 = all)")
     p.add_argument("--json", default=None, help="write full profiles JSON")
     args = p.parse_args(argv)

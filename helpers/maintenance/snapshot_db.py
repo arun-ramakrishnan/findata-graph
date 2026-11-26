@@ -2441,10 +2441,19 @@ def _create_parquet_snapshot(  # noqa: C901  # parquet snapshot: per-side export
     if research_source != db_path:
         logger.info(f"Parquet research source: {research_source} (selector-resolved)")
 
+    def _log_and_ok(mismatches: list[str]) -> bool:
+        # Create-path parity with the --check verifier (:1587): a failed
+        # create verify must print its mismatch lines, not collapse to a
+        # bare rc=1 (2026-11-25: dropped table surfaced with zero
+        # diagnostics because only the bool escaped this scope).
+        for m in mismatches:
+            logger.warning(f"  Parquet MISMATCH: {m}")
+        return not mismatches
+
     def _sqlite_parquet_worker() -> bool:
         export_parquet_sqlite(research_source, parquet_sqlite_dir, logger)
-        return (
-            _verify_parquet_sqlite_side(parquet_base, research_source, logger)["mismatches"] == []
+        return _log_and_ok(
+            _verify_parquet_sqlite_side(parquet_base, research_source, logger)["mismatches"]
         )
 
     def _duckdb_parquet_worker() -> bool:
@@ -2452,8 +2461,8 @@ def _create_parquet_snapshot(  # noqa: C901  # parquet snapshot: per-side export
             if duckdb_path is None or parquet_duckdb_dir is None:
                 raise ValueError("with_duckdb=True requires duckdb paths")
             export_parquet_duckdb(duckdb_path, parquet_duckdb_dir, logger)
-            return (
-                _verify_parquet_duckdb_side(parquet_base, duckdb_path, logger)["mismatches"] == []
+            return _log_and_ok(
+                _verify_parquet_duckdb_side(parquet_base, duckdb_path, logger)["mismatches"]
             )
         return True
 
@@ -2471,11 +2480,10 @@ def _create_parquet_snapshot(  # noqa: C901  # parquet snapshot: per-side export
                 manifest=SOURCES_TABLES,
                 schema_filename="_schema.sources.sql",
             )
-            return (
+            return _log_and_ok(
                 _verify_parquet_duckdb_side(parquet_base, sources_path, logger, subdir="sources")[
                     "mismatches"
                 ]
-                == []
             )
         return True
 
@@ -2494,11 +2502,10 @@ def _create_parquet_snapshot(  # noqa: C901  # parquet snapshot: per-side export
                 manifest=NOTE_SEARCH_TABLES,
                 schema_filename="_schema.note.sql",
             )
-            return (
+            return _log_and_ok(
                 _verify_parquet_duckdb_side(parquet_base, note_path, logger, subdir="note")[
                     "mismatches"
                 ]
-                == []
             )
         return True
 

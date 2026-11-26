@@ -104,43 +104,61 @@ _RO_CONN = None
 
 def _ro_conn():
     global _RO_CONN
-    import sqlite3
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
 
     if _RO_CONN is None:
-        _RO_CONN = sqlite3.connect(f"file:{REPO}/memory/research.db?mode=ro", uri=True)
+        # Build-route P4: entities/company_embeddings live in the canonical
+        # research store (the note/doc corpora read the sidecars directly).
+        _RO_CONN = duckdb.connect(
+            str(REPO / "memory/research.duckdb"), read_only=True, **memory_cap_config()
+        )
     return _RO_CONN
 
 
 def load_corpora():
     """(notes, docs, (companies, sectors)) with the exact production text bases."""
-    import sqlite3
+    import duckdb
+
+    from helpers.core.duckdb_shared import memory_cap_config
 
     notes = []  # (key=file_path, text) — title\nsector\ncontent[:8000]
-    c = sqlite3.connect(f"file:{REPO}/memory/research.db?mode=ro", uri=True)
+    # Build-route P4: the note/doc indexes live in the DuckDB sidecars now.
+    c = duckdb.connect(
+        str(REPO / "memory/note_search.duckdb"), read_only=True, **memory_cap_config()
+    )
     for fp, title, sector, content in c.execute(
         "SELECT file_path, title, sector, content FROM note_search"
-    ):
-        notes.append((fp, f"{title}\n{sector}\n{content[:8000]}"))
+    ).fetchall():
+        notes.append((str(fp), f"{title}\n{sector}\n{str(content)[:8000]}"))
     c.close()
 
     docs = []  # (key=path, text) — title\nsection\ncontent[:4000]
-    d = sqlite3.connect(f"file:{REPO}/memory/doc_search.db?mode=ro", uri=True)
+    d = duckdb.connect(
+        str(REPO / "memory/doc_search.duckdb"), read_only=True, **memory_cap_config()
+    )
     for title, section, path, _anchor, content in d.execute(
-        "SELECT c0, c1, c2, c3, c4 FROM doc_search_content"
-    ):
-        docs.append((path, f"{title}\n{section}\n{content[:4000]}"))
+        "SELECT title, section_title, file_path, anchor, content FROM doc_search"
+    ).fetchall():
+        docs.append((str(path), f"{title}\n{section}\n{str(content)[:4000]}"))
     d.close()
 
     from helpers.graph.embeddings import _get_company_text
 
-    e = sqlite3.connect(f"file:{REPO}/memory/research.db?mode=ro", uri=True)
+    e = duckdb.connect(str(REPO / "memory/research.duckdb"), read_only=True, **memory_cap_config())
     names = [
-        r[0]
-        for r in e.execute("SELECT name FROM entities WHERE entity_type='company' ORDER BY name")
+        str(r[0])
+        for r in e.execute(
+            "SELECT name FROM entities WHERE entity_type='company' ORDER BY name"
+        ).fetchall()
     ]
-    sectors = dict(
-        e.execute("SELECT name, sector_classification FROM entities WHERE entity_type='company'")
-    )
+    sectors = {
+        str(r[0]): r[1]
+        for r in e.execute(
+            "SELECT name, sector_classification FROM entities WHERE entity_type='company'"
+        ).fetchall()
+    }
     e.close()
     companies = [(n, _get_company_text(_ro_conn(), n)) for n in names]
     return notes, docs, (companies, sectors)

@@ -647,6 +647,50 @@ def test_verify_sqlite_missing_live_table_is_a_mismatch_not_a_skip(tmp_path):
     assert res["mismatches"] == ["sqlite/ghost_table: MISSING ON LIVE"]
 
 
+def test_create_parquet_verify_logs_mismatch_lines(tmp_path, caplog):
+    """S4 (sqlite_residue_census_sweep.md): the CREATE-path parquet verify
+    must print its mismatch lines (parity with the --check verifier), not
+    collapse them into a bare rc=1. 2026-11-25 chain incident: a dropped
+    table surfaced as `sqlite/company_embeddings: MISSING ON LIVE` that
+    lived only inside a bool — zero diagnostics in the run log."""
+    from helpers.maintenance.snapshot_db import _cmd_create
+
+    src_db = tmp_path / "src.db"
+    _make_test_db(src_db)
+    base = tmp_path / "pq"
+    out = tmp_path / "snap" / "snapshot.db.zst"
+
+    def _create() -> int:
+        return _cmd_create(
+            src_db,
+            out,
+            None,
+            None,
+            base,
+            base / "sqlite",
+            None,
+            fmt="parquet",
+            with_duckdb=False,
+            logger=_log,
+        )
+
+    assert _create() == 0
+
+    # Tamper: drop a live table after a green create. The create path
+    # re-exports from live first, so row-level drift self-heals — the
+    # mismatch class that survives re-export (and bit the chain) is the
+    # ghost stem: the old parquet outlives its table -> MISSING ON LIVE.
+    con = sqlite3.connect(str(src_db))
+    con.execute("DROP TABLE entities")
+    con.commit()
+    con.close()
+
+    with caplog.at_level(logging.WARNING, logger="test_snapshot"):
+        rc = _create()
+    assert rc == 1
+    assert "Parquet MISMATCH: sqlite/entities: MISSING ON LIVE" in caplog.text
+
+
 def test_verify_sqlite_erroring_stem_fails_closed(tmp_path, monkeypatch):
     """Pre-fix, an erroring live query was swallowed -> verify passed. Now a
     live-side error is a mismatch entry (gate fails loudly)."""

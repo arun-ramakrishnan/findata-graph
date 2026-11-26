@@ -686,7 +686,7 @@ def main(argv: list[str] | None = None) -> int:
         "--research-db",
         type=Path,
         default=DEFAULT_RESEARCH_DB,
-        help="research.db for the deep-relations section (missing file skips it)",
+        help="research store for the deep-relations section (missing file skips it)",
     )
     p.add_argument("--hops", type=int, default=1, help="expansion rounds over structured edges")
     p.add_argument("--budget", type=int, default=40, help="max relation facts kept")

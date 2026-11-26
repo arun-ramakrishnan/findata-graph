@@ -140,7 +140,9 @@ def apply_fold(conn) -> dict:
 
 def _cli(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--db", default=None, help="SQLite path (default: live memory/research.db)")
+    ap.add_argument(
+        "--db", default=None, help="research store path (default: the live canonical store)"
+    )
     ap.add_argument("--apply", action="store_true", help="write changes (default dry-run)")
     args = ap.parse_args(argv)
 

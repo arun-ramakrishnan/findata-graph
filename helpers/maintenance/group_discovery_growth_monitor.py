@@ -250,7 +250,7 @@ def main() -> int:
     ap.add_argument("--current", type=Path, default=None)
     ap.add_argument(
         "--db",
-        default="memory/research.db",
+        default="memory/research.duckdb",
         help="live DB to run the inventory inline (used when --current is absent)",
     )
     ap.add_argument(

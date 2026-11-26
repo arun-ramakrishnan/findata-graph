@@ -550,7 +550,7 @@ def scheme_concepts(seed: dict) -> dict[str, tuple]:
     return rows
 
 
-def converge_scheme(conn, *, apply: bool) -> dict[str, int]:
+def converge_scheme(conn, *, apply: bool) -> dict[str, int]:  # noqa: C901
     """Converge the nic2008 concept scheme (S2) — lifecycle-aware upsert.
 
     Same idiom as seed_concepts.seed(): roster rows land ``active``
@@ -1528,7 +1528,7 @@ def main(argv: list[str] | None = None) -> int:
         "--db",
         type=pathlib.Path,
         default=None,
-        help="SQLite path (default: live research.db)",
+        help="research store path (default: the live canonical store)",
     )
     sub = parser.add_subparsers(dest="mode", required=True)
     p_build = sub.add_parser("build", help="parse the primary PDF into the tracked seed JSON")

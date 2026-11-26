@@ -302,7 +302,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901  # report/ensure/c
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--apply", action="store_true", help="write (default: dry-run)")
     parser.add_argument(
-        "--db", type=Path, default=None, help="SQLite path (default: live research.db)"
+        "--db",
+        type=Path,
+        default=None,
+        help="research store path (default: the live canonical store)",
     )
     parser.add_argument(
         "--set-cin",
