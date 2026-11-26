@@ -592,6 +592,15 @@ commit, referenced by nothing). Entry numbers point at
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 
+- [`sqlite_residue_census_sweep.md`](database/sqlite_residue_census_sweep.md) —
+  SQLite-residue census + DuckDB-cutover completion sweep: S0 census (106
+  mentions → 84 code-context, 20 runtime-probed; 2 broken maintenance rows
+  that created an empty retired host), S1 canonical-default fixes +
+  `make maint` PASS, S2 blocking `SQLite residue idioms` static leg (4 real
+  import-order violations caught on landing), S3 #570 constants addendum,
+  S4 snapshot create-path mismatch logging, S5 embed-gc company ref to the
+  DuckDB store, plus the 8 bench probes and 4 dead-default rows repointed —
+  completed.md #573
 - [`duckdb_build_route.md`](database/duckdb_build_route.md) — SQLite
   retirement BUILD route: P1 cascade rewrites under the zero-FK canonical
   store, P2 verified native DuckDB FTS, P3 integrity orphan checks, P4

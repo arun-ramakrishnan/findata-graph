@@ -17449,3 +17449,40 @@ numpy top-k → `run()` 6.09 s → 2.3 s = **2.6×**, report JSON EXACT,
 bench leg 2.31 s (was 6.4–9.1). S3 `similar_notes` port stayed parked
 on the #450 evidence; S6 survey leftovers parked. `stamp-centrality`
 re-time still owed (operator-owned maint chain).
+
+## 573. SQLite-residue census + DuckDB-cutover completion sweep
+
+**Date:** filed 2026-11-25, executed 2026-11-26 · **Area:** `helpers/`
+maintenance/graph/core/bench CLI defaults + SQL dialect residue post
+research-store cutover (archived proposal
+`doc/improvements/archive/database/sqlite_residue_census_sweep.md`)
+
+S0 census: `grep -rl "research\.db" helpers/` = 106 files → 84
+code-context / 22 text-only; 20 runtime-probed suspects split into 2
+broken-runtime (both created an empty `memory/research.db` via the dead
+default), 8 broken bench-tier, 4 dead-default saved by pattern-2 sibling
+resolution (`csr.py` S6 selector + 3 census tools), rest canonical-aware
+or text — table in the proposal. S1 fixed the 2 maintenance rows
+(`hyperedge_cooccurrence_lens`, `name_token_candidates`) to the
+canonical-default pattern (`--db` None → `helpers.core.db`
+`connect(read_only=True)`, explicit-path existence guard; `make maint`
+PASS). S2 landed the blocking `SQLite residue idioms` static leg
+(helpers-import above sys.path.insert, 2-arg min/max in SQL literals,
+bare `IS NOT ?`, ungated `defer_foreign_keys`; docstring/TYPE_CHECKING
+aware) — it caught 4 real import-order violations on landing
+(`exchange_sync`, `related_party_sync`, `shareholding_sync`,
+`bench/note_deep_probe_candidates`), all fixed. S3 appended the
+first-full-maint-run constants addendum to the archived #570 (per-stmt
+upsert ~20 ms/row, executemany 6.6 ms/row, batched writer 0.47 s fresh /
+1.57 s idempotent ≈950×; gates stay CLOSED). S4 gave the snapshot
+create-path verify the `--check`-parity mismatch logging
+(`_log_and_ok`; the 2026-11-25 silent-rc=1 class is dead) with a
+seeded DROP-TABLE regression test. S5 (operator) repointed embed-gc's
+company ref to `research.duckdb` + duck-typed the text_db guard
+(survey 1,212/1,213 matched). Residuals: all 8 bench probes repointed
+to the sidecars/canonical store with `vec_codec` blob decode —
+`fts_duckdb_parity` green end-to-end (sidecar corpus 19,379, stamp-aware
+512-d vector leg, FTS5 arm on a throwaway production-shape sqlite copy)
+— and the 4 dead-default rows got live `research.duckdb` defaults.
+Validation: 5 + 132 targeted tests, static checks green, retired host
+still absent.

@@ -496,3 +496,33 @@ per-table CTAS timing + `EXPLAIN ANALYZE` plan and P1 substrate plan/parity
   for that callsite/workload; small-row regressions block adoption.
 - No global knob default changes without a quiet-box A/B matrix and documented
   rollback.
+
+## Addendum (2026-11-26): first full DuckDB maint run validates the constants
+
+The 2026-11-25 maint-full TIER2 chain — the first workload to run every
+helper against the DuckDB canonical store — produced real-scale numbers for
+two of the locked rules:
+
+- **Per-statement hot-lane cost (rule 3 vindicated)**: the funnel-proxy
+  per-row `execute` upsert into `graph_analytics` measured ~20 ms/row — a
+  22,135-row metric took ~7.5 min, and the 13-metric apply block stalled
+  31+ min (SQLite-era code had never paid this).
+- **`executemany` cold-lane (rule 5 stands, constants updated)**: native
+  DuckDB `executemany` of 22,135 plain INSERTs into a warm scratch table
+  took 145.5 s (~6.6 ms/row) — `executemany` re-binds per row and does not
+  pipeline on this build. The locked rule (small-row regressions block
+  adoption; cold-only conversion) holds with these constants.
+- **Prune shape exonerated**: the suspected 22k-literal
+  `NOT IN (...)` DELETE ran 1.44 s; a temp-table anti-join alternative was
+  no better (4.84 s). The prune shape is fine on DuckDB.
+- **Callsite algorithm change landed** (not a knob change): one
+  existing-values fetch + Python diff + set-based `INSERT … SELECT` /
+  `UPDATE … FROM` (UNNEST list params, proxy has no `register()`) writes
+  the same 22,135 rows in 0.47 s fresh / 1.57 s idempotent — ~950× vs the
+  per-row lane, computed_at no-op semantics preserved, return contract
+  unchanged (`len(values)`). A second writer defect found in the same pass
+  (per-row full-partition degeneracy scan) was hoisted out of the loop.
+
+Unlock gates remain CLOSED: the fix is a writer callsite algorithm change
+with parity + targeted tests, not a substrate or knob change; rules 1–6
+are untouched by this evidence.
