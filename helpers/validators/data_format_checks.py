@@ -27,6 +27,7 @@ Wired into ``make static_checks`` via static_checks.py.
 from __future__ import annotations
 
 import ast
+import functools
 import sys
 from pathlib import Path
 
@@ -120,6 +121,20 @@ def _joined_str_text(node: ast.JoinedStr) -> str:
     )
 
 
+@functools.cache
+def _parsed_python(path: Path) -> ast.Module | None:
+    """Parse ``path`` once per process; SyntaxError means 'nothing to scan'.
+
+    S6: both data-format guards scan ``DATA_LANE_MODULES`` and the helper
+    tree; keying by ``Path`` lets a single `check_data_format()` run reuse
+    the parse. Callers must not mutate the returned AST.
+    """
+    try:
+        return ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return None
+
+
 def _docstring_spans(tree: ast.AST) -> set[int]:
     """Line numbers of docstring Constants (module + every def/class)."""
     spans: set[int] = set()
@@ -135,16 +150,30 @@ def scan_zstd_violations(scope: set[Path] | None = None) -> dict[str, str]:  # n
     """{site_key: description} for parquet writes missing zstd."""
     out: dict[str, str] = {}
     for path in _iter_py(scope):
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except SyntaxError:
+        tree = _parsed_python(path)
+        if tree is None:
             continue
         rel = _rel(path)
-        doc = _docstring_spans(tree)
+        docstrings: set[int] = set()
         parents: dict[ast.AST, ast.AST] = {}
+        scan_nodes: list[ast.AST] = []
+
+        # S5: one walk collects docstrings, parent links, and scannable nodes.
+        # The old version walked the same tree three times. Node order is
+        # preserved by appending during ast.walk, so emitted findings match.
         for p in ast.walk(tree):
             for ch in ast.iter_child_nodes(p):
                 parents[ch] = p
+            if isinstance(p, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                body = getattr(p, "body", None)
+                if (
+                    body
+                    and isinstance(body[0], ast.Expr)
+                    and isinstance(body[0].value, ast.Constant)
+                ):
+                    docstrings.add(body[0].value.lineno)
+            if isinstance(p, (ast.Constant, ast.JoinedStr, ast.Call)):
+                scan_nodes.append(p)
 
         def fn_of(n: ast.AST) -> str:
             while n in parents:
@@ -153,26 +182,25 @@ def scan_zstd_violations(scope: set[Path] | None = None) -> dict[str, str]:  # n
                     return n.name
             return "<module>"
 
-        for node in ast.walk(tree):
+        for node in scan_nodes:
             if isinstance(node, ast.Constant):
-                if not isinstance(node.value, str) or node.lineno in doc:
+                if not isinstance(node.value, str) or node.lineno in docstrings:
                     continue  # non-strings and docstrings are prose, not SQL
                 text = node.value
             elif isinstance(node, ast.JoinedStr):
                 text = _joined_str_text(node)
             else:
-                if isinstance(node, ast.Call):
-                    f = node.func
-                    name = (
-                        f.attr
-                        if isinstance(f, ast.Attribute)
-                        else (f.id if isinstance(f, ast.Name) else "")
+                f = node.func
+                name = (
+                    f.attr
+                    if isinstance(f, ast.Attribute)
+                    else (f.id if isinstance(f, ast.Name) else "")
+                )
+                if name in ("write_table", "to_parquet") and not _has_zstd_kw(node):
+                    out.setdefault(
+                        f"{rel}:{fn_of(node)}",
+                        "parquet write without compression='zstd'",
                     )
-                    if name in ("write_table", "to_parquet") and not _has_zstd_kw(node):
-                        out.setdefault(
-                            f"{rel}:{fn_of(node)}",
-                            "parquet write without compression='zstd'",
-                        )
                 continue
             s = text.upper()
             if "COPY" in s and "PARQUET" in s and "ZSTD" not in s:
@@ -190,9 +218,8 @@ def scan_arrow_violations(scope: set[Path] | None = None) -> dict[str, str]:
         rel = _rel(path)
         if rel not in DATA_LANE_MODULES:
             continue
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except SyntaxError:
+        tree = _parsed_python(path)
+        if tree is None:
             continue
         for node in tree.body:  # module-level defs only
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):

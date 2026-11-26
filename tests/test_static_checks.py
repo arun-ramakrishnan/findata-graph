@@ -2221,6 +2221,42 @@ def test_residue_idioms_clean(tmp_path, monkeypatch):
     assert sc.check_sqlite_residue_idioms() == []
 
 
+def test_residue_idioms_raw_prefilter_skips_ast(tmp_path, monkeypatch):
+    """S7: a SQL-ish file with no candidate idiom must skip ast.parse/walk.
+
+    `SELECT ... IS NOT NULL` used to pass the coarse SELECT/INSERT prefilter
+    and pay for a full parse; the S7 defect-pattern prefilter rejects it.
+    """
+    f = tmp_path / "helpers" / "misc" / "sql_only.py"
+    f.parent.mkdir(parents=True)
+    src = 'SQL = "SELECT * FROM t WHERE x IS NOT NULL"\n'
+    f.write_text(src, encoding="utf-8")
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    real_parse = sc.ast.parse
+    calls: list[tuple] = []
+
+    def _spy(*args, **kwargs):
+        calls.append(args)
+        return real_parse(*args, **kwargs)
+
+    monkeypatch.setattr(sc.ast, "parse", _spy)
+    assert sc._residue_idiom_findings(f) == []
+    # literal_eval parses each string token; only the whole-file parse matters.
+    assert [call for call in calls if call[0] == src] == []
+
+
+def test_residue_idioms_adjacent_literals_still_flagged(tmp_path, monkeypatch):
+    """S7 guard: implicit concatenation is a candidate even when no single
+    raw substring matches, so the prefilter must not skip the AST pass."""
+    f = tmp_path / "helpers" / "misc" / "adjacent.py"
+    f.parent.mkdir(parents=True)
+    f.write_text('SQL = "DELETE FROM t WHERE x IS NOT " "?"\n', encoding="utf-8")
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    failures = sc.check_sqlite_residue_idioms()
+    assert len(failures) == 1
+    assert "IS DISTINCT FROM" in failures[0]
+
+
 def test_residue_idioms_catches_all_four(tmp_path, monkeypatch):
     """One file, four idioms: (a) helpers import above the insert, (b) 2-arg
     min/max in a SQL literal, (c) bare `IS NOT ?`, (d) defer_foreign_keys

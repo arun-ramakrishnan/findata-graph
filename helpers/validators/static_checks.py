@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import ast
 from collections.abc import Sequence
+import functools
 import io
 import os
 import py_compile
@@ -1444,6 +1445,25 @@ def check_duckdb_memory_cap(scope: set[Path] | None = None) -> list[str]:
 _EMB_DECODE_IDENT_RE = re.compile(r"emb|vec", re.IGNORECASE)
 
 
+def _json_arg_shape(arg: ast.AST) -> tuple[bool, list[str]]:
+    """One ``ast.walk(arg)``: (contains a Call, all Name/Attribute idents).
+
+    S2: the old tripwire walked ``arg`` three times — once for Call, once
+    for Name, once for Attribute. The walk order does not matter to the
+    final ``any()`` over identifiers, so one pass is sufficient.
+    """
+    has_call = False
+    idents: list[str] = []
+    for n in ast.walk(arg):
+        if isinstance(n, ast.Call):
+            has_call = True
+        elif isinstance(n, ast.Name):
+            idents.append(n.id)
+        elif isinstance(n, ast.Attribute):
+            idents.append(n.attr)
+    return has_call, idents
+
+
 def _flag_json_loads_on_embedding_receivers(src: str) -> list[tuple[int, str]]:
     """Per-file scan: (line, receiver) for every json.loads(<expr>) whose
     identifiers match emb|vec and whose argument is not a file-read shape
@@ -1470,10 +1490,11 @@ def _flag_json_loads_on_embedding_receivers(src: str) -> list[tuple[int, str]]:
         ):
             continue
         arg = node.args[0] if node.args else None
-        if arg is None or any(isinstance(n, ast.Call) for n in ast.walk(arg)):
+        if arg is None:
             continue
-        idents = [n.id for n in ast.walk(arg) if isinstance(n, ast.Name)]
-        idents += [n.attr for n in ast.walk(arg) if isinstance(n, ast.Attribute)]
+        has_call, idents = _json_arg_shape(arg)
+        if has_call:
+            continue  # .read_text()/.read() = file-read shape, not a DB column
         if any(_EMB_DECODE_IDENT_RE.search(i or "") for i in idents):
             flagged.append((node.lineno, ast.get_source_segment(src, arg) or "<expr>"))
     return flagged
@@ -1604,12 +1625,17 @@ def _is_c901_directive(text: str) -> bool:
     return not _PROSE_TAIL_RE.match(text[m.end() :].lstrip())
 
 
+@functools.cache
 def _c901_comment_lines(path: Path) -> dict[int, str]:
     """C901 suppression comments in ``path`` keyed by line number.
 
     Tokenize (not substring search) so a `noqa: C901` quoted inside a
     docstring -- e.g. the rationale note in backfill_quotes_attribution.py --
     is not mistaken for a live suppression.
+
+    Memoized per process: `check_dead_c901_noqa` scans every ``*.py`` for
+    suppressions, then re-reads/re-tokenizes suppression targets. Callers
+    must not mutate the returned mapping.
     """
     import tokenize
 
@@ -1626,11 +1652,15 @@ def _c901_comment_lines(path: Path) -> dict[int, str]:
     return found
 
 
-def _def_lines(src: str) -> dict[str, set[int]]:
+@functools.cache
+def _def_lines(src: str) -> dict[str, frozenset[int]]:
     """Function name -> line numbers of its ``def`` statement.
 
     Ruff anchors a function-level suppression on the ``def`` line, so this is
     the only place a well-placed ``# noqa: C901`` can live.
+
+    S3: memoized per process by source text, keyed on an immutable value.
+    The frozenset values cannot be mutated by callers holding a cached dict.
     """
     import ast
 
@@ -1638,11 +1668,11 @@ def _def_lines(src: str) -> dict[str, set[int]]:
         tree = ast.parse(src)
     except SyntaxError:
         return {}
-    out: dict[str, set[int]] = {}
+    lines: dict[str, set[int]] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            out.setdefault(node.name, set()).add(node.lineno)
-    return out
+            lines.setdefault(node.name, set()).add(node.lineno)
+    return {name: frozenset(ls) for name, ls in lines.items()}
 
 
 def _strip_c901(src: str, comment_lines: dict[int, str]) -> str:
@@ -1707,25 +1737,39 @@ def _ruff_c901_findings(root: Path) -> dict[str, dict[str, int]]:
     return found
 
 
-def _c901_suppression_targets() -> list[Path]:
-    """Repo .py files carrying at least one C901 suppression."""
+def _c901_suppression_targets() -> tuple[Path, ...]:
+    """Repo .py files carrying at least one C901 suppression.
+
+    S3: per-process cache keyed by the *current* root. Tests (and future
+    callers) may swap ``REPO_ROOT``, so a no-key global cache would serve
+    one root's targets to another. The returned tuple is immutable.
+    """
+    return _suppression_targets_for_root(REPO_ROOT)
+
+
+@functools.cache
+def _suppression_targets_for_root(root: Path) -> tuple[Path, ...]:
+    """Cached inner leg of :func:`_c901_suppression_targets`."""
     out: list[Path] = []
-    for path in REPO_ROOT.rglob("*.py"):
+    for path in root.rglob("*.py"):
         if any(part in SKIP_DIRS for part in path.parts):
             continue
         if _c901_comment_lines(path):
             out.append(path)
-    return out
+    return tuple(out)
 
 
 def _c901_notes_for_file(
-    rel: Path, defs: dict[str, set[int]], live: dict[str, int]
+    rel: Path,
+    defs: dict[str, frozenset[int]],
+    live: dict[str, int],
+    comment_lines: dict[int, str],
 ) -> tuple[list[str], int]:
     """Drift notes for one file, plus its file-level blanket count."""
     notes: list[str] = []
     placed: set[str] = set()
     blankets = 0
-    for lineno, text in sorted(_c901_comment_lines(REPO_ROOT / rel).items()):
+    for lineno, text in sorted(comment_lines.items()):
         if _C901_FILE_NOQA_RE.search(text):
             blankets += 1
             hidden = ", ".join(
@@ -1762,21 +1806,20 @@ def check_dead_c901_noqa() -> tuple[list[str], list[str]]:
         return [], []
 
     rels = [p.relative_to(REPO_ROOT) for p in targets]
-    defs = {
-        rel: _def_lines((REPO_ROOT / rel).read_text(encoding="utf-8", errors="replace"))
-        for rel in rels
+    # S4: read each target once. `_def_lines` and `_strip_c901` used to
+    # re-read the same file; on a C901-heavy tree that doubled file I/O.
+    src_by_rel = {
+        rel: (REPO_ROOT / rel).read_text(encoding="utf-8", errors="replace") for rel in rels
     }
+    defs = {rel: _def_lines(src_by_rel[rel]) for rel in rels}
+    comment_lines_by_rel = {rel: _c901_comment_lines(REPO_ROOT / rel) for rel in rels}
 
     with tempfile.TemporaryDirectory(prefix="c901-sweep-") as tmp:
         root = Path(tmp)
         for rel in rels:
-            path = REPO_ROOT / rel
             (root / rel).parent.mkdir(parents=True, exist_ok=True)
             (root / rel).write_text(
-                _strip_c901(
-                    path.read_text(encoding="utf-8", errors="replace"),
-                    _c901_comment_lines(path),
-                ),
+                _strip_c901(src_by_rel[rel], comment_lines_by_rel[rel]),
                 encoding="utf-8",
             )
         try:
@@ -1787,7 +1830,9 @@ def check_dead_c901_noqa() -> tuple[list[str], list[str]]:
     advisory: list[str] = []
     blankets = 0
     for rel in sorted(rels, key=str):
-        notes, count = _c901_notes_for_file(rel, defs[rel], stripped.get(str(rel), {}))
+        notes, count = _c901_notes_for_file(
+            rel, defs[rel], stripped.get(str(rel), {}), comment_lines_by_rel[rel]
+        )
         blankets += count
         if notes:
             advisory.append(f"{rel}: C901 suppression drift")
@@ -1801,8 +1846,13 @@ def check_dead_c901_noqa() -> tuple[list[str], list[str]]:
     return [], advisory
 
 
+@functools.cache
 def _enclosing_function(path: Path, lineno: int) -> str | None:
-    """Name of the innermost function whose body covers ``lineno``, if any."""
+    """Name of the innermost function whose body covers ``lineno``, if any.
+
+    S4: memoized by (path, lineno) — a misplaced suppression used to
+    re-parse the whole file for every anchor it described.
+    """
     import ast
 
     try:
@@ -2115,6 +2165,73 @@ _FK_GATE_RE = re.compile(
 _FK_GATE_WINDOW = 6  # lines of context each side of the pragma
 _HELPERS_IMPORT_RE = re.compile(r"^(?:from|import)\s+helpers[\.\s]", re.MULTILINE)
 _SYS_PATH_INSERT_RE = re.compile(r"^\s*sys\.path\.insert", re.MULTILINE)
+# S7: the only three regexes that can actually produce a (b)/(c)/(d) finding.
+# A file whose raw source and decoded string tokens contain none of them cannot
+# yield one, so ast.parse + ast.walk can be skipped entirely.
+_SQL_DEFECT_RES = (_SQL_2ARG_MINMAX_RE, _SQL_IS_NOT_PARAM_RE, _DEFER_FK_RE)
+# Only ~2% of string tokens carry one of these fragments; the rest can be
+# approximated by stripping quotes without paying for ast.literal_eval.
+_TOKEN_FRAGMENT_RE = re.compile(r"(?:min|max|IS\s+NOT|defer_)", re.IGNORECASE)
+
+
+def _fstring_middle_is_candidate(name: str, text: str) -> bool:
+    """A PEP 701 FSTRING_MIDDLE chunk is checked like an AST Constant."""
+    return name == "FSTRING_MIDDLE" and any(rx.search(text) for rx in _SQL_DEFECT_RES)
+
+
+def _string_token_candidate(token: str, pending: str, has_fragment: bool) -> tuple[str, bool, bool]:
+    """Fold one STRING token into an implicit-concatenation run."""
+    if _TOKEN_FRAGMENT_RE.search(token):
+        value = ast.literal_eval(token)
+        if not isinstance(value, str):
+            return "", False, True
+        pending += value
+        has_fragment = True
+    elif has_fragment:
+        # A fragment-free token can still complete a split pattern
+        # (`"IS NOT " "?"`); quote-stripping is a safe superset.
+        pending += token.lstrip("rRuUbBfF")[1:-1]
+    else:
+        return pending, has_fragment, False
+    return pending, has_fragment, any(rx.search(pending) for rx in _SQL_DEFECT_RES)
+
+
+def _raw_source_has_residue_candidate(src: str) -> bool:
+    """S7 cheap prefilter: could ``src`` hide a residue-idiom finding?
+
+    Raw C-regex scan first; if that misses, tokenize and check decoded string
+    values. Adjacent literals are accumulated because Python implicitly
+    concatenates them (``"IS NOT " "?"`` remains a candidate); FSTRING_MIDDLE
+    chunks are checked individually, matching the AST walker which visits the
+    literal Constants of a JoinedStr but not across replacement fields.
+    Tokenize failures are conservative ``True`` — ``ast.parse`` stays the
+    authority and will decide.
+    """
+    if any(rx.search(src) for rx in _SQL_DEFECT_RES):
+        return True
+    pending = ""
+    has_fragment = False
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(src).readline):
+            name = tokenize.tok_name.get(tok.type, "")
+            if name.startswith("FSTRING"):
+                if _fstring_middle_is_candidate(name, tok.string):
+                    return True
+                pending, has_fragment = "", False
+                continue
+            if tok.type == tokenize.STRING:
+                pending, has_fragment, hit = _string_token_candidate(
+                    tok.string, pending, has_fragment
+                )
+                if hit:
+                    return True
+                continue
+            if tok.type in (tokenize.NL, tokenize.COMMENT, tokenize.INDENT, tokenize.DEDENT):
+                continue
+            pending, has_fragment = "", False
+    except IndentationError, SyntaxError, ValueError, tokenize.TokenError:
+        return True
+    return False
 
 
 def _residue_idiom_findings(py: Path) -> list[str]:  # noqa: C901
@@ -2143,13 +2260,16 @@ def _residue_idiom_findings(py: Path) -> list[str]:  # noqa: C901
     # (b)/(c)/(d) run over AST string constants — comments never enter the
     # tree, and docstrings (formula prose, pragma-history notes) are
     # excluded below, so `max(|q|, |e|)` in a docstring cannot false-positive.
-    if not _SQLISH_RE.search(src) and "defer_foreign_keys" not in src:
+    # S7: skip ast.parse + the walk for the ~75% of helper files that contain
+    # no candidate idiom at all (was a coarse SELECT/INSERT/... prefilter).
+    if not _raw_source_has_residue_candidate(src):
         return out
     try:
         tree = ast.parse(src)
     except SyntaxError:  # noqa: S110  # the syntax leg owns the report
         return out
     docstrings: set[int] = set()
+    string_nodes: list[ast.Constant] = []
     for n in ast.walk(tree):
         if isinstance(n, ast.Module | ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
             body = n.body
@@ -2160,10 +2280,10 @@ def _residue_idiom_findings(py: Path) -> list[str]:  # noqa: C901
                 and isinstance(body[0].value.value, str)
             ):
                 docstrings.add(id(body[0].value))
+        if isinstance(n, ast.Constant) and isinstance(n.value, str):
+            string_nodes.append(n)
     src_lines = src.splitlines()
-    for node in ast.walk(tree):
-        if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
-            continue
+    for node in string_nodes:
         value = node.value
         if id(node) in docstrings:
             continue

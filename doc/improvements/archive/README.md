@@ -1462,6 +1462,19 @@ commit, referenced by nothing). Entry numbers point at
   resolved (scan ProcessPool fork/IPC overhead dominated — 30.8 s pooled
   vs 7.9 s serial; serial now default, leg 8.77 s) — completed.md #545
 
+- [`static_checks_single_pass_cache.md`](tooling/static_checks_single_pass_cache.md) —
+  single-pass AST walks + per-process caches for `helpers/validators/`
+  `static_checks.py`/`data_format_checks.py`: S1 cached C901 comment lines;
+  S2 collapsed nested `ast.walk` in `_json_arg_shape`; S3 root-keyed
+  frozenset/tuple caches for def lines + suppression targets; S4 one source
+  read + cached enclosing function; S5 single-pass zstd scan; S6 shared
+  parsed-Python cache; S7 raw-text defect prefilter before tokenize/AST
+  (fragment-aware adjacent-literal folding, FSTRING_MIDDLE handled like
+  AST Constants). Standalone wall 11.32 → 6.11–6.50 s (7.0 s budget),
+  cProfile 48.19M → 30.82M calls / 13.439 s, residue check 5.649 → 4.240 s,
+  `ast.walk` 1,575,033 → 1,153,430; 161 targeted tests + parity OK —
+  completed.md #575
+
 ## maintenance/ — Maintenance, backfills, and operational tooling
 
 - [`relations_fk_stale_cache_guard.md`](maintenance/relations_fk_stale_cache_guard.md) — relations-enrich endpoint FK guard and stale-cache age protection (14-day warning, 45-day apply refusal without refresh); completed.md #477
