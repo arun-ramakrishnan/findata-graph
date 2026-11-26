@@ -101,7 +101,7 @@ def test_unregistered_stores_cross_check(sweep_repo, monkeypatch):
     flagged for adoption — never silently swept (#380)."""
     (sweep_repo / "memory" / "known.db").write_bytes(b"x")
     (sweep_repo / "memory" / "stray.db").write_bytes(b"x")
-    (sweep_repo / "memory" / "research.db").write_bytes(b"x")
+    (sweep_repo / "memory" / "research.duckdb").write_bytes(b"x")
     monkeypatch.setattr(ss, "SIDECAR_SQLITE", ("memory/known.db",))
     monkeypatch.setattr(ss, "SIDECAR_DUCKDB", ())
     assert [p.name for p in ss.unregistered_stores()] == ["stray.db"]

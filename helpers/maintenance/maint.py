@@ -69,7 +69,7 @@ Chains the maintenance steps in the right order, in THREE blocks:
                              run AFTER it — the backup is their restore
                              point, so a corrupting derivation never
                              flows into the recovery copy.
-    2. ``snapshot_db.py``  — refresh ``db-backup/research.snapshot.db.zst`` +
+    2. ``snapshot_db.py``  — refresh ``db-backup/research.snapshot.duckdb.zst`` +
                              ``db-backup/graph.snapshot.duckdb.zst`` (the
                              git-tracked versioned snapshots, post-mutation) +
                              the corpus-cache twin ``corpus.snapshot.db.zst``

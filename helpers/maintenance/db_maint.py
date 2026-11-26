@@ -29,7 +29,7 @@ exists; + the corpus-cache twin ``corpus_backup.db.zst`` — full note
 bodies, the private-content class the git snapshot excludes, so db-backup
 is its only copy — added 2026-09-04) and ``db-backup/graph_backup.duckdb.zst`` (DuckDB cache). These
 are deliberately kept distinct from ``snapshot_db.py``'s
-``db-backup/research.snapshot.db.zst`` and ``db-backup/graph.snapshot.duckdb.zst``
+``db-backup/research.snapshot.duckdb.zst`` and ``db-backup/graph.snapshot.duckdb.zst``
 (which are POST-mutation, gzipped, and git-tracked). 2026-10-19 census
 re-run (production_db_copy_audit addendum): the convo_search FTS sidecar
 was RETIRED from this lane — a derived lookup index, zero unique content,
@@ -41,7 +41,7 @@ downtime-window insurance that rescued multiple cache-blowout incidents
                                    possible; overwritten each run, not
                                    versioned). Manual restore:
                                    ``zstd -dc db-backup/research_backup.db.zst > memory/research.db``
-  - ``research.snapshot.db.zst`` / ``graph.snapshot.duckdb.zst``
+  - ``research.snapshot.duckdb.zst`` / ``graph.snapshot.duckdb.zst``
                                  : reconstructable state for git history
                                    (taken after maintenance completes).
   - ``bili_index_backup.db.zst``

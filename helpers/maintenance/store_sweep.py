@@ -76,7 +76,9 @@ from helpers.core import db_engine  # noqa: E402  # S4: engine-agnostic quick_ch
 # db_maint's own maintained objects — outside the sidecar registry and
 # outside this sweep (single-owner rule; db_maint.run reclaims them).
 # Repo-relative so the cross-check composes with a retargeted REPO.
-_PRIMARIES = {"memory/research.db", "memory/graph.duckdb"}  # noqa: E402
+_PRIMARIES = {"memory/research.duckdb", "memory/graph.duckdb"}  # noqa: E402
+# (research side renamed at the 2026-11-21 DuckDB cutover #551; a restored
+# legacy memory/research.db now flags as unregistered — correct posture.)
 
 # These stores have distinct lifecycle owners and deliberately stay out of
 # db_maint's backup/reclaim estate. Keep the exception visible in each census.
@@ -267,32 +269,39 @@ def _fmt(n: int | None) -> str:
     return f"{n / MB:7.1f}M" if n is not None else "      -"
 
 
-# Census-of-record baseline (2026-11-17 re-baseline; MiB re-derived
-# from the live store measurements, not transcribed — the 2026-11-08
-# census drifted silently over the following nine days: #524 cut
-# convo_search 3170.01 → 1286.76 and sources shrank 47.26 → 22.51).
-# Two consistency fixes ride along: the dead `memory/script_search.db`
-# entry (never a sweep row — the legacy rollback is owned-elsewhere) is
-# dropped, and baselines are recorded for the swept stores that lacked
-# one (embed_store.db, script_search.duckdb, doc_search.duckdb,
-# memory_search.duckdb). Sidecar estate only: the primaries
-# (research.db / graph.duckdb) are db_maint's own maintained objects
-# and never appear as sweep rows (single-owner rule), so they take no
-# entry here. Advisory only, never the exit code.
+# Census-of-record baseline (2026-11-26 re-baseline; supersedes the
+# 2026-11-17 filing — that one drifted as its own note warned: the
+# 2026-11-26 size-watch fired ACT md_lint_cache 5.51× and warn
+# embed_store.duckdb 1.88× / graph.xdist-shared 1.62×. The read-only
+# block census (pending.md production-store census row) showed
+# embed_store FLAT in content — live blocks 432.25 MiB ≈ 1.02×, the
+# growth was 388 MiB of free blocks (registered vacuum=False) — and
+# xdist REAL growth (e_all_und 115,148 → 202,994, +76%, dated to the
+# 2026-11-12 RPT/group-lane snapshot refresh). Sidecar estate only:
+# the primaries (research.duckdb / graph.duckdb) are db_maint's own
+# maintained objects and never appear as sweep rows (single-owner
+# rule), so they take no entry here. note_vectors gets its first
+# baseline; gate_runs 0.01 encodes the 12 KiB zero-table memory/ husk
+# (the real gate index is outputs/gate_runs.duckdb). Advisory only,
+# never the exit code.
 _FILING_MB: dict[str, float] = {
-    "memory/graph.xdist-shared.duckdb": 74.51,
-    "memory/convo_search.duckdb": 1286.76,
-    "memory/embed_store.duckdb": 424.01,
-    "memory/note_search.duckdb": 216.76,
-    "memory/corpus.duckdb": 58.81,
-    "memory/md_lint_cache.duckdb": 0.32,
+    "memory/graph.xdist-shared.duckdb": 120.51,
+    "memory/convo_search.duckdb": 1354.76,
+    # 430.26 = post compact-copy (2026-11-26 operator-authorized rebuild;
+    # was 795.51 at the census — 365 MiB of dead pages reclaimed)
+    "memory/embed_store.duckdb": 430.26,
+    "memory/note_search.duckdb": 240.51,
+    "memory/corpus.duckdb": 16.26,
+    "memory/md_lint_cache.duckdb": 1.76,
     "memory/embed_store.db": 527.07,
-    "memory/script_search.duckdb": 17.26,
-    "memory/doc_search.duckdb": 99.76,
-    "memory/memory_search.duckdb": 13.26,
-    "memory/data/agent_traces.duckdb": 221.01,
+    "memory/script_search.duckdb": 18.76,
+    "memory/doc_search.duckdb": 95.01,
+    "memory/memory_search.duckdb": 15.26,
+    "memory/note_vectors.duckdb": 49.26,
+    "memory/gate_runs.duckdb": 0.01,
+    "memory/data/agent_traces.duckdb": 243.51,
     "memory/data/sources.duckdb": 22.51,
-    "memory/data/model_usage.duckdb": 1.26,
+    "memory/data/model_usage.duckdb": 1.76,
 }
 
 WARN_RATIO = 1.5  # growth notable — next census re-run should look here

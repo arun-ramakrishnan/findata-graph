@@ -65,8 +65,8 @@ Restore (from the git-tracked Parquet snapshot):
   checks → atomic replace of the live files. Refuses to overwrite an
   existing live DB unless --force.
 
-  (Local alternative: zstd -dc db-backup/research.snapshot.db.zst
-  > memory/research.db)
+  (Local alternative: zstd -dc db-backup/research.snapshot.duckdb.zst
+  > memory/research.duckdb)
 
 See also: ``helpers/maintenance/maint.py`` — the orchestrator that runs
 db_maint → snapshot_db → graph-rebuild in the right order. Prefer
