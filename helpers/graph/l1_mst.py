@@ -2,8 +2,8 @@
 """S1 — Minimum spanning (forest) backbone over the weighted graph projection.
 
 SciPy csgraph scale lane (doc/improvements/proposals/scipy_csgraph_scale_lanes.md
-S1). House pattern mirrors l1_closeness.py: dry-run by default, no --apply
-(this is a relational readout, not a per-entity metric).
+S1). House lane pattern: dry-run by default, no --apply (this is a
+relational readout, not a per-entity metric).
 
 Projection: whole-graph weighted CSR, ex-index, self-loops dropped, parallel
 edges collapsed to min(weight) (MST wants the cheapest relationship).

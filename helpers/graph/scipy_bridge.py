@@ -156,10 +156,11 @@ LANE_BUDGETS: dict[str, float] = {
 #: Kernel-implementation selector for this bridge's BFS family — the
 #: all-universe stamp pass (proposal rust_simd_cosine_hop_histogram S2)
 #: and, from the same lane, the contract closeness/harmonic pair (S4).
-#: Same convention as ``L1C_RUST`` (``helpers/graph/l1_closeness.py``
-#: ``_rust_lane``): unset or "auto" = kernel when it imports, else scipy;
-#: "0"/"off"/"numpy" = the scipy lane; anything else = kernel or a loud
-#: RuntimeError (a silent fallback would hide a stale build).
+#: Same convention as the L1 lanes' ``_rust_lane``
+#: (``helpers/graph/l1_betweenness.py``): unset or "auto" = kernel when
+#: it imports, else scipy; "0"/"off"/"numpy" = the scipy lane; anything
+#: else = kernel or a loud RuntimeError (a silent fallback would hide a
+#: stale build).
 BRIDGE_RUST_VAR = "SB_RUST"
 
 #: Lane ownership — Onager keeps the healthy SQL lanes; scipy owns the
@@ -277,40 +278,6 @@ def source_positions(contract: list[str], names: list[str]) -> np.ndarray:
     return np.array([pos[n] for n in contract], dtype=np.int64)
 
 
-def _structure_worker(payload: tuple) -> tuple[float, float, float, int]:
-    """Dijkstra over one source shard, reduced to four scalars.
-
-    Module-level for the fork pool. Returns (shard diameter, shard min
-    eccentricity over GIANT-COMPONENT rows with >=1 finite reach, finite-
-    pair distance sum, finite-pair count) — ordered pairs, self excluded.
-    The parent combines shards into exact diameter / radius / average
-    path length without ever assembling the n×n matrix
-    (scipy_exact_universe S1). Radius restricted to the largest
-    component: the global min-eccentricity is degenerate on a
-    disconnected graph (any 2-node isolated pair pins it to 1).
-    """
-    A, lo, hi, comp, giant = payload
-    D = dijkstra(A, directed=False, indices=np.arange(lo, hi), unweighted=True)
-    finite = np.isfinite(D)
-    D[~finite] = 0.0  # unreachable -> 0; excluded from sums, invisible to max
-    # self pairs (diagonal) are not graph pairs — ROWS are shard-local,
-    # COLUMNS stay global, so the diagonal sits at (j, lo+j):
-    local = np.arange(hi - lo)
-    D[local, np.arange(lo, hi)] = 0.0
-    finite[local, np.arange(lo, hi)] = False
-    row_max = D.max(axis=1)
-    has_reach = finite.any(axis=1)
-    ecc = row_max[has_reach]
-    giant_rows = (comp[lo:hi] == giant) & has_reach
-    ecc_giant = row_max[giant_rows]
-    return (
-        float(ecc.max()) if ecc.size else 0.0,
-        float(ecc_giant.min()) if ecc_giant.size else float("inf"),
-        float(D[finite].sum()),
-        int(finite.sum()),
-    )
-
-
 # Row-block size of the all-universe pass. One block is block × n float64
 # (256 × 22.8k = 47 MB live) and is reduced before the next is computed, so no
 # shard-sized distance matrix (5.7k × 22.8k = 1 GB at 4 jobs) is ever held.
@@ -410,8 +377,8 @@ class FullUniverseStats(TypedDict):
 def _bridge_lane(var: str) -> str:
     """Kernel-selector mode for ``var``: "off", "auto" or "force".
 
-    Same house convention as ``helpers/graph/l1_closeness.py::_rust_lane``
-    (which mirrors ``l1_betweenness``); see ``BRIDGE_RUST_VAR``.
+    Same house convention as ``helpers/graph/l1_betweenness.py::
+    _rust_lane``; see ``BRIDGE_RUST_VAR``.
     """
     raw = os.environ.get(var, "").strip().lower()
     if raw in ("0", "off", "false", "no", "numpy"):
@@ -570,58 +537,6 @@ def full_universe_stats(A: csr_matrix, jobs: int = 4) -> FullUniverseStats:
             "components": int(n_comp),
             "largest_component": int(sizes[giant]),
         },
-    }
-
-
-def structure_stats(A: csr_matrix, jobs: int = 4) -> dict[str, float | int]:
-    """Exact diameter / radius / average path length over the whole CSR.
-
-    Unweighted multi-source dijkstra from EVERY node, sharded across the
-    house fork pool; workers reduce to scalars so the parent never holds
-    an n×n distance matrix (peak ≈ jobs × shard-chunk). APL is the mean
-    over reachable ORDERED pairs (accumulated across all components; self
-    pairs excluded). Diameter is the global max; RADIUS is the min
-    eccentricity over the LARGEST component — the global min is
-    degenerate on a disconnected graph (any 2-node isolated pair pins it
-    to 1; measured live 2026-09-26).
-
-    Replaces the graph_metrics NULL-on-disconnected serving (the Onager
-    component-check skipped all-pairs; 106 live components meant these
-    three were never served). Opt-in lane — not in ROUTING, not gated.
-    """
-    from scipy.sparse.csgraph import connected_components
-
-    n = A.shape[0]
-    if n == 0:
-        return {
-            "diameter": 0,
-            "radius": 0,
-            "avg_path_length": 0.0,
-            "reachable_pairs": 0,
-            "components": 0,
-            "largest_component": 0,
-        }
-    n_comp, comp = connected_components(A, directed=False)
-    sizes = np.bincount(comp, minlength=n_comp)
-    giant = int(sizes.argmax())
-    bounds = [
-        (i * n // jobs, (i + 1) * n // jobs)
-        for i in range(jobs)
-        if i * n // jobs < (i + 1) * n // jobs
-    ]
-    parts = fork_map(_structure_worker, [(A, lo, hi, comp, giant) for lo, hi in bounds], jobs)
-    diameter = max(p[0] for p in parts)
-    radius_vals = [p[1] for p in parts if p[3] > 0]
-    radius = min(radius_vals) if radius_vals else 0.0
-    total_sum = sum(p[2] for p in parts)
-    total_cnt = sum(p[3] for p in parts)
-    return {
-        "diameter": int(diameter),
-        "radius": int(radius),
-        "avg_path_length": (total_sum / total_cnt) if total_cnt else 0.0,
-        "reachable_pairs": total_cnt,
-        "components": int(n_comp),
-        "largest_component": int(sizes[giant]),
     }
 
 

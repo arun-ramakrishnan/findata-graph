@@ -634,25 +634,6 @@ def test_s_t_lanes_live_under_budget():
 # --- scipy_exact_universe: structure lane + all-universe centralities ---
 
 
-# jobs=2 structure lane fork-splits by design (fork_map CoW) — same posture
-# as test_compute_jobs1_matches_jobs2 below.
-@pytest.mark.filterwarnings("ignore:This process .* is multi-threaded.*:DeprecationWarning")
-def test_structure_stats_golden(store):
-    """P3 (a-b-c) + isolated pair (d-e): exact scalars, giant-comp radius."""
-    s = sb.structure_stats(sb.load_projection(store)[0], jobs=2)
-    assert s["components"] == 2
-    assert s["largest_component"] == 3
-    assert s["diameter"] == 2
-    # radius = min ecc over the GIANT component (node b, ecc 1) — the
-    # d-e pair's ecc 1 must NOT pin the global radius (it does under a
-    # naive global min: the degenerate-radius defect).
-    assert s["radius"] == 1
-    # ordered finite pairs: 6 within the path (1+2+1+2+1+1) + 1 pair x2
-    # directions in the isolated pair = 8; sum = 6+2 = 8 -> APL 1.25.
-    assert s["reachable_pairs"] == 8
-    assert abs(s["avg_path_length"] - 1.25) < 1e-12
-
-
 def test_fused_derive_counts_wasserman_faust(store):
     """counts feed the WF factor: full-reach rows scale by 1.0, the
     2-node pair stops exploding (raw clo 4 -> 0.25)."""
@@ -762,7 +743,7 @@ def _componented_csr():
 
 def test_full_universe_stats_hand_oracle(store):
     """Path a-b-c + pair d-e: WF closeness, raw harmonic and the structure
-    scalars by hand (same golden graph as test_structure_stats_golden)."""
+    scalars by hand (giant-component radius)."""
     A, names = sb.load_projection(store)
     res = sb.full_universe_stats(A, jobs=1)
     pos = {n: i for i, n in enumerate(names)}

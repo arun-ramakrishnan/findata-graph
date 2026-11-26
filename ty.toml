@@ -46,15 +46,14 @@ include = ["helpers/bench/hyper_community_probe.py"]
 
 # graph_kernels: locally-built Rust pyo3 abi3 module (make rust-install,
 # rust_bfs_kernels_stats_trails #497) — .so in site-packages with no
-# stubs, so ty cannot resolve it. Scoped to WARN in its two consumer
-# files (kernel-first dispatch keeps a kernel-absent fallback lane).
+# stubs, so ty cannot resolve it. Scoped to WARN in its consumer files
+# (kernel-first dispatch keeps a kernel-absent fallback lane).
 [[overrides]]
 include = [
   "helpers/graph/stats.py",
   "helpers/graph/hyper_trails.py",
   "helpers/graph/scipy_bridge.py",
   "helpers/graph/l1_betweenness.py",
-  "helpers/graph/l1_closeness.py",
 ]
 
   [overrides.rules]
