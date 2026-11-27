@@ -653,6 +653,23 @@ class TestLoadCompanies:
         assert [c[0] for c in companies] == ["Listed"]
         assert sorted(unlisted) == ["Blank", "NullTicker"]
 
+    def test_terminal_classifications_leave_the_sweep_universe(self, db):
+        from helpers.maintenance import enrich_relations as er
+
+        db.executemany(
+            "INSERT INTO entities VALUES (?, ?, NULL, 'company')",
+            [("Live", "LIVE.NS"), ("Dead", "DEAD.NS")],
+        )
+        db.execute(er.ENTITY_TICKER_STATUS_DDL)
+        db.execute(
+            "INSERT INTO entity_ticker_status (entity_name, status, decided_at) "
+            "VALUES ('Dead', 'still-dead', 'now')"
+        )
+        db.commit()
+        companies, unlisted = load_companies(db)
+        assert [c[0] for c in companies] == ["Live"]
+        assert unlisted == []
+
 
 # --------------------------------------------------------------------------- #
 # Google-Finance fallback pass (F2: curated read + tier 1, no network —      #
@@ -1444,7 +1461,8 @@ class TestTerminalClassifications:
     def _seed_status(self, db, name, status, successor=None):
         db.execute(ENTITY_TICKER_STATUS_DDL)
         db.execute(
-            "INSERT INTO entity_ticker_status VALUES (?, ?, ?, 'now')",
+            "INSERT INTO entity_ticker_status "
+            "(entity_name, status, successor, decided_at) VALUES (?, ?, ?, 'now')",
             (name, status, successor),
         )
         db.commit()
@@ -1535,6 +1553,25 @@ class TestTerminalClassifications:
         conn.close()
         assert row == ("amalgamated", "JSW Paints")
 
+    def test_classify_cli_accepts_still_dead(self, tmp_path, monkeypatch):
+        from helpers.maintenance import enrich_relations as er
+
+        dbp = tmp_path / "r.db"
+        conn = sqlite3.connect(dbp)
+        conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY)")
+        conn.execute("INSERT INTO entities VALUES ('Some Co')")
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(er, "DB_PATH", dbp)
+        rc = er.main(["--classify", "Some Co", "still-dead"])
+        assert rc == 0
+        conn = sqlite3.connect(dbp)
+        row = conn.execute(
+            "SELECT status, successor FROM entity_ticker_status WHERE entity_name = 'Some Co'"
+        ).fetchone()
+        conn.close()
+        assert row == ("still-dead", None)
+
     def test_classify_rejects_unknown_status(self, tmp_path, monkeypatch):
         from helpers.maintenance import enrich_relations as er
 
@@ -1542,13 +1579,56 @@ class TestTerminalClassifications:
         monkeypatch.setattr(er, "DB_PATH", dbp)
         assert er.main(["--classify", "Some Co", "merged-into", "Someone"]) == 2
 
+    def test_promote_staged_statuses_persists_terminal_only(self, tmp_path, monkeypatch):
+        from helpers.maintenance import enrich_relations as er
+
+        dbp = tmp_path / "r.db"
+        conn = sqlite3.connect(dbp)
+        conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY)")
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(er, "DB_PATH", dbp)
+        stage = tmp_path / "hygiene.jsonl"
+        stage.write_text(
+            "\n".join(
+                [
+                    json.dumps({"name": "Dead Co", "status": "tier3_dead", "error": "404"}),
+                    json.dumps(
+                        {
+                            "name": "Renamed Co",
+                            "status": "tier3_rename",
+                            "new_ticker": "REN.NS",
+                            "yf_name": "Renamed Co Ltd",
+                        }
+                    ),
+                    json.dumps({"name": "Fixed Co", "status": "resolved", "new_ticker": "FIX.NS"}),
+                    json.dumps({"name": "Open Co", "status": "unresolved"}),
+                ]
+            ),
+            encoding="utf-8",
+        )
+        assert er.main(["--promote-status", str(stage)]) == 0
+        conn = sqlite3.connect(dbp)
+        rows = conn.execute(
+            "SELECT entity_name, status, successor, detail FROM entity_ticker_status "
+            "ORDER BY entity_name"
+        ).fetchall()
+        conn.close()
+        assert rows == [
+            ("Dead Co", "tier3_dead", None, "404"),
+            ("Renamed Co", "tier3_rename", "REN.NS", "Renamed Co Ltd"),
+        ]
+
     def test_unclassify_removes_row(self, tmp_path, monkeypatch):
         from helpers.maintenance import enrich_relations as er
 
         dbp = tmp_path / "r.db"
         conn = sqlite3.connect(dbp)
         conn.execute(er.ENTITY_TICKER_STATUS_DDL)
-        conn.execute("INSERT INTO entity_ticker_status VALUES ('X', 'delisted', NULL, 'now')")
+        conn.execute(
+            "INSERT INTO entity_ticker_status (entity_name, status, decided_at) "
+            "VALUES ('X', 'delisted', 'now')"
+        )
         conn.commit()
         conn.close()
         monkeypatch.setattr(er, "DB_PATH", dbp)

@@ -12,6 +12,13 @@ Store selection, in order:
   3. scratch cache (default)      -> $TMPDIR/opencode/swap_fk_gate/
      research_converted.duckdb, rebuilt on the same freshness rule.
 
+S6 cutover fallback: when the legacy memory/research.db no longer exists
+(the canonical is memory/research.duckdb, 2026-11-21), the gate scans the
+canonical DuckDB DIRECTLY — a store that is already DuckDB needs no
+sqlite_scanner conversion — provenance 'canonical-direct'. The legacy
+source/env/cache lanes keep working on machines that still carry the
+sqlite store.
+
 Rebuild = sqlite_scanner ATTACH (READ_ONLY) + per-table CTAS with full
 declared-type fidelity. The Step-1 sqlite_all_varchar fallback for
 'entities' is no longer needed: its cause (the malformed
@@ -91,9 +98,30 @@ def _rebuild(dest: Path) -> float:
     return dt
 
 
+def _legacy_source_live() -> bool:
+    """True only when SOURCE is a REAL sqlite store.
+
+    A 0-byte memory/research.db is a sqlite3 open-create artifact (some
+    legacy-path opener minted it mid-battery 2026-11-28); converting it
+    yields an empty store, so it counts as absent and the canonical
+    DuckDB is scanned directly instead.
+    """
+    return SOURCE.exists() and SOURCE.stat().st_size > 0
+
+
 def _select_store(explicit: str | None) -> tuple[Path, str]:
     if explicit:
         return Path(explicit), "explicit"
+    if not _legacy_source_live():
+        # S6 cutover: no sqlite source to convert — scan the canonical
+        # DuckDB directly. First after 'explicit' so _fresh() never stats
+        # the missing SOURCE on the env/cache lanes below.
+        canonical = SOURCE.with_suffix(".duckdb")
+        if canonical.exists():
+            return canonical, "canonical-direct"
+        raise FileNotFoundError(
+            f"source missing: {SOURCE}, and no canonical {canonical} either"
+        )
     env = os.environ.get("SWAP_CONVERTED_DUCKDB")
     if env:
         p = Path(env)
@@ -116,10 +144,6 @@ def main(argv: list[str] | None = None) -> int:
         help="explicit converted store to check (skips locate/rebuild)",
     )
     args = ap.parse_args(argv)
-
-    if not SOURCE.exists() and not args.store:
-        print(f"swap-fk-gate: status=error (source missing: {SOURCE})")
-        return 0
 
     try:
         store, provenance = _select_store(args.store)

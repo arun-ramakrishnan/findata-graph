@@ -188,7 +188,9 @@ Asia varies (SSE/TSE/TWSE verified; TSX/KRX ride operator research).
 
 | Store (DuckDB, one file) | Tables/Views | Content |
 |---|---|---|
-| `memory/data/sources.duckdb` | `exchange_listings` (24,305) | LISTING-level long format: isin, name, industry, asset_type (equity/debt/cp/mf/pref), exchange (NSE/BSE), segment (main/sme), symbol, kite_tradingsymbol/token/tick/lot |
+| `memory/data/sources.duckdb` | `exchange_listings` (24,305) | LISTING-level long format: isin, name, industry, asset_type (equity/debt/cp/mf/pref), exchange (NSE/BSE/JPX/KRX/HKEX/SZSE/TWSE/US), segment (main/sme/kospi200), symbol, kite_tradingsymbol/token/tick/lot |
+|  | `figi_instruments` | OpenFIGI instrument metadata keyed by FIGI: ticker, name, exch_code, market_sector, security_type, share/composite FIGI, fetched_at |
+|  | `bhavcopy_sample` | quarterly NSE/BSE UDiFF samples: exchange, trade_date, symbol, ticker, isin, series, quarter, source |
 |  | `mca_cin` (1,020) | entity_name → CIN + MCA name/status/class/PBA/state + provenance |
 |  | `index_constituents` (append-only) | index_name, index_slug, asset_class, symbol, isin, company_name, industry, series, as_of, fetched_at — NSE index membership per reconstitution vintage |
 |  | `vw_equity` / `vw_sme` / `vw_instruments` / `vw_index_constituent` | convenience views (equity; SME listings; kite-tokened instruments; latest constituent vintage per index) |

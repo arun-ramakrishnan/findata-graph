@@ -11,7 +11,7 @@ acted on automatically.
 Lanes (stability register in doc/design/data_sources.md):
 - hkex/szse/sse/twse/wiki: stable endpoints, scriptable
 - tmx/krx: operator-delivered masters (ingest-file style, see --tmx-file/--krx-file)
-- jpx: monthly xlsx with rotating attachment id — manual for now
+- jpx: pinned official `data_e.xlsx` monthly master (JPX TSE-listed issues)
 - India (BSE/NSE): repin pending (BhavCopy monthly is the candidate)
 
 The first run stamps every pre-existing row fetched_at=2026-09-15 (the
@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import os
 import re
@@ -178,18 +179,39 @@ def fetch_hkex() -> list[Row]:
     return parse_hkex_xlsx(_get(url, binary=True))
 
 
+SZSE_APIS = (
+    "https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON"
+    "&CATALOGID=1110&TABKEY=tab1&PAGENO={page}&random=0.1",
+    "https://szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON"
+    "&CATALOGID=1110&TABKEY=tab1&PAGENO={page}&random=0.1",
+    "http://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON"
+    "&CATALOGID=1110&TABKEY=tab1&PAGENO={page}&random=0.1",
+)
+
+
+def _fetch_szse_page(page: int) -> str:
+    """Try official host, www-less mirror, then http mirror; short backoff."""
+    last: OSError | None = None
+    for attempt, template in enumerate(SZSE_APIS):
+        try:
+            return _get(
+                template.format(page=page),
+                referer="https://www.szse.cn/markets/stock/list/index.html",
+                timeout=60,
+            )
+        except OSError as e:
+            last = e
+            if attempt + 1 < len(SZSE_APIS):
+                time.sleep(1.5 * (attempt + 1))
+    raise last or OSError("SZSE: no mirror yielded a response")
+
+
 def fetch_szse() -> list[Row]:
     """SZSE JSON API, paged; board Chinese label -> main/sme/chinext."""
     rows: list[Row] = []
     page = 1
     while page <= 200:
-        j = jsonio.loads(
-            _get(
-                "https://www.szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON"
-                "&CATALOGID=1110&TABKEY=tab1&PAGENO=" + str(page) + "&random=0.1",
-                referer="https://www.szse.cn/markets/stock/list/index.html",
-            )
-        )
+        j = jsonio.loads(_fetch_szse_page(page))
         data = (j[0].get("data") or []) if j else []
         if not data:
             break
@@ -350,6 +372,70 @@ WIKI_LANES = {
 }
 
 
+JPX_SOURCE_PAGE = "https://www.jpx.co.jp/english/markets/statistics-equities/misc/01.html"
+# Official monthly TSE-listed-issuer master. `data_j.xlsx` is the Japanese
+# twin; `data_e.xlsx` uses stable English column names. Attachment id is pinned
+# intentionally — the `.xls` URL and `latest.xlsx` are not part of the contract.
+JPX_XLSX_URL = (
+    "https://www.jpx.co.jp/english/markets/statistics-equities/misc/"
+    "tvdivq0000001vg2-att/data_e.xlsx"
+)
+
+
+def fetch_jpx() -> list[Row]:
+    """JPX official monthly `data_e.xlsx`: TSE listed-issuer master.
+
+    `Local Code` is read as a string; Japanese codes can be alphanumeric and
+    five-digit. Symbol in `exchange_listings` is the raw local code (matches
+    current TSE rows); `ticker` is `<code>.T`. ETFs/ETNs are stored as
+    `asset_type='other'` and never seed company entities. `Effective Date`
+    is data as-of, not a download timestamp.
+    """
+    import openpyxl
+
+    raw = _get(JPX_XLSX_URL, referer=JPX_SOURCE_PAGE, binary=True)
+    wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+    try:
+        ws = wb.active
+        out: list[Row] = []
+        for r in ws.iter_rows(min_row=2, values_only=True):
+            if len(r) < 6:
+                continue
+            code = (str(r[1]).strip() if r[1] is not None else "").strip()
+            name = (str(r[2]).strip() if r[2] is not None else "").strip()
+            section = (str(r[3]).strip() if r[3] is not None else "").strip()
+            industry = (str(r[5]).strip() if r[5] is not None else "").strip()
+            if not code or code == "-" or not name:
+                continue
+            section_upper = section.upper()
+            is_other = any(
+                token in section_upper
+                for token in (
+                    "ETF",
+                    "ETN",
+                    "REIT",
+                    "VENTURE",
+                    "FUND",
+                    "EQUITY CONTRIBUTION",
+                )
+            )
+            out.append(
+                {
+                    "exchange": "TSE",
+                    "symbol": code,
+                    "name": name,
+                    "isin": None,
+                    "industry": industry if industry != "-" else None,
+                    "segment": section or "main",
+                    "asset_type": "other" if is_other else "equity",
+                    "ticker": code + ".T",
+                }
+            )
+        return out
+    finally:
+        wb.close()
+
+
 def fetch_wiki() -> list[Row]:
     rows: list[Row] = []
     for page, (exch, seg) in WIKI_LANES.items():
@@ -406,6 +492,35 @@ def ingest_tmx(paths: list[Path]) -> list[Row]:
                     }
                 )
         wb.close()
+    return out
+
+
+def fetch_krx200() -> list[Row]:
+    """KOSPI 200 constituents from Wikipedia (operator-approved 200-row lane).
+
+    The table is company-first; ``parse_wiki_table`` picks the ticker column
+    by header name, so no symbol/name inversion (2026-09-15 trap). Codes are
+    local symbols (mostly six digits, sometimes alphanumeric such as
+    ``0126Z0``); yfinance uses ``.KS``, so store that ticker.
+    This is a curated 200-name index lane, not the full KRX universe (which
+    needs ``openapi.krx.co.kr`` credentials).
+    """
+    html = _get("https://en.wikipedia.org/wiki/KOSPI_200")
+    out: list[Row] = []
+    for code, name in parse_wiki_table(html):
+        code = code.strip()
+        if not code:
+            continue
+        out.append(
+            {
+                "exchange": "KRX",
+                "symbol": code,
+                "name": name.strip(),
+                "ticker": code + ".KS",
+                "segment": "kospi200",
+                "asset_type": "equity",
+            }
+        )
     return out
 
 
@@ -572,9 +687,11 @@ LANES: dict[str, Callable[[], list[Row]]] = {
     "sse": fetch_sse,
     "twse": fetch_twse,
     "wiki": fetch_wiki,
+    "jpx": fetch_jpx,
     "nse": fetch_nse,
     "bse": fetch_bse,
     "us": fetch_us,
+    "krx200": fetch_krx200,
 }
 
 # Incremental-by-default (operator ruling 2026-09-16: bulk re-fetching
@@ -588,9 +705,11 @@ LANE_EXCHANGES = {
     "szse": ["SZSE"],
     "sse": ["SSE"],
     "twse": ["TWSE"],
+    "jpx": ["TSE"],
     "nse": ["NSE"],
     "bse": ["BSE"],
     "us": ["NASDAQ", "NYSE", "NYSEAMER", "NYSEARCA", "BATS"],
+    "krx200": ["KRX"],
 }
 LANE_SEGMENTS = {  # wiki spans 4 exchanges; TSX also fed by tmx lane
     "wiki": [
@@ -599,6 +718,7 @@ LANE_SEGMENTS = {  # wiki spans 4 exchanges; TSX also fed by tmx lane
         ("EURONEXT", "cac40"),
         ("TSX", "tsx60"),
     ],
+    "krx200": [("KRX", "kospi200")],
 }
 
 
@@ -707,6 +827,8 @@ def seed_stubs(
     con = con or connect(REPO / "memory" / "research.db")
     cur = con.cursor()
     for r in new_rows:
+        if r.get("asset_type", "equity") != "equity":
+            continue
         nm = clean_name(r.get("name") or "")
         if not nm or len(nm) < 3:
             continue
@@ -729,7 +851,13 @@ def seed_stubs(
             cur.execute(
                 "insert or ignore into entities (name, ticker, normalized_name,"
                 " entity_type) values (?,?,?,?)",
-                (nm, tk, normalized_name(nm), "company"),
+                # CJK-only registry names (SZSE/SSE listings without a Latin
+                # form) slug to "" under the [A-Za-z0-9_] filter — fall back
+                # to the ticker slug so the normalization contract (every
+                # entity carries a non-empty normalized_name) holds. The
+                # ticker is unique per listing (D19 guard), and ticker-as-
+                # slug has precedent (2 pre-existing rows).
+                (nm, tk, normalized_name(nm) or normalized_name(tk), "company"),
             )
             if cur.rowcount:
                 made.append((nm, r.get("ticker") or r["symbol"]))
@@ -865,6 +993,16 @@ def main() -> int:  # noqa: C901  # arg-dispatch main (flag-per-lane CLI; exit c
             except OSError as e:
                 print(f"[{lane}] FETCH-FAILED: {str(e)[:80]}", flush=True)
                 rows = []
+                scratch = FETCH_SCRATCH / f"{lane}.json"
+                if scratch.exists():
+                    try:
+                        rows = json.loads(scratch.read_text())
+                        print(
+                            f"[{lane}] STALE-FALLBACK: {len(rows)} rows from {scratch}",
+                            flush=True,
+                        )
+                    except OSError, ValueError:
+                        rows = []
             staged_by_lane[lane] = rows
             if args.fetch_only:
                 scratch = FETCH_SCRATCH / f"{lane}.json"

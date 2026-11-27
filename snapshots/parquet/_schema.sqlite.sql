@@ -141,8 +141,19 @@ CREATE TABLE entity_gf_map (
 
 CREATE TABLE entity_ticker_status (
     entity_name TEXT PRIMARY KEY,
-    status TEXT NOT NULL CHECK (status IN ('delisted', 'amalgamated')),
+    status TEXT NOT NULL CHECK (status IN ('delisted', 'amalgamated', 'still-dead')),
     successor TEXT,
+    decided_at TEXT NOT NULL
+);
+
+CREATE TABLE entity_resolution_status (
+    entity_name TEXT PRIMARY KEY,
+    -- 'same-issuer' joined the canonical DuckDB CHECK with the
+    -- exchange_ticker_data_update arc (schema/duckdb/research.sql:18);
+    -- this pinned restore schema must carry it or the parquet restore
+    -- raises IntegrityError on the 17 same-issuer rows (2026-11-28).
+    status TEXT NOT NULL CHECK (status IN ('unresolved', 'unmatched', 'conflict', 'ambiguous', 'same-issuer')),
+    detail TEXT,
     decided_at TEXT NOT NULL
 );
 
@@ -220,7 +231,7 @@ CREATE TABLE entity_identifiers (
         entity_name      TEXT NOT NULL REFERENCES entities(name)
                            ON DELETE CASCADE ON UPDATE CASCADE,
         identifier_type  TEXT NOT NULL CHECK (identifier_type IN
-                           ('cin', 'lei', 'cik', 'isin', 'llpin', 'alias')),
+                           ('cin', 'lei', 'cik', 'figi', 'isin', 'llpin', 'alias')),
         identifier_value TEXT NOT NULL,
         namespace        TEXT,
         valid_from       TEXT,
@@ -228,8 +239,14 @@ CREATE TABLE entity_identifiers (
         source_ref       TEXT NOT NULL,
         created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         last_updated     DATETIME,
-        PRIMARY KEY (entity_name, identifier_type, identifier_value),
-        UNIQUE (identifier_type, identifier_value)
+        PRIMARY KEY (entity_name, identifier_type, identifier_value)
+        -- No UNIQUE (identifier_type, identifier_value): identifier pairs
+        -- are legitimately SHARED (listed instruments carrying the issuer
+        -- CIK, share classes sharing a FIGI — 77 such rows since the
+        -- exchange_ticker_data_update arc). Canonical DuckDB keys the
+        -- triple, and this pinned restore schema must match it or the
+        -- parquet restore raises IntegrityError (tmp_hygiene legacy
+        -- donor, 2026-11-28).
     );
 
 CREATE TABLE nic2008 (

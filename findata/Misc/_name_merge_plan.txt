@@ -1,210 +1,23 @@
-# Entity-name merge plan (entity_name_dedup S1 — DRY-RUN artifact)
-# clusters: 51 | names: 22883 | footnote names: 4 | edge rows touched: 576
-# canonical rule: listed-entity > degree > lex; footnote `**` variants never win
+# Entity-name merge plan (duplicate-ticker case variants — gate_fixes 2026-11-28)
+# clusters: 6 | source: integrity_check SEMANTIC UNIQUENESS duplicate ticker groups
+# survivor rule: fold_identifiers same-issuer mark + ISIN-holder > file-backed > id count
 # S2 applies ONLY on operator sign-off of this file (name_dedup.py --apply --yes)
 # machine form: _name_merge_plan.jsonl (verbatim names; regenerate together)
 
-== AMM Foundation  (key: amm foundation; edge rows 11)
-   A M M Foundation  -> fold
-   AMM Foundation
+== AceVector  (key: acevector)
+   Acevector  -> fold
 
-== Applied Value Technologies B V  (key: applied value technologies bv; edge rows 5)
-   Applied Value Technologies B V
-   Applied Value Technologies BV  -> fold
+== ArMee Infotech  (key: armee infotech)
+   Armee Infotech  -> fold
 
-== AR Landcraft LLP  (key: ar landcraft llp; edge rows 7)
-   A R Landcraft LLP  -> fold
-   AR Landcraft LLP
+== Bombay Coated and Special Steels  (key: bombay coated and special steels)
+   Bombay Coated And Special Steels  -> fold
 
-== Castrol UK  (key: castrol uk; edge rows 2)
-   Castrol U.K  -> fold
-   Castrol UK
+== Ironwood Education  (key: ironwood education)
+   IRONWOOD EDUCATION  -> fold
 
-== CIE Automotive SA  (key: cie automotive sa; edge rows 6)
-   CIE AUTOMOTIVE S.A  -> fold
-   CIE Automotive SA
+== SRIT India  (key: srit india)
+   Srit India  -> fold
 
-== Colgate Palmolive Company U S A  (key: colgate palmolive company usa; edge rows 3)
-   COLGATE PALMOLIVE COMPANY USA  -> fold
-   Colgate Palmolive Company U S A
-
-== DA Stuart India  (key: da stuart india; edge rows 3)
-   D.A.Stuart India  -> fold
-   DA Stuart India
-
-== DB Contractors & Builders  (key: db contractors builders; edge rows 6)
-   D B Contractors & Builders  -> fold
-   DB Contractors & Builders
-
-== DB Hi-Sky Constructions  (key: db hi sky constructions; edge rows 4)
-   D B Hi-Sky Constructions  -> fold
-   DB Hi-Sky Constructions
-
-== DB Man Realty  (key: db man realty; edge rows 4)
-   D B Man Realty  -> fold
-   DB Man Realty
-
-== D B Realty and Shreepati Infrastructures LLP  (key: db realty and shreepati infrastructures llp; edge rows 5)
-   D B Realty and Shreepati Infrastructures LLP
-   DB Realty and Shreepati Infrastructures LLP  -> fold
-
-== Deciral SA  (key: deciral sa; edge rows 8)
-   Deciral S. A  -> fold
-   Deciral SA
-
-== Designit AS  (key: designit as; edge rows 17)
-   Designit A S  -> fold
-   Designit AS
-
-== Designit Denmark AS  (key: designit denmark as; edge rows 50)
-   Designit Denmark A S  -> fold
-   Designit Denmark AS
-
-== Designit Oslo AS  (key: designit oslo as; edge rows 32)
-   Designit Oslo A S  -> fold
-   Designit Oslo AS
-
-== Diageo Relay BV  (key: diageo relay bv; edge rows 2)
-   Diageo Relay B V  -> fold
-   Diageo Relay BV
-
-== Eltec IT Services S L U  (key: eltec it services slu; edge rows 7)
-   Eltec IT Services S L U
-   Eltec IT Services SLU  -> fold
-
-== Entero Rs Enterprises  (key: entero rs enterprises; edge rows 34)
-   Entero R.S.Enterprises  -> fold
-   Entero Rs Enterprises
-
-== GD Foods Manufacturing India  (key: gd foods manufacturing india; edge rows 4)
-   G D Foods Manufacturing India  -> fold
-   GD Foods Manufacturing India
-
-== Givaudan -Finance S A  (key: givaudan finance sa; edge rows 2)
-   Givaudan - Finance SA  -> fold
-   Givaudan -Finance S A
-
-== HONEYWELL BAHRAIN WLL  (key: honeywell bahrain wll; edge rows 4)
-   HONEYWELL BAHRAIN W L L  -> fold
-   HONEYWELL BAHRAIN WLL
-
-== Ingersoll-Rand Industrial U S Inc  (key: ingersoll rand industrial us inc; edge rows 4)
-   INGERSOLL RAND INDUSTRIAL US INC  -> fold
-   Ingersoll-Rand Industrial U S Inc
-
-== J B Mangharam Foods  (key: jb mangharam foods; edge rows 7)
-   J B Mangharam Foods
-   JB Mangharam Foods  -> fold
-
-== JS Auto Cast Foundry India  (key: js auto cast foundry india; edge rows 6)
-   J S Auto Cast Foundry India  -> fold
-   JS Auto Cast Foundry India
-
-== M M VENKATACHALAM  (key: mm venkatachalam; edge rows 3)
-   M M VENKATACHALAM
-   MM Venkatachalam  -> fold
-
-== M. S. Ramaiah Ventures LLP  (key: ms ramaiah ventures llp; edge rows 11)
-   M. S. Ramaiah Ventures LLP
-   MS Ramaiah Ventures LLP  -> fold
-
-== OB Infrastructure  (key: ob infrastructure; edge rows 2)
-   O B Infrastructure  -> fold
-   OB Infrastructure
-
-== Ricochet Spain S L Spain  (key: ricochet spain sl spain; edge rows 14)
-   Ricochet Spain S L Spain
-   Ricochet Spain SL Spain  -> fold
-
-== RR Kabel [listed]  (key: rr kabel; edge rows 64)
-   R R KABEL  -> fold
-   RR Kabel
-
-== RSM Pharma  (key: rsm pharma; edge rows 81)
-   R S M Pharma  -> fold
-   RSM Pharma
-
-== S A B Profiel BV  (key: sab profiel bv; edge rows 38)
-   S A B Profiel BV
-   SAB Profiel BV  -> fold
-
-== Shreepati Skies (R R Chaturvedi)  (key: shreepati skies rr chaturvedi; edge rows 2)
-   Shreepati Skies ( RR Chaturvedi )  -> fold
-   Shreepati Skies (R R Chaturvedi)
-
-== Solar Patlayici Maddeler San.A.S  (key: solar patlayici maddeler san as; edge rows 3)
-   Solar Patlayici Maddeler San AS  -> fold
-   Solar Patlayici Maddeler San.A.S
-
-== SS NATURAL RESOURCES  (key: ss natural resources; edge rows 2)
-   S S NATURAL RESOURCES  -> fold
-   SS NATURAL RESOURCES
-
-== Sun Pharma Laboratorios SLU  (key: sun pharma laboratorios slu; edge rows 12)
-   Sun Pharma Laboratorios SLU
-   Sun Pharma Laboratorios,S.L.U  -> fold
-
-== SVS India  (key: svs india; edge rows 2)
-   S V S India  -> fold
-   SVS India
-
-== Tata Communications (Poland) SP.Z.O.O  (key: tata communications poland sp zoo; edge rows 2)
-   Tata Communications (Poland) SP. ZOO  -> fold
-   Tata Communications (Poland) SP.Z.O.O
-
-== Tata Steel Belgium Services NV  (key: tata steel belgium services nv; edge rows 13)
-   Tata Steel Belgium Services N V  -> fold
-   Tata Steel Belgium Services NV
-
-== TC InterInformatics as  (key: tc inter informatics as; edge rows 7)
-   TC Inter-Informatics a.s  -> fold
-   TC InterInformatics as
-
-== TechMahindra Bolivia SRL  (key: tech mahindra bolivia srl; edge rows 8)
-   TECH-MAHINDRA BOLIVIA S.R.L  -> fold
-   TechMahindra Bolivia SRL
-
-== TechMahindra Ecuador SA  (key: tech mahindra ecuador sa; edge rows 6)
-   TECH-MAHINDRA ECUADOR S.A  -> fold
-   TechMahindra Ecuador SA
-
-== TechMahindra Guatemala SA  (key: tech mahindra guatemala sa; edge rows 8)
-   TECH-MAHINDRA GUATEMALA S.A  -> fold
-   TechMahindra Guatemala SA
-
-== TechMahindra Panama SA  (key: tech mahindra panama sa; edge rows 11)
-   Tech-Mahindra Panama, S.A  -> fold
-   TechMahindra Panama SA
-
-== TechMahindra SA  (key: tech mahindra sa; edge rows 12)
-   Tech-Mahindra S.A  -> fold
-   TechMahindra SA
-
-== T H T L Trading LLC  (key: thtl trading llc; edge rows 3)
-   T H T L Trading LLC
-   THTL Trading LLC  -> fold
-
-== TVS Logistics Iberia SL Spain  (key: tvs logistics iberia sl spain; edge rows 15)
-   TVS Logistics Iberia S L Spain  -> fold
-   TVS Logistics Iberia SL Spain
-
-== US Nutraceuticals Inc  (key: us nutraceuticals inc; edge rows 5)
-   U.S.Nutraceuticals,Inc  -> fold
-   US Nutraceuticals Inc
-
-== Vega Industries U.S.A  (key: vega industries usa; edge rows 7)
-   Vega Industries - USA  -> fold
-   Vega Industries U.S.A
-
-== Vesuvius Mexico SA de CV  (key: vesuvius mexico sa de cv; edge rows 6)
-   Vesuvius Mexico S.A.de C.V  -> fold
-   Vesuvius Mexico SA de CV
-
-== Vesuvius-P.T.Foseco Trading Indonesia  (key: vesuvius pt foseco trading indonesia; edge rows 4)
-   Vesuvius PT Foseco Trading Indonesia  -> fold
-   Vesuvius-P.T.Foseco Trading Indonesia
-
-== VM Foundation  (key: vm foundation; edge rows 2)
-   V M Foundation  -> fold
-   VM Foundation
-
+== Zetwerk Manufacturing Business  (key: zetwerk manufacturing business)
+   Zetwerk Manufacturing Businesses  -> fold

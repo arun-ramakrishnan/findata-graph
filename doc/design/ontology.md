@@ -413,9 +413,23 @@ facets, registry rows carry history):
 - alias
 - cin
 - cik
+- figi
 - isin
 - lei
 - llpin
+
+<!-- /roster -->
+
+entity_resolution_status (non-terminal triage gaps; never a re-probe
+exclusion):
+
+<!-- roster: resolution_status_values -->
+
+- ambiguous
+- conflict
+- same-issuer
+- unmatched
+- unresolved
 
 <!-- /roster -->
 
@@ -454,7 +468,7 @@ anywhere else:
 | D-O1 | One crosswalk home: `concept_mappings` rows only; no match-id columns on `concepts` |
 | D-O2 | `events` stays the canonical temporal spine; event/jv hyperedges remain derived projections; n-ary participants land on `hyper_incidences`, never a parallel `event_participants` table |
 | D-O3 | No fake confidence: no `confidence` columns until a calibrated producer exists; `source_tier` enum carries the trust story |
-| D-O4 | Identifier homes: `entities.cin` + five parsed facets for segmentation; the registry (`entity_identifiers`, CHECK-constrained types) for lei/cik/isin/llpin/alias |
+| D-O4 | Identifier homes: `entities.cin` + five parsed facets for segmentation; the registry (`entity_identifiers`, CHECK-constrained types) for lei/cik/isin/llpin/alias/figi |
 | D-O5 | Slice order for convention work: hygiene → provenance → concepts → identifiers → n-ary → glossary |
 | D-O6 | India caveats on record: NIC-2008 vintage (next-NIC/ISIC-5 watchpoint), MCA bulk access paid, AOC-4 XBRL coverage gaps |
 
@@ -468,7 +482,9 @@ table (extend in the same change as any new artifact):
 |---|---|---|
 | `provenance_agents` + `agent_id`/`source_tier` | maint-full PRE_FULL converger (`backfill_row_provenance.py`); derive scripts stamp at write time | `check_provenance_coverage` (advisory %) |
 | `concept_schemes`/`concepts`/`concept_mappings` | `seed_concepts.py` (PRE_FULL, supersede/upsert); scheme `nic2008` + its 2,067 concepts: `seed_nic2008.py` same slot (disjoint source-ref domain) | `check_concepts` advisories; `subtree()` closure; roster-drift static check (this doc) |
-| `entities.cin*` + `entity_identifiers` | `backfill_identifiers.py` converger; `--set-cin`/`--set-id` validated writes; triage `cin=<CIN>` funnel | `check_identifiers`; `/api/resolve` |
+| `entities.cin*` + `entity_identifiers` | `backfill_identifiers.py` converger; `--set-cin`/`--set-id` validated writes; `fold_identifiers.py` (ISIN/CIK/FIGI); triage `cin=<CIN>` funnel | `check_identifiers`; `/api/resolve` |
+| `entity_resolution_status` | `fold_identifiers.py --persist-status`; `enrich_relations.py --resolution-classify` | `snapshot_db.py`; operator triage (`[resolution]` report) |
+| `figi_instruments` (`sources.duckdb`) | `fold_identifiers.py --figi --apply` (OpenFIGI metadata) | `exchange_sync`/identifier consumers; snapshot manifest |
 | `hyper_incidences.role/valid_from/valid_to` | `derive_hyperedges --roles` | reconcile_events dry-run report vs `events` |
 | Concept `status` columns (S1) | `seed_concepts.py` supersede/upsert; `--promote` surface | `subtree()` active-only; `check_concepts` advisories |
 | Ontology change gate (S2) | `ontology_eval_gate.py` over `helpers/misc/ontology_questions.json` | acceptance criteria of ontology-affecting proposals |

@@ -86,6 +86,11 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core import jsonio  # noqa: E402  (orjson parse cutover; dumps stay stdlib per db_scaling_tuning §6.3 criteria)
 from helpers.core.db import connect, utc_now, utc_today_iso  # noqa: E402  (W8: utc_now for audit stamps)
+from helpers.core.vocab import (  # noqa: E402
+    RESOLUTION_STATUS_VALUES,
+    TERMINAL_TICKER_STATUS_VALUES,
+    sql_in,
+)
 from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
     DB_PATH,
     PROJECT_ROOT,
@@ -156,17 +161,34 @@ CREATE TABLE IF NOT EXISTS entity_gf_map (
 )
 """
 # Terminal ticker classifications (--classify, market_data_resolution.md
-# §5): dead ends a human has ruled out — never re-probed by either
-# resolution pass; reported under [terminal] (they satisfy the §7
-# "remainder explicitly classified" clause). Plain PK like
-# entity_gf_map (no FK — test DBs stay light); rows are written ONLY via
-# --classify / removed via --unclassify.
-TERMINAL_STATUSES = ("delisted", "amalgamated")
-ENTITY_TICKER_STATUS_DDL = """
+# §5 + exchange_ticker_data_update S4): dead ends a human has ruled out —
+# never re-probed by either resolution pass; reported under [terminal]
+# (they satisfy the §7 "remainder explicitly classified" clause). Plain PK
+# like entity_gf_map (no FK — test DBs stay light); rows are written ONLY
+# via --classify / removed via --unclassify. The vocabulary lives in
+# helpers/core/vocab.py (TERMINAL_TICKER_STATUS_VALUES) and includes the
+# S4 classes: staged ticker-hygiene outcomes (tier3_dead/tier3_rename/
+# tier2_refused), the resolution passes' residual outcomes
+# (unverified/no-candidates), and the classic terminal trio.
+TERMINAL_STATUSES = TERMINAL_TICKER_STATUS_VALUES
+ENTITY_TICKER_STATUS_DDL = f"""
 CREATE TABLE IF NOT EXISTS entity_ticker_status (
     entity_name TEXT PRIMARY KEY,
-    status TEXT NOT NULL CHECK (status IN ('delisted', 'amalgamated')),
+    status TEXT NOT NULL CHECK (status IN ({sql_in(TERMINAL_STATUSES)})),
     successor TEXT,
+    detail TEXT,
+    decided_at TEXT NOT NULL
+)
+"""
+# Non-terminal triage labels (fold_identifiers --persist-status): gaps that
+# need more data, NOT dead ends. They must not be loaded as re-probe
+# exclusions; they are reported under [resolution] only.
+RESOLUTION_STATUSES = RESOLUTION_STATUS_VALUES
+ENTITY_RESOLUTION_STATUS_DDL = f"""
+CREATE TABLE IF NOT EXISTS entity_resolution_status (
+    entity_name TEXT PRIMARY KEY,
+    status TEXT NOT NULL CHECK (status IN ({sql_in(RESOLUTION_STATUS_VALUES)})),
+    detail TEXT,
     decided_at TEXT NOT NULL
 )
 """
@@ -213,20 +235,32 @@ def load_companies(
     Tickered companies are (name, ticker, file_path) rows from entities.
     Ticker-less companies are recorded for the report but NEVER looked up
     or fuzz-matched (frontmatter contract: ``ticker: null`` = known-unlisted).
+
+    Terminal classifications (entity_ticker_status, S4
+    exchange_ticker_data_update) are EXCLUDED from the sweep universe —
+    that exclusion is the persistence payoff: a ``--classify`` decision
+    stops every subsequent yfinance/GF/FinnHub probe of the entity. A
+    missing table is normal before the first write and yields no exclusions.
     """
-    rows = conn.execute(
-        "SELECT name, ticker, file_path FROM entities "
-        "WHERE entity_type = 'company' AND ticker IS NOT NULL "
-        "AND ticker != '' ORDER BY name"
-    ).fetchall()
+    terminal = load_terminal_statuses(conn)
+    tickered_rows = [
+        row
+        for row in conn.execute(
+            "SELECT name, ticker, file_path FROM entities "
+            "WHERE entity_type = 'company' AND ticker IS NOT NULL "
+            "AND ticker != '' ORDER BY name"
+        ).fetchall()
+        if row[0] not in terminal
+    ]
     unlisted = [
         r[0]
         for r in conn.execute(
             "SELECT name FROM entities WHERE entity_type = 'company' "
             "AND (ticker IS NULL OR ticker = '') ORDER BY name"
         ).fetchall()
+        if r[0] not in terminal
     ]
-    return [(r[0], r[1], r[2]) for r in rows], unlisted
+    return [(r[0], r[1], r[2]) for r in tickered_rows], unlisted
 
 
 def fetch_all(
@@ -1975,13 +2009,47 @@ def load_terminal_statuses(
 ) -> dict[str, tuple[str, str | None]]:
     """entity_name -> (status, successor) from entity_ticker_status.
 
-    Caller creates the table first (both passes run the DDL alongside
-    ENTITY_GF_MAP_DDL); an empty mapping is the normal state.
+    An empty mapping is the normal state; a missing table (fresh store or
+    narrow unit-test fixture) means no classifications yet and MUST NOT
+    turn a read-only sweep into a write.
     """
+    try:
+        rows = conn.execute(
+            "SELECT entity_name, status, successor FROM entity_ticker_status"
+        ).fetchall()
+    except sqlite3.OperationalError as exc:
+        if "no such table: entity_ticker_status" not in str(exc):
+            raise
+        return {}
+    return {r[0]: (r[1], r[2]) for r in rows}
+
+
+def load_resolution_statuses(
+    conn: sqlite3.Connection,
+) -> dict[str, tuple[str, str | None]]:
+    """entity_name -> (status, detail) for non-terminal triage labels.
+
+    Unlike ``load_terminal_statuses`` these rows never exclude an entity
+    from a resolution sweep — they only make a data gap visible.
+    """
+    conn.execute(ENTITY_RESOLUTION_STATUS_DDL)
     rows = conn.execute(
-        "SELECT entity_name, status, successor FROM entity_ticker_status"
+        "SELECT entity_name, status, detail FROM entity_resolution_status"
     ).fetchall()
     return {r[0]: (r[1], r[2]) for r in rows}
+
+
+def append_resolution_report_section(
+    path: Path,
+    statuses: dict[str, tuple[str, str | None]],
+) -> None:
+    """Append the ## resolution section: non-terminal data gaps."""
+    if not statuses:
+        return
+    with path.open("a") as fh:
+        fh.write("\n## resolution\n\n")
+        for name, (status, detail) in sorted(statuses.items()):
+            fh.write(f"- {name}: {status}" + (f" — {detail}" if detail else "") + "\n")
 
 
 def append_terminal_report_section(
@@ -2477,6 +2545,7 @@ def run_googlefinance_pass(
     )
     if terminal:
         append_terminal_report_section(report_path, terminal)
+    append_resolution_report_section(report_path, load_resolution_statuses(conn))
     log.info("GF section appended to %s", report_path)
     return 0
 
@@ -2841,16 +2910,49 @@ def run_finnhub_pass(
 # --------------------------------------------------------------------------- #
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
+def _run_resolution_classify(args) -> int:
+    """Write one non-terminal resolution-status row; never a re-probe ban."""
+    parts = args.resolution_classify
+    if len(parts) < 2 or parts[1] not in RESOLUTION_STATUSES:
+        log.error(
+            "--resolution-classify expects ENTITY %s [DETAIL] (got %r)",
+            "/".join(RESOLUTION_STATUSES),
+            " ".join(parts),
+        )
+        return 2
+    entity, status = parts[0], parts[1]
+    detail = " ".join(parts[2:]) or None
+    conn = connect(DB_PATH)
+    try:
+        conn.execute(ENTITY_RESOLUTION_STATUS_DDL)
+        now = utc_now()
+        with conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO entity_resolution_status "
+                "(entity_name, status, detail, decided_at) VALUES (?, ?, ?, ?)",
+                (entity, status, detail, now),
+            )
+        log.info("resolution: %s -> %s%s", entity, status, f" ({detail})" if detail else "")
+        return 0
+    finally:
+        conn.close()
+
+
 def _run_classify(args) -> int:
     """--classify / --unclassify: the ONLY writer of entity_ticker_status.
 
     All-writes-explicit: these flags perform just this DB write and exit
     (a sweep never classifies on its own). Upserts are idempotent; the
     report picks the classification up on the next resolution pass.
+    Also supports batch promotion from a ticker-hygiene staged JSONL via
+    --promote-status (S4): every non-terminal record in the file becomes
+    one terminal row keyed by the file's status; `resolved` rows are
+    skipped (they are ticker fixes, not dead ends).
     """
     conn = connect(DB_PATH)
     try:
         conn.execute(ENTITY_TICKER_STATUS_DDL)
+        _ensure_status_detail_column(conn)
         if args.unclassify:
             with conn:
                 cur = conn.execute(
@@ -2862,6 +2964,8 @@ def _run_classify(args) -> int:
             else:
                 log.info("%s: no classification present", args.unclassify)
             return 0
+        if args.promote_status:
+            return _promote_staged_statuses(conn, Path(args.promote_status))
         parts = args.classify
         entity, status = parts[0], parts[1]
         successor = " ".join(parts[2:]) or None
@@ -2892,6 +2996,55 @@ def _run_classify(args) -> int:
         conn.close()
 
 
+def _ensure_status_detail_column(conn: sqlite3.Connection) -> None:
+    """Add entity_ticker_status.detail if an older CREATE lacks it."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(entity_ticker_status)").fetchall()}
+    if "detail" not in cols:
+        conn.execute("ALTER TABLE entity_ticker_status ADD COLUMN detail TEXT")
+        log.info("entity_ticker_status: added detail column")
+
+
+def _promote_staged_statuses(conn: sqlite3.Connection, stage_path: Path) -> int:
+    """Batch-promote ticker-hygiene staged JSONL rows to terminal statuses.
+
+    Every row whose status is in TERMINAL_STATUSES becomes one terminal
+    entity_ticker_status row (INSERT OR REPLACE, idempotent). `resolved`
+    rows are skipped — a resolution is a ticker fix, not a dead end.
+    Returns the number of rows written; never touches entities.ticker.
+    """
+    staged: dict[str, dict] = {}
+    with stage_path.open(encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            rec = jsonio.loads(line)
+            if isinstance(rec, dict) and rec.get("name"):
+                staged[rec["name"]] = rec  # later row supersedes, matching _load_stage
+    now = utc_now()
+    written = 0
+    with conn:
+        for name, rec in sorted(staged.items()):
+            status = rec.get("status")
+            if status not in TERMINAL_STATUSES:
+                continue
+            detail = rec.get("yf_name") or rec.get("error") or rec.get("detail")
+            conn.execute(
+                "INSERT OR REPLACE INTO entity_ticker_status "
+                "(entity_name, status, successor, detail, decided_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (name, status, rec.get("new_ticker"), detail, now),
+            )
+            written += 1
+    log.info(
+        "promoted %d staged rows from %s (skipped %d non-terminal/resolved)",
+        written,
+        stage_path,
+        len(staged) - written,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Relations-enrichment driver (Relations 2.0).",
@@ -2913,16 +3066,33 @@ def main(argv: list[str] | None = None) -> int:
         nargs="+",
         metavar="ARG",
         help="explicit terminal classification write: ENTITY "
-        "delisted | amalgamated [SUCCESSOR WORDS...] — "
+        "delisted | amalgamated | still-dead [SUCCESSOR WORDS...] — "
         "upserts entity_ticker_status; the entity leaves "
         "all resolution sweeps and is reported under "
         "[terminal]. Performs only this write.",
+    )
+    p.add_argument(
+        "--promote-status",
+        metavar="STAGED_JSONL",
+        help="batch-promote ticker-hygiene staged rows to terminal "
+        "entity_ticker_status (S4): one row per staged record whose "
+        "status is terminal; resolved rows are skipped. Performs only "
+        "this write.",
     )
     p.add_argument(
         "--unclassify",
         metavar="ENTITY",
         help="remove ENTITY's terminal classification (re-opens "
         "resolution). Performs only this write.",
+    )
+    p.add_argument(
+        "--resolution-classify",
+        nargs="+",
+        metavar="ARG",
+        help="explicit non-terminal data-gap write: ENTITY "
+        "unresolved | unmatched | conflict | ambiguous [DETAIL...] — "
+        "upserts entity_resolution_status; never excludes the entity "
+        "from resolution sweeps. Performs only this write.",
     )
     p.add_argument(
         "--include-unlisted",
@@ -3006,8 +3176,10 @@ def main(argv: list[str] | None = None) -> int:
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-    if args.classify or args.unclassify:
+    if args.classify or args.unclassify or args.promote_status:
         return _run_classify(args)
+    if args.resolution_classify:
+        return _run_resolution_classify(args)
 
     if args.source == "googlefinance":
         conn = connect(DB_PATH)

@@ -1,8 +1,11 @@
 """Tests for helpers/maintenance/exchange_sync.py (D19)."""
 
+import io
 import sqlite3
 import zipfile
+
 import duckdb
+import openpyxl
 
 from helpers.maintenance import exchange_sync as xs
 
@@ -286,3 +289,74 @@ def test_get_sends_full_browser_header_set(monkeypatch):
     assert h["sec-fetch-site"] == "same-site"
     assert h["referer"] == "https://www.example.test/"
     assert seen["timeout"] == 60
+
+
+def test_fetch_jpx_pinned_monthly_master(monkeypatch):
+    buf = io.BytesIO()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(
+        [
+            "Effective Date",
+            "Local Code",
+            "Name (English)",
+            "Section/Products",
+            "33 Sector(Code)",
+            "33 Sector(name)",
+            "17 Sector(Code)",
+            "17 Sector(name)",
+            "Size Code (New Index Series)",
+            "Size (New Index Series)",
+        ]
+    )
+    ws.append(
+        [
+            20261031,
+            1301,
+            "KYOKUYO CO.,LTD.",
+            "Prime Market (Domestic)",
+            50,
+            "Fishery, Agriculture and Forestry",
+            1,
+            "FOODS",
+            6,
+            "TOPIX Small 1",
+        ]
+    )
+    ws.append(
+        [20261031, "130A", "Alpha Code Co.", "Growth Market", "0101", "X", "01", "Y", "-", "-"]
+    )
+    ws.append([20261031, 1305, "iFreeETF TOPIX", "ETFs/ ETNs", "-", "-", "-", "-", "-", "-"])
+    wb.save(buf)
+    raw = buf.getvalue()
+
+    seen: dict[str, object] = {}
+
+    def fake_get(url, referer=None, binary=False, timeout=60):
+        seen["url"] = url
+        seen["referer"] = referer
+        seen["binary"] = binary
+        return raw
+
+    monkeypatch.setattr(xs, "_get", fake_get)
+    out = xs.fetch_jpx()
+
+    assert seen["url"] == xs.JPX_XLSX_URL
+    assert seen["referer"] == xs.JPX_SOURCE_PAGE
+    assert seen["binary"] is True
+    assert xs.JPX_XLSX_URL.endswith("/data_e.xlsx")
+    assert len(out) == 3
+    assert out[2]["asset_type"] == "other"  # ETFs stored, not seeded
+    first = out[0]
+    assert first["exchange"] == "TSE"
+    assert first["symbol"] == "1301"
+    assert first["ticker"] == "1301.T"
+    assert first["name"] == "KYOKUYO CO.,LTD."
+    assert first["segment"] == "Prime Market (Domestic)"
+    assert first["industry"] == "Fishery, Agriculture and Forestry"
+    assert first["asset_type"] == "equity"
+    assert first["isin"] is None
+    assert out[1]["symbol"] == "130A"  # alphanumeric codes stay strings
+    assert out[1]["segment"] == "Growth Market"
+    assert "jpx" in xs.LANES
+    assert xs.LANE_EXCHANGES["jpx"] == ["TSE"]

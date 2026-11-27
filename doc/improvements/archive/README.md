@@ -825,6 +825,16 @@ commit, referenced by nothing). Entry numbers point at
 - [`tmpdir_sanitization.md`](testing/tmpdir_sanitization.md) — Proposal: temp-dir hygiene — fuzz fixtures onto pytest-owned temp (vacuumed copy 176 MiB → ~2.5 MiB/run), bench/pdf/TUI-log scratch self-cleaning, gate-front `make tmp-sweep` (owner + 24 h + prefix guards, dry-run default) wired into qa + advisory; opencode/OpenTUI `/tmp/.{hash}-{chunk}.so` chunks identified as other-tool and excluded; perf ratio guards hardened to interleaved median-of-5 — completed.md #245
 
 ## pipeline/ — Data pipeline — parsing, PDF conversion hardening, enrichment, corpus audit
+
+- [`exchange_ticker_data_update.md`](pipeline/exchange_ticker_data_update.md) —
+  exchange/ticker data update: full scriptable-lane refresh
+  (`exchange_listings=52353`), JPX `data_e.xlsx` + KOSPI 200 lanes, SEC CIK,
+  OpenFIGI 10-job batches (`figi_instruments=1230`), quarterly NSE/BSE
+  BhavCopy sample in `sources.duckdb` (74,641 rows), reviewed `ticker_hygiene`
+  promotions (68 numeric resolutions), terminal states in
+  `entity_ticker_status`, S5 same-issuer triage with operator ISIN overrides
+  (`conflicts=0`, `same_issuer=17`), deferred S6–S8/S10; completed.md #576
+
 - [`pdf_engine_indra_ocr_rung2.md`](pipeline/pdf_engine_indra_ocr_rung2.md) — Indra OCR replaces lite/Tesseract at rung 2 — chain `pdf_local → indra → teleocr` (`auto | local | indra | teleocr`); indra_engine.py (ONNX in-process, cached Converter, IndraUnavailable ladder), lite flags cut (liteparse module stays for the bbox sidecar), dep `indra-ocr==1.1.2`, models first-run HF download; S4 OpenRAIL-M (mod.) check use-compliant (personal/research carve-out); scorer: word 94.4%/num 96.1% vs teleocr q4 83.3%/98.9% at <1 s vs 94–118 s/page — completed.md #445
 
 - [`resolver_extractor_hardening.md`](pipeline/resolver_extractor_hardening.md) — residual slices S4–S8 of the hardening arc: S1 canonical-fold resolution (apostrophe/diacritic/camelCase — 4 hand-aliases retired from relation_aliases.json), S2 genuine-tie defers to pending, S3 section-head noise gate, S4 stub chatter block removed + 26 stubs stripped, S5 singular-payment carve-out + header-declared sector precedence, S6/S8 worklist routing + listed-contradiction hints, S7 cross-check handle release — completed.md #396

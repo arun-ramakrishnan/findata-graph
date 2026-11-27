@@ -1,6 +1,10 @@
+CREATE TABLE bhavcopy_sample(exchange VARCHAR, trade_date DATE, symbol VARCHAR NOT NULL, ticker VARCHAR, isin VARCHAR, "name" VARCHAR, series VARCHAR, "quarter" VARCHAR, "source" VARCHAR NOT NULL, fetched_at TIMESTAMP NOT NULL, PRIMARY KEY(exchange, trade_date, ticker));
+
 CREATE TABLE credit_ratings(record_id VARCHAR, app_id VARCHAR, company_name VARCHAR, isin VARCHAR, equity_isin VARCHAR, nse_symbol VARCHAR, instrument_type VARCHAR, instrument_name VARCHAR, rating_agency VARCHAR, credit_rating VARCHAR, rating_action VARCHAR, date_of_rating VARCHAR, outlook VARCHAR, credit_rating_earlier VARCHAR, rating_action_earlier VARCHAR, outlook_earlier VARCHAR, date_of_rating_earlier VARCHAR, broadcast_datetime VARCHAR, signatory_name VARCHAR, designation VARCHAR, place VARCHAR, verify_status VARCHAR, match_method VARCHAR, listing_status VARCHAR, source_month VARCHAR, xbrl_url VARCHAR, red_flag_reason VARCHAR);
 
 CREATE TABLE exchange_listings(isin VARCHAR, "name" VARCHAR, industry VARCHAR, asset_type VARCHAR, exchange VARCHAR, segment VARCHAR, symbol VARCHAR, kite_tradingsymbol VARCHAR, kite_token BIGINT, tick_size VARCHAR, lot_size VARCHAR, fetched_at DATE);
+
+CREATE TABLE figi_instruments(figi VARCHAR PRIMARY KEY, ticker VARCHAR NOT NULL, "name" VARCHAR, exch_code VARCHAR, market_sector VARCHAR, security_type VARCHAR, share_class_figi VARCHAR, composite_figi VARCHAR, fetched_at VARCHAR NOT NULL);
 
 CREATE TABLE index_constituents(index_name VARCHAR, index_slug VARCHAR, asset_class VARCHAR DEFAULT('equity') NOT NULL, symbol VARCHAR, isin VARCHAR, company_name VARCHAR, industry VARCHAR, series VARCHAR, as_of DATE, fetched_at DATE NOT NULL, PRIMARY KEY(index_name, symbol, as_of));
 

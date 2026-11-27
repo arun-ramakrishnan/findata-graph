@@ -294,8 +294,10 @@ def ledger_path_for(plan_path: Path) -> Path:
 def _db_path(con) -> Path | None:
     """The on-disk file behind ``con``, or None for an in-memory database."""
     if is_duckdb_conn(con):
+        # DuckDB 2.0 renamed duckdb_databases()'s file column to `path`
+        # (`file_path` binder-errors — S6-cutover latent, hit 2026-11-28).
         row = con.execute(
-            "SELECT file_path FROM duckdb_databases() WHERE file_path IS NOT NULL LIMIT 1"
+            "SELECT path FROM duckdb_databases() WHERE path IS NOT NULL LIMIT 1"
         ).fetchone()
         return Path(row[0]) if row else None
     row = con.execute("PRAGMA database_list").fetchone()
@@ -315,7 +317,13 @@ def _ledger_write_allowed(con, ledger_path: Path) -> tuple[bool, str]:
     So: a ledger inside the repository may only be extended by the live
     store it describes. Rehearsal ledgers belong next to their copy."""
     db = _db_path(con)
-    live = _REPO_ROOT / "memory" / "research.db"
+    # S6 cutover: the live store is memory/research.duckdb (canonical since
+    # 2026-11-21); memory/research.db is the legacy sqlite rollback anchor.
+    live = {(_REPO_ROOT / "memory" / "research.duckdb").resolve()}
+    try:
+        live.add((_REPO_ROOT / "memory" / "research.db").resolve())
+    except OSError:
+        pass
     if db is None:
         return False, "in-memory database (rehearsal) — ledger not written"
     try:
@@ -325,11 +333,11 @@ def _ledger_write_allowed(con, ledger_path: Path) -> tuple[bool, str]:
     if not inside_repo:
         return True, ""
     try:
-        same = db.resolve() == live.resolve()
+        same = db.resolve() in live
     except OSError:
         same = False
     if not same:
-        return False, f"ledger is repo-tracked but db is {db} (not {live}) — not written"
+        return False, f"ledger is repo-tracked but db is {db} (not a live research store) — not written"
     return True, ""
 
 
@@ -616,7 +624,14 @@ def _refold_entity_refs(
             # pre-existing duplicates elsewhere are never swept up.
             others = [c.strip() for c in unique.split(",") if c.strip() != column]
             if others:
-                match = " AND ".join(f'c."{c}" IS v."{c}"' for c in others)
+                # NULL-safe column equality: `IS NOT DISTINCT FROM` parses on
+                # BOTH engines (SQLite >= 3.39 and DuckDB). The original
+                # `c."x" IS v."x"` (SQLite-only null-safe IS) parse-errors on
+                # DuckDB — latent until the S6 cutover made research.duckdb
+                # the canonical the folds run against (2026-11-28).
+                match = " AND ".join(
+                    f'c."{c}" IS NOT DISTINCT FROM v."{c}"' for c in others
+                )
                 collapsed += con.execute(
                     f'DELETE FROM "{table}" AS v WHERE v."{column}" = ? AND EXISTS ('  # noqa: S608  # table/column from the closed module-level tuple, never input; values parameterized
                     f'  SELECT 1 FROM "{table}" c'
@@ -769,11 +784,15 @@ def apply_plan(  # noqa: C901
             ).rowcount
             repointed += cur
         # Collapse exact duplicates (oldest id kept) — the re-point's
-        # expected consequence, reported not hidden.
+        # expected consequence, reported not hidden. "symmetric" quoted:
+        # SQL-reserved keyword (schema/duckdb DDL quotes it too); unquoted
+        # it parse-errors on DuckDB (hit 2026-11-28 — the fold crashed
+        # mid-apply, after the edge re-points and before the registry
+        # fold; harmless then because the batch held no edges).
         dupes = con.execute(
-            "DELETE FROM graph_edges WHERE id NOT IN ("
+            'DELETE FROM graph_edges WHERE id NOT IN ('
             "  SELECT MIN(id) FROM graph_edges"
-            "  GROUP BY source, target, edge_type, source_ref, symmetric)"
+            '  GROUP BY source, target, edge_type, source_ref, "symmetric")'
         ).rowcount
     # Registry fold: with the edges re-pointed, no edge references a
     # variant entity — the registry rows go too, or the next vigil sync

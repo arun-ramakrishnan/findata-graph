@@ -66,12 +66,27 @@ cross-entity-ambiguous values rejected). Resolved by `/api/resolve` in
 | Column | Type | Notes |
 |---|---|---|
 | `entity_name` | TEXT | PK part; FK → `entities(name)` cascade |
-| `identifier_type` | TEXT | PK part; CHECK in `cin\|lei\|cik\|isin\|llpin\|alias` |
+| `identifier_type` | TEXT | PK part; CHECK in `cin\|lei\|cik\|figi\|isin\|llpin\|alias` |
 | `identifier_value` | TEXT | PK part; `UNIQUE(identifier_type, identifier_value)` — resolves to exactly one entity |
 | `namespace` | TEXT | e.g. GLEIF/SEC/ISIN agency (optional) |
 | `valid_from` / `valid_to` | TEXT | validity window (ISO dates; inversion warns) |
 | `source_ref` | TEXT | REQUIRED provenance (`manual` for CLI writes) |
 | `created_at` / `last_updated` | DATETIME | created defaults to CURRENT_TIMESTAMP |
+
+## `entity_resolution_status` — non-terminal identifier triage
+
+Written by `fold_identifiers.py --persist-status` and
+`enrich_relations.py --resolution-classify`; read by the snapshot
+exporter and operator triage. These rows are **not** re-probe
+exclusions (`entity_ticker_status` owns terminal `delisted` /
+`amalgamated` / `still-dead`).
+
+| Column | Type | Notes |
+|---|---|---|
+| `entity_name` | TEXT PK | entity whose identifier could not be folded |
+| `status` | TEXT | `unresolved` \| `unmatched` \| `conflict` \| `ambiguous` \| `same-issuer` |
+| `detail` | TEXT | why (e.g. multiple exchange ISINs, no SEC CIK) |
+| `decided_at` | TEXT | UTC timestamp |
 
 ## `entity_tags`
 

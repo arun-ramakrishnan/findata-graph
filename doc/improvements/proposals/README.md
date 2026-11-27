@@ -38,10 +38,11 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none)* — the static-checks single-pass/cache sweep executed 2026-11-26
-  as completed.md #575 (see the tooling archive); the onager synthetic-edge
-  Arrow materialization executed 2026-11-26 as completed.md #574 (see the
-  graph archive). See the retired markers below.
+- *(none)* — exchange/ticker data update executed 2026-11-27 as completed.md
+  #576 (see the pipeline archive); the static-checks single-pass/cache sweep
+  executed 2026-11-26 as completed.md #575 (see the tooling archive); the
+  onager synthetic-edge Arrow materialization executed 2026-11-26 as
+  completed.md #574 (see the graph archive). See the retired markers below.
 
 - *(archived 2026-11-25)* — `rust_simd_cosine_hop_histogram` (graph/,
   filed + executed 2026-11-25, completed.md #572 — S1 fused SIMD per-row

@@ -54,6 +54,14 @@ MANUAL_PATH = DATA_DIR / "mca_cin_manual.csv"  # hand-authored input rows
 SCRATCH_HITS = Path(tempfile.gettempdir()) / "d12_hits.json"
 OGD_BASE = "https://api.data.gov.in/resource/ec58dab7-d891-4abb-936e-d5d274a6ce9b"
 
+# MCA sidecar names can predate entity renames; apply CIN to the current
+# canonical entity while keeping the original sidecar row reviewable.
+ENTITY_ALIASES = {
+    "Amara Raja Batteries": "Amara Raja Energy and Mobility",
+    "Kinetic Engg": "Kinetic Engineering",
+    "Oil and Natural Gas": "ONGC",
+}
+
 _FIELDS = (
     "entity_name",
     "cin",
@@ -162,7 +170,7 @@ def cmd_apply(apply: bool, db: Path | None) -> int:
         print("[mca-cin] sidecar empty — run build first")
         return 1
     conn = connect(db or DEFAULT_DB_PATH)
-    specs = [f"{name}={row['cin']}" for name, row in sorted(rows.items())]
+    specs = [f"{ENTITY_ALIASES.get(name, name)}={row['cin']}" for name, row in sorted(rows.items())]
     ops, failures = plan_set_ops(conn, specs, None)
     for f in failures:
         print(f"[mca-cin] SKIP {f}")

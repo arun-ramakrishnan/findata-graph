@@ -175,6 +175,8 @@ SOURCES_TABLES = frozenset(
         "rpt_transactions",
         "shp_filings",
         "shp_holders",
+        "bhavcopy_sample",
+        "figi_instruments",
     }
 )
 # note_search carve-out S1: the live note index is the DuckDB sidecar
@@ -780,6 +782,7 @@ SQLITE_PARQUET_TABLES = [
     "events",
     "quotes",
     "entity_tags",
+    "entity_resolution_status",
     "company_metrics",
     "company_embeddings",
     "graph_analytics",
@@ -1195,10 +1198,20 @@ def _export_research_duckdb(source: Path, out_dir: Path, logger: logging.Logger)
 
         schema_path = out_dir.parent / "_schema.sqlite.sql"
         anchor = source.with_suffix(".db")
-        if anchor.exists() and is_research_store_path(anchor):
+        anchor_live = (
+            anchor.exists()
+            and anchor.stat().st_size > 0
+            and is_research_store_path(anchor)
+        )
+        if anchor_live:
             # S1: the rollback anchor is a research-store path by name but
             # must open as SQLite — the selector would redirect it to the
             # DuckDB sibling. Bypass the dispatch.
+            # A 0-byte anchor is NOT an anchor: a stray sqlite connect
+            # creates the file empty, and exporting schema from it would
+            # clobber the pinned DDL with a bare "PRAGMA foreign_keys=OFF;"
+            # (happened 2026-11-28 — treat as absent, same as integrity
+            # check).
             ac = _sqlite_connect(anchor, read_only=True)
             try:
                 schema_path.write_text(_export_sqlite_schema(ac))

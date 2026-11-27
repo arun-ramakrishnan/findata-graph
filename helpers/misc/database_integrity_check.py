@@ -316,13 +316,17 @@ class DatabaseIntegrityChecker:
             return self._conn
         # BUILD-route (P4): the SQLite research host is deleted; resolve to
         # the converted .duckdb sibling when the .db path no longer exists.
-        if not os.path.exists(self.db_path):
+        # A 0-byte file counts as ABSENT: sqlite3 open-create semantics (a
+        # missed resolution upstream, or the sqlite_scanner ATTACH below
+        # racing a deleted store) can mint an empty research.db, and taking
+        # it as present would read an empty store (S6 residue, 2026-11-28).
+        if not os.path.exists(self.db_path) or os.path.getsize(self.db_path) == 0:
             _path = Path(self.db_path)
             if _path.suffix.lower() == ".db":
                 _sibling = _path.with_suffix(".duckdb")
                 if _sibling.exists():
                     self.db_path = str(_sibling)
-            if not os.path.exists(self.db_path):
+            if not os.path.exists(self.db_path) or os.path.getsize(self.db_path) == 0:
                 raise FileNotFoundError(f"Database not found: {self.db_path}")
         # P0: route through central helper so FK/WAL/busy_timeout are canonical.
         # read_only: this checker only SELECTs, and on a DuckDB store a
