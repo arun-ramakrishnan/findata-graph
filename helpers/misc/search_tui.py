@@ -641,6 +641,50 @@ def _run_git(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[
     return hits, f"{len(hits)} hits · git_search {mode}"
 
 
+def parse_company_json(raw: str, limit: int) -> list[Hit]:
+    """Normalize ``company_query.py digest --json`` output into hits.
+
+    Company hits are typed-key digest POINTERS (proposal S5): ``path`` is
+    ``company:<ticker>`` / ``sector:<label>`` / ``group:<name>``; the status
+    string rides back as the lane status via _run_company."""
+    try:
+        data = jsonio.loads(raw)
+    except jsonio.JSONDecodeError:
+        return []
+    hits = []
+    for r in (data.get("results") or [])[:limit]:
+        hits.append(
+            Hit(
+                path=r.get("path", ""),
+                line=None,
+                title=r.get("title", ""),
+                section="",
+                snippet=r.get("snippet", ""),
+                score=r.get("score"),
+                lane="company",
+                kind=r.get("kind", "entity"),
+            )
+        )
+    return hits
+
+
+def _run_company(q: str, limit: int, mode: str = "hybrid", query_vec=None) -> tuple[list[Hit], str]:
+    """The opt-in ``company`` leg backend (master_query only, never a TUI
+    lane — LANES stay at 8). Reads the git-tracked snapshot via the
+    company_query digest subprocess; typed keys 1-5, no embedding, no
+    sidecar — age-guard exempt by construction."""
+    argv = [sys.executable, "helpers/research/company_query.py", "digest", q, "--limit", str(limit)]
+    raw = _run(argv)
+    if not raw.strip():
+        return [], "company digest unavailable — snapshot missing or company_query.py failed"
+    hits = parse_company_json(raw, limit)
+    try:
+        status = jsonio.loads(raw).get("status", f"{len(hits)} hits")
+    except jsonio.JSONDecodeError:
+        status = f"{len(hits)} hits"
+    return hits, status
+
+
 _LaneRunner = Callable[..., tuple[list[Hit], str]]
 
 _LANE_RUNNERS: dict[str, _LaneRunner] = {
@@ -652,6 +696,7 @@ _LANE_RUNNERS: dict[str, _LaneRunner] = {
     "git": _run_git,
     "code": _run_code,
     "literal": _run_literal,
+    "company": _run_company,
     # reports adapters live below (beside the other parse_*); resolve late.
     "reports": lambda q, limit, mode="hybrid", query_vec=None: _run_reports(  # noqa: E731
         q, limit, mode

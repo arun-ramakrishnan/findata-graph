@@ -19,6 +19,7 @@ Legs (default six, `--legs all` adds the stateless structure tools):
     memory  harness-memory pools zcode/prime/opencode (memory_query core)
     convo   harvested past-session corpus pointers (convo_query backend)
     gates   gate-run reports (the search_tui reports lane)
+    company composite company digest (typed-key pointer; company_query.py digest)
     maint   maintenance timing runs (maint_runs/phases: cmd/phase/summary match)
     code    ripwire --for= structure (stateless; --legs all)
     literal rg (stateless; --legs all)
@@ -80,6 +81,7 @@ _LEGS: dict[str, str] = {
     "git": "git",
     "gates": "reports",
     "reports": "reports",  # alias
+    "company": "company",
     "maint": "maint",
     "code": "code",
     "literal": "literal",
@@ -93,6 +95,7 @@ ALL_LEGS = (
     "convo",
     "git",
     "gates",
+    "company",
     "maint",
     "code",
     "literal",
@@ -164,7 +167,7 @@ def parse_legs(spec: str) -> list[str]:
     for n in names:
         if n not in _LEGS:
             raise ValueError(
-                f"unknown leg {n!r} (known: {', '.join(DEFAULT_LEGS)}, maint, code, literal, all)"
+                f"unknown leg {n!r} (known: {', '.join(DEFAULT_LEGS)}, company, maint, code, literal, all)"
             )
         if n not in legs:
             legs.append(n)
@@ -417,8 +420,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--legs",
         default=",".join(DEFAULT_LEGS),
-        help=f"comma list: {', '.join(DEFAULT_LEGS)}, code, literal, all "
-        "(default: the six corpus legs)",
+        help=f"comma list: {', '.join(DEFAULT_LEGS)}, company, maint, code, literal, all "
+        "(default: the seven corpus legs)",
     )
     p.add_argument("--limit", type=int, default=4, help="hits per leg (default 4)")
     p.add_argument(

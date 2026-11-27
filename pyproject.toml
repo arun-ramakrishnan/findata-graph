@@ -245,6 +245,10 @@ ignore = ["E501"]
 "helpers/misc/note_query.py" = ["S608"]
 "helpers/misc/convo_query.py" = ["S608"]
 "helpers/maintenance/rebuild_script_search.py" = ["S608"]
+# company_query.py: the composite analytics lane composes parameterized SQL —
+# every interpolation is a {t} table render from module-constant side/stem
+# (Sources.fetch) or a "?, ?, ?" placeholder builder; values always ?-bound.
+"helpers/research/company_query.py" = ["S608"]
 # tests/test_embed_cache.py: EMBED_CACHE_TABLE is a module constant; the
 # git/script query tests build "? IN" placeholder lists — values bound.
 "tests/test_embed_cache.py" = ["S608"]

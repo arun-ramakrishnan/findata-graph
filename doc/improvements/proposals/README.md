@@ -38,11 +38,27 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- *(none)* — exchange/ticker data update executed 2026-11-27 as completed.md
+- `company_composite_query.md` — filed 2026-11-27; read-only composite
+  company analytics helper taking one query string (company name,
+  sector/super_sector, ticker, ISIN or FIGI) with `snapshot`/`group`/`bulk`
+  verbs across DuckDB snapshots + live sources; S5 adds an opt-in typed-key
+  `master_query --legs company` digest leg (measured no-go as a default leg).
+
+- `exchange/ticker data` update executed 2026-11-27 as completed.md
   #576 (see the pipeline archive); the static-checks single-pass/cache sweep
   executed 2026-11-26 as completed.md #575 (see the tooling archive); the
   onager synthetic-edge Arrow materialization executed 2026-11-26 as
   completed.md #574 (see the graph archive). See the retired markers below.
+
+- *(archived 2026-11-27)* — `exchange_ticker_data_update` (pipeline/, filed +
+  executed 2026-11-27, completed.md #576 — exchange/ticker data update; JPX
+  `data_e.xlsx` lane landed; Yahoo-residue, ticker-hygiene, identifier
+  folding, source pinning, terminal classes).
+
+- *(archived 2026-11-26)* — the static-checks single-pass/cache sweep executed
+  as completed.md #575 (see the tooling archive); the onager synthetic-edge
+  Arrow materialization executed 2026-11-26 as completed.md #574 (see the
+  graph archive). See the retired markers below.
 
 - *(archived 2026-11-25)* — `rust_simd_cosine_hop_histogram` (graph/,
   filed + executed 2026-11-25, completed.md #572 — S1 fused SIMD per-row

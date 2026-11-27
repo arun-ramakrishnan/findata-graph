@@ -92,6 +92,80 @@ class TestParseLegs:
             mq.parse_legs("docs,nope")
 
 
+class TestCompanyLeg:
+    """The opt-in `company` leg: registered in ALL_LEGS but never in
+    DEFAULT_LEGS, no sidecar (age-guard exempt by construction), digest
+    backend parses company_query.py JSON into typed-key pointer hits."""
+
+    def test_opt_in_not_default(self):
+        assert "company" in mq.ALL_LEGS
+        assert "company" not in mq.DEFAULT_LEGS
+        assert mq.parse_legs("company") == ["company"]
+        assert mq.parse_legs("docs,company") == ["docs", "company"]
+
+    def test_age_guard_exempt(self):
+        assert "company" not in mq._SIDECAR_BY_LEG
+
+    def test_tui_lanes_unchanged(self):
+        from helpers.misc import search_tui as st
+
+        assert "company" in st._LANE_RUNNERS  # leg backend reachable
+        assert "company" not in st.LANES  # TUI lanes stay at 8
+
+    def test_parse_company_json_entity_hit(self):
+        from helpers.misc import search_tui as st
+
+        raw = json.dumps(
+            {
+                "query": "SBIN.NS",
+                "status": "1 hits",
+                "results": [
+                    {
+                        "path": "company:SBIN.NS",
+                        "title": "State Bank of India · Banking",
+                        "snippet": "mcap … run: company_query.py snapshot --ticker SBIN.NS",
+                        "score": 1.0,
+                        "kind": "company",
+                    }
+                ],
+            }
+        )
+        hits = st.parse_company_json(raw, 5)
+        assert len(hits) == 1
+        h = hits[0]
+        assert h.lane == "company" and h.kind == "company"
+        assert h.path == "company:SBIN.NS"
+        assert h.line is None
+
+    def test_parse_company_json_bad_payload_is_empty(self):
+        from helpers.misc import search_tui as st
+
+        assert st.parse_company_json("<stderr noise>", 5) == []
+
+    def test_company_leg_flows_through_fan_out(self):
+        from helpers.misc.search_tui import Hit as StHit
+
+        def runner(lane, query, limit, mode="hybrid", query_vec=None):
+            hit = StHit(
+                path="company:SBIN.NS",
+                line=None,
+                title="State Bank of India",
+                section="",
+                snippet="mcap",
+                score=1.0,
+                lane="company",
+                kind="company",
+            )
+            return ([hit], "1 hits") if lane == "company" else ([], "0 hits")
+
+        out = mq.fan_out("SBIN.NS", ["company", "docs"], 5, lane_runner=runner, parallel=False)
+        assert out["company"][0][0].path == "company:SBIN.NS"
+        assert out["company"][1] == "1 hits"
+        flat = mq.rrf_flat(out, 5)
+        assert flat[0]["leg"] == "company"
+        assert flat[0]["kind"] == "company"
+
+
 class TestFanOut:
     def test_all_legs_run_and_degrade_independently(self):
         out = mq.fan_out("q", ["docs", "convo"], 4, lane_runner=_fake_runner, parallel=False)

@@ -17,6 +17,7 @@ only way in.
 | vault notes (`findata/**`) | `helpers/misc/note_query.py` | `research.db` (`note_search`) |
 | harness memory (zcode/prime/opencode) | `helpers/misc/memory_query.py` | `memory_search.db` |
 | gate-run reports | `helpers/misc/gate_query.py` | `outputs/*_report.md` |
+| company data (typed keys, not ranked search) | `helpers/research/company_query.py` | snapshots + live stores |
 | code structure / callers | `ripwire` | offline binary |
 | why a process/file is busy | `witr` | live |
 
@@ -35,6 +36,8 @@ $Q/script_query.py "<task>" --kind script|test|make|mojo     # before grepping
 $Q/convo_query.py "hypergraph scaling ceiling" --limit 5     # --expand POINTER; --harness name; --kinds user,assistant,reasoning
 $Q/git_query.py "bili namespace routing" --since 30d
 $Q/memory_query.py "stg refresh scope" --kind zcode|prime|opencode
+.venv/bin/python3 helpers/research/company_query.py snapshot SBIN.NS  # ticker/ISIN/FIGI/CIN/sector/family/relation → 14 sections (doc/reference/company_query.md)
+.venv/bin/python3 helpers/misc/master_query.py "SBIN.NS" --legs company  # opt-in digest leg (not in the default seven)
 ```
 
 - doc/script/note hits are text locators (`path:line`) — Read only the
@@ -75,6 +78,29 @@ gate_query timing --leg <leg> --last 10              # where the time goes
   full ancestry (bare `witr <pid>` does NOT match PIDs — always -p).
 - gate_query indexes `outputs/*_report.md` (main +
   `outputs/wt/<name>/`) incrementally — query BEFORE tailing reports.
+
+## company_query
+
+```bash
+C=".venv/bin/python3 helpers/research/company_query.py"
+$C snapshot SBIN.NS                         # 14-section report (any key: ticker/ISIN/FIGI/CIN/name)
+$C group RELIANCE.NS                        # family/ownership/disclosed rosters + bounded relations
+$C bulk --index "NIFTY 50" --summary        # one aggregate row per numeric field
+$C digest SBIN.NS                           # typed-key JSON — the master_query leg backend
+$C resolve tata                             # key routing only (kind/key/entities/candidates)
+```
+
+- Typed-key EXACT lookup, not ranked search: identifier shapes are
+  decisive — a well-formed but unstored key is `not in store` (exit 1),
+  never a silent fall-through to fuzzy matching. Legs answer "where is
+  X written"; this answers "what do we have ON X".
+- Live-first: served stores route over the quack wire
+  (`connect_shared`), unserved ones attach read-only, snapshot parquet
+  is the last resort — the digest envelope names the per-domain source
+  (`research=live graph=wire`).
+- Opt-in master leg (`master_query.py "SBIN.NS" --legs company`, TUI
+  lane 8) — NOT in the default seven. Full contract:
+  `doc/reference/company_query.md`.
 
 ## Thesis first — search before you claim
 

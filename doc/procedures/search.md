@@ -330,17 +330,22 @@ results — the grand-unified client (the settled #229 doctrine:
 unification lives in the CLIENT; per-leg ranking is never blended —
 the score spaces are incomparable). Backends are the search_tui lane
 adapters (`run_lane`), so the CLI owns no backend logic. Legs: `docs`,
-`notes`, `scripts`, `memory`, `convo`, `gates` (default six) +
-`code` (ripwire) and `literal` (rg) via `--legs all`. Every leg
-degrades independently (missing sidecar = that leg's status, never a
+`notes`, `scripts`, `memory`, `convo`, `git`, `gates` (default seven) +
+`code` (ripwire) and `literal` (rg) via `--legs all`, plus the opt-in
+`company` leg — typed-key digest POINTERS over the company composite
+(`helpers/research/company_query.py`, doc/reference/company_query.md;
+entity/set digest snippets ending in the composite command to run, no
+sidecar, age-guard exempt, honest `0 hits` when the key misses). Every
+leg degrades independently (missing sidecar = that leg's status, never a
 failed query).
 
 ```bash
-.venv/bin/python3 helpers/misc/master_query.py "embed cache"           # all six corpus legs
+.venv/bin/python3 helpers/misc/master_query.py "embed cache"           # all seven corpus legs
 .venv/bin/python3 helpers/misc/master_query.py "stg refresh" --legs memory,convo
 .venv/bin/python3 helpers/misc/master_query.py "integrity" --flat      # + rank-RRF reading order
 .venv/bin/python3 helpers/misc/master_query.py "graph rebuild" --age-guard 12  # skip stale-index legs
 .venv/bin/python3 helpers/misc/master_query.py "graph rebuild" --json  # structured, per-leg
+.venv/bin/python3 helpers/misc/master_query.py "SBIN.NS" --legs company  # typed-key digest pointers
 ```
 
 `--flat` is the ONE cross-leg blend, and it is rank-based only: RRF
