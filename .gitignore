@@ -157,10 +157,13 @@ findata/Misc/_pending_suggestions.txt
 findata/Misc/_pending_triage_report.md
 findata/Misc/_pending_triage_decisions.jsonl
 
-# Large derived parquet artifacts - rebuilt locally on every db-sync; tracked
-# copies burned ~85 MB of repo history per refresh (GH warns 50 MB, blocks 100 MB)
+# Large derived parquet artifacts - rebuilt locally on every db-sync; not tracked
+# (GH warns at 50 MB, blocks at 100 MB; tracked copies burn repo history)
 snapshots/parquet/sqlite/note_search_content.parquet
 snapshots/parquet/duckdb/v_note_embeddings.parquet
+snapshots/parquet/note/note_search.parquet
+snapshots/parquet/sources/rpt_transactions.parquet
+snapshots/parquet/sqlite/graph_analytics.parquet
 
 # Hypergraph data benchmark pulls (proposal S20; machine-local, NOT for git;
 # original sources on Google Drive per cs.cornell.edu/~arb/data pages).
