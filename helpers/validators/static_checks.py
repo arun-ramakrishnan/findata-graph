@@ -2285,6 +2285,8 @@ def _residue_idiom_findings(py: Path) -> list[str]:  # noqa: C901
     src_lines = src.splitlines()
     for node in string_nodes:
         value = node.value
+        if not isinstance(value, str):
+            continue  # collector admits only str Constants; narrow for ty
         if id(node) in docstrings:
             continue
         base_line = node.lineno - 1

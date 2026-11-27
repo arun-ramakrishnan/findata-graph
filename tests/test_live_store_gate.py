@@ -33,7 +33,6 @@ _ALLOWED: dict[str, str] = {
     "bench_rebuild_scale.py": "manual SQLite->DuckDB rebuild bench (no perf leg)",
     # Hermetic tmp project roots that merely spell the layout.
     "test_integration_parse_newsletter.py": "hermetic tmp project root (root = tmp_path)",
-    "test_store_sweep.py": "hermetic sweep-repo fixture",
 }
 
 #: The two code spellings of the live path.

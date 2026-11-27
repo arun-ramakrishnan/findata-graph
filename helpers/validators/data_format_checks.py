@@ -101,19 +101,6 @@ def _has_zstd_kw(call: ast.Call) -> bool:
     return False
 
 
-def _has_zstd_kw(call: ast.Call) -> bool:
-    for kw in call.keywords:
-        if kw.arg == "compression":
-            v = kw.value
-            if (
-                isinstance(v, ast.Constant)
-                and isinstance(v.value, str)
-                and v.value.lower() == "zstd"
-            ):
-                return True
-    return False
-
-
 def _joined_str_text(node: ast.JoinedStr) -> str:
     """Reconstruct an f-string's literal parts (values are unknowable)."""
     return "".join(
@@ -189,7 +176,7 @@ def scan_zstd_violations(scope: set[Path] | None = None) -> dict[str, str]:  # n
                 text = node.value
             elif isinstance(node, ast.JoinedStr):
                 text = _joined_str_text(node)
-            else:
+            elif isinstance(node, ast.Call):
                 f = node.func
                 name = (
                     f.attr
